@@ -40,6 +40,7 @@ func InitTrack() (opentracing.Tracer, io.Closer) {
 
 func StartSpan(tracer opentracing.Tracer, name string) opentracing.Span {
 	// 设置顶级span
+	fmt.Printf("Starting span: %s\n", name)
 	span := tracer.StartSpan(name)
 	return span
 }

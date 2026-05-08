@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	conf "github.com/YasinDoyle/e-mall/config"
-	// "github.com/YasinDoyle/e-mall/repository/cache"
+	"github.com/YasinDoyle/e-mall/repository/cache"
+	"github.com/YasinDoyle/e-mall/repository/db/dao"
+
 	// "github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/es"
 	// "github.com/YasinDoyle/e-mall/repository/kafka"
@@ -25,12 +27,13 @@ func main() {
 
 func loading() {
 	conf.InitConfig()
-	// dao.InitMysql()
-	// cache.InitCache()
+	dao.InitMysql()
+	cache.InitCache()
 	// rabbitmq.InitRabbitMQ()
 	es.InitES()
 	// kafka.InitKafka()
 	track.InitTrack()
+
 	log.InitLogger()
 	fmt.Println("加载配置完成...")
 	go startScript()
