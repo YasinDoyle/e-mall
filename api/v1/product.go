@@ -134,6 +134,9 @@ func SearchProductsHandler() gin.HandlerFunc {
 		if req.PageSize == 0 {
 			req.PageSize = consts.BasePageSize
 		}
+		if req.PageNum == 0 {
+			req.PageNum = 1
+		}
 
 		l := service.GetProductSrv()
 		resp, err := l.ProductSearch(ctx.Request.Context(), &req)

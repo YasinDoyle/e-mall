@@ -104,6 +104,9 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		log.LogrusObj.Error(err)
 		return
 	}
+	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
+		log.LogrusObj.Errorln(syncErr)
+	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(len(files))
@@ -191,6 +194,9 @@ func (s *ProductSrv) ProductDelete(ctx context.Context, req *types.ProductDelete
 		log.LogrusObj.Error(err)
 		return
 	}
+	if syncErr := GetProductIndexSrv().DeleteProduct(ctx, req.ID); syncErr != nil {
+		log.LogrusObj.Errorln(syncErr)
+	}
 	return
 }
 
@@ -211,12 +217,37 @@ func (s *ProductSrv) ProductUpdate(ctx context.Context, req *types.ProductUpdate
 		log.LogrusObj.Error(err)
 		return
 	}
+	product, err = dao.NewProductDao(ctx).ShowProductById(req.ID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
+		log.LogrusObj.Errorln(syncErr)
+	}
 
 	return
 }
 
 // 搜索商品 TODO 后续用脚本同步数据MySQL到ES，用ES进行搜索
 func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearchReq) (resp interface{}, err error) {
+	req.BasePage = normalizeProductPage(req.BasePage)
+	if products, count, searchErr := GetProductIndexSrv().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
+		for _, p := range products {
+			if conf.Config.System.UploadModel == consts.UploadModelLocal {
+				p.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + p.BossAvatar
+				p.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + p.ImgPath
+			}
+		}
+		resp = &types.DataListResp{
+			Item:  products,
+			Total: count,
+		}
+		return
+	} else {
+		log.LogrusObj.Errorln(searchErr)
+	}
+
 	products, count, err := dao.NewProductDao(ctx).SearchProduct(req.Info, req.BasePage)
 	if err != nil {
 		log.LogrusObj.Error(err)
@@ -255,6 +286,16 @@ func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearch
 	}
 
 	return
+}
+
+func normalizeProductPage(page types.BasePage) types.BasePage {
+	if page.PageNum <= 0 {
+		page.PageNum = 1
+	}
+	if page.PageSize <= 0 {
+		page.PageSize = consts.BasePageSize
+	}
+	return page
 }
 
 // ProductImgList 获取商品列表图片
