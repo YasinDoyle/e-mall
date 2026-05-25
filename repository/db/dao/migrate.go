@@ -10,8 +10,8 @@ func migrate() (err error) {
 			&model.Order{}, &model.Admin{}, &model.Address{},
 			&model.Cart{}, &model.Category{}, &model.Carousel{},
 			&model.Notice{}, &model.Notice{}, &model.Product{},
-			&model.ProductImg{}, &model.SkillProduct{},
-			&model.SkillProduct2MQ{},
+			&model.ProductImg{}, &model.FlashSale{},
+			&model.FlashSale2MQ{},
 		)
 	return
 }

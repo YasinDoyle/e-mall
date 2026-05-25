@@ -85,10 +85,10 @@ func NewRouter() *gin.Engine {
 			authed.POST("money", api.ShowMoneyHandler())
 
 			// 秒杀专场
-			authed.POST("skill_product/init", api.InitSkillProductHandler())
-			authed.GET("skill_product/list", api.ListSkillProductHandler())
-			authed.GET("skill_product/show", api.GetSkillProductHandler())
-			authed.POST("skill_product/skill", api.SkillProductHandler())
+			authed.POST("flash_sale/init", api.InitFlashSaleHandler())
+			authed.GET("flash_sale/list", api.ListFlashSaleHandler())
+			authed.GET("flash_sale/show", api.GetFlashSaleHandler())
+			authed.POST("flash_sale/skill", api.FlashSaleHandler())
 		}
 
 	}
