@@ -11,7 +11,7 @@ import (
 )
 
 type CartDao struct {
-	DB *gorm.DB
+	*gorm.DB
 }
 
 func NewCartDao(ctx context.Context) *CartDao {

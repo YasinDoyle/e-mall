@@ -9,7 +9,7 @@ import (
 )
 
 type CategoryDao struct {
-	DB *gorm.DB
+	*gorm.DB
 }
 
 func NewCategoryDao(ctx context.Context) *CategoryDao {

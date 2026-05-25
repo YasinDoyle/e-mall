@@ -10,7 +10,7 @@ import (
 )
 
 type ProductDao struct {
-	DB *gorm.DB
+	*gorm.DB
 }
 
 func NewProductDao(ctx context.Context) *ProductDao {

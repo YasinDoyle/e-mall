@@ -9,18 +9,18 @@ import (
 )
 
 type UserDao struct {
-	DB *gorm.DB
+	*gorm.DB
 }
 
 func NewUserDao(ctx context.Context) *UserDao {
 	return &UserDao{
-		DB: NewDBClient(ctx),
+		NewDBClient(ctx),
 	}
 }
 
 func NewUserDaoByDB(db *gorm.DB) *UserDao {
 	return &UserDao{
-		DB: db,
+		db,
 	}
 }
 

@@ -10,12 +10,12 @@ import (
 )
 
 type OrderDao struct {
-	DB *gorm.DB
+	*gorm.DB
 }
 
 func NewOrderDao(ctx context.Context) *OrderDao {
 	return &OrderDao{
-		DB: NewDBClient(ctx),
+		NewDBClient(ctx),
 	}
 }
 
