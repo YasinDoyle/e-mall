@@ -2,10 +2,13 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -13,6 +16,7 @@ import (
 	"gorm.io/plugin/dbresolver"
 
 	conf "github.com/YasinDoyle/e-mall/config"
+	trackutil "github.com/YasinDoyle/e-mall/utils/track"
 )
 
 var (
@@ -64,9 +68,60 @@ func InitMysql() {
 	if err != nil {
 		panic(err)
 	}
+	registerTracingCallbacks(_db)
 }
 
 func NewDBClient(ctx context.Context) *gorm.DB {
 	db := _db
 	return db.WithContext(ctx)
+}
+
+const gormTraceSpanKey = "trace:span"
+
+func registerTracingCallbacks(db *gorm.DB) {
+	registerTraceCallback(db, "query", db.Callback().Query().Before("gorm:query"), db.Callback().Query().After("gorm:after_query"))
+	registerTraceCallback(db, "create", db.Callback().Create().Before("gorm:create"), db.Callback().Create().After("gorm:after_create"))
+	registerTraceCallback(db, "update", db.Callback().Update().Before("gorm:update"), db.Callback().Update().After("gorm:after_update"))
+	registerTraceCallback(db, "delete", db.Callback().Delete().Before("gorm:delete"), db.Callback().Delete().After("gorm:after_delete"))
+	registerTraceCallback(db, "row", db.Callback().Row().Before("gorm:row"), db.Callback().Row().After("gorm:row"))
+	registerTraceCallback(db, "raw", db.Callback().Raw().Before("gorm:raw"), db.Callback().Raw().After("gorm:raw"))
+}
+
+type gormTraceRegistrar interface {
+	Register(name string, fn func(*gorm.DB)) error
+}
+
+func registerTraceCallback(db *gorm.DB, operation string, before gormTraceRegistrar, after gormTraceRegistrar) {
+	beforeName := fmt.Sprintf("trace:%s:before", operation)
+	afterName := fmt.Sprintf("trace:%s:after", operation)
+
+	_ = before.Register(beforeName, func(tx *gorm.DB) {
+		ctx := tx.Statement.Context
+		if ctx == nil || opentracing.SpanFromContext(ctx) == nil {
+			return
+		}
+
+		spanName := fmt.Sprintf("db.%s.%s", operation, tx.Statement.Table)
+		span, spanCtx := trackutil.WithSpan(ctx, spanName)
+		tx.Statement.Context = spanCtx
+		tx.InstanceSet(gormTraceSpanKey, span)
+	})
+
+	_ = after.Register(afterName, func(tx *gorm.DB) {
+		spanValue, ok := tx.InstanceGet(gormTraceSpanKey)
+		if !ok {
+			return
+		}
+
+		span, ok := spanValue.(opentracing.Span)
+		if !ok {
+			return
+		}
+
+		if tx.Error != nil {
+			ext.Error.Set(span, true)
+			span.SetTag("error.message", tx.Error.Error())
+		}
+		span.Finish()
+	})
 }

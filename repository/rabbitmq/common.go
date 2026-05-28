@@ -1,14 +1,17 @@
 package rabbitmq
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 
+	"github.com/opentracing/opentracing-go/ext"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	conf "github.com/YasinDoyle/e-mall/config"
 	log "github.com/YasinDoyle/e-mall/utils/log"
+	trackutil "github.com/YasinDoyle/e-mall/utils/track"
 )
 
 var (
@@ -58,7 +61,7 @@ func InitRabbitMQ() {
 	channel = ch
 }
 
-func PublishJSON(queue string, payload interface{}) error {
+func PublishJSON(ctx context.Context, queue string, payload interface{}) error {
 	if channel == nil {
 		InitRabbitMQ()
 	}
@@ -66,9 +69,22 @@ func PublishJSON(queue string, payload interface{}) error {
 		return fmt.Errorf("rabbitmq unavailable")
 	}
 
+	span, _ := trackutil.WithSpan(ctx, fmt.Sprintf("rabbitmq.publish.%s", queue))
+	defer span.Finish()
+
 	body, err := json.Marshal(payload)
 	if err != nil {
+		ext.Error.Set(span, true)
+		span.SetTag("error.message", err.Error())
 		return err
+	}
+
+	headers := amqp.Table{}
+	carrier, err := trackutil.GetTextMapCarrier(span)
+	if err == nil {
+		for key, value := range carrier {
+			headers[key] = value
+		}
 	}
 
 	mu.Lock()
@@ -76,12 +92,20 @@ func PublishJSON(queue string, payload interface{}) error {
 
 	_, err = channel.QueueDeclare(queue, true, false, false, false, nil)
 	if err != nil {
+		ext.Error.Set(span, true)
+		span.SetTag("error.message", err.Error())
 		return err
 	}
 
-	return channel.Publish("", queue, false, false, amqp.Publishing{
+	err = channel.Publish("", queue, false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
+		Headers:      headers,
 		Body:         body,
 	})
+	if err != nil {
+		ext.Error.Set(span, true)
+		span.SetTag("error.message", err.Error())
+	}
+	return err
 }

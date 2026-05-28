@@ -177,7 +177,7 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 		return
 	}
 	if paidEvent != nil {
-		if publishErr := rabbitmq.PublishJSON(consts.OrderPaidQueue, paidEvent); publishErr != nil {
+		if publishErr := rabbitmq.PublishJSON(ctx, consts.OrderPaidQueue, paidEvent); publishErr != nil {
 			log.LogrusObj.Error(publishErr)
 		}
 	}

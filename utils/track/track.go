@@ -39,15 +39,29 @@ func InitTrack() (opentracing.Tracer, io.Closer) {
 }
 
 func StartSpan(tracer opentracing.Tracer, name string) opentracing.Span {
-	// 设置顶级span
-	fmt.Printf("Starting span: %s\n", name)
-	span := tracer.StartSpan(name)
-	return span
+	return tracer.StartSpan(name)
 }
 
 func WithSpan(ctx context.Context, name string) (opentracing.Span, context.Context) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, name)
 	return span, ctx
+}
+
+func StartRequestSpan(ctx context.Context, name string, header http.Header) (opentracing.Span, context.Context, error) {
+	tracer := opentracing.GlobalTracer()
+	wireContext, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(header))
+	if err != nil && err != opentracing.ErrSpanContextNotFound {
+		return nil, ctx, err
+	}
+
+	var span opentracing.Span
+	if err == nil {
+		span = tracer.StartSpan(name, ext.RPCServerOption(wireContext))
+	} else {
+		span = tracer.StartSpan(name)
+	}
+
+	return span, opentracing.ContextWithSpan(ctx, span), nil
 }
 
 func GetCarrier(span opentracing.Span) (opentracing.HTTPHeadersCarrier, error) {
@@ -59,21 +73,29 @@ func GetCarrier(span opentracing.Span) (opentracing.HTTPHeadersCarrier, error) {
 	return carrier, nil
 }
 
-func GetParentSpan(spanName string, traceId string, header http.Header) (opentracing.Span, error) {
-	carrier := opentracing.HTTPHeadersCarrier{}
-	carrier.Set("uber-trace-id", traceId)
-
-	tracer := opentracing.GlobalTracer()
-	wireContext, err := tracer.Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(header),
-	)
-
-	parentSpan := opentracing.StartSpan(
-		spanName,
-		ext.RPCServerOption(wireContext))
+func GetTextMapCarrier(span opentracing.Span) (opentracing.TextMapCarrier, error) {
+	carrier := opentracing.TextMapCarrier{}
+	err := span.Tracer().Inject(span.Context(), opentracing.TextMap, carrier)
 	if err != nil {
 		return nil, err
 	}
-	return parentSpan, err
+	return carrier, nil
+}
+
+func GetParentSpan(spanName string, traceId string, header http.Header) (opentracing.Span, error) {
+	if traceId != "" {
+		header.Set("uber-trace-id", traceId)
+	}
+
+	span, _, err := StartRequestSpan(context.Background(), spanName, header)
+	return span, err
+}
+
+func TraceIDFromSpanContext(spanCtx any) (string, error) {
+	ctx, ok := spanCtx.(jaeger.SpanContext)
+	if !ok {
+		return "", fmt.Errorf("invalid span context type %T", spanCtx)
+	}
+
+	return ctx.TraceID().String(), nil
 }

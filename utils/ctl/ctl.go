@@ -2,13 +2,12 @@ package ctl
 
 import (
 	"errors"
-	"fmt"
-	"regexp"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/utils/e"
+	"github.com/YasinDoyle/e-mall/utils/track"
 )
 
 type Response struct {
@@ -60,12 +59,9 @@ func RespError(c *gin.Context, err error, data string, code ...int) *Response {
 
 func getTrackIdFromCtx(c *gin.Context) (trackId string, err error) {
 	spanCtxInterface, _ := c.Get(consts.SpanCTX)
-	str := fmt.Sprintf("%v", spanCtxInterface)
-	re := regexp.MustCompile(`([0-9a-fA-F]{16})`)
-
-	match := re.FindStringSubmatch(str)
-	if len(match) > 0 {
-		return match[1], nil
+	if spanCtxInterface == nil {
+		return "", errors.New("获取 track id 错误")
 	}
-	return "", errors.New("获取 track id 错误")
+
+	return track.TraceIDFromSpanContext(spanCtxInterface)
 }
