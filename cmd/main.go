@@ -9,8 +9,8 @@ import (
 
 	// "github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/es"
-	// "github.com/YasinDoyle/e-mall/repository/kafka"
-	// "github.com/YasinDoyle/e-mall/repository/rabbitmq"
+	"github.com/YasinDoyle/e-mall/repository/kafka"
+	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
 	"github.com/YasinDoyle/e-mall/routes"
 	log "github.com/YasinDoyle/e-mall/utils/log"
 	"github.com/YasinDoyle/e-mall/utils/track"
@@ -29,9 +29,9 @@ func loading() {
 	conf.InitConfig()
 	dao.InitMysql()
 	cache.InitCache()
-	// rabbitmq.InitRabbitMQ()
+	rabbitmq.InitRabbitMQ()
 	es.InitES()
-	// kafka.InitKafka()
+	kafka.InitKafka()
 	track.InitTrack()
 
 	log.InitLogger()

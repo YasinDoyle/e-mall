@@ -64,6 +64,8 @@ func NewRouter() *gin.Engine {
 			authed.GET("orders/list", api.ListOrdersHandler())
 			authed.GET("orders/show", api.ShowOrderHandler())
 			authed.POST("orders/delete", api.DeleteOrderHandler())
+			authed.POST("orders/ship", api.ShipOrderHandler())
+			authed.POST("orders/receive", api.ReceiveOrderHandler())
 
 			// 购物车
 			authed.POST("carts/create", api.CreateCartHandler())

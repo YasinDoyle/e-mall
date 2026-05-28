@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 
 	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
@@ -134,6 +136,44 @@ func (s *OrderSrv) OrderDelete(ctx context.Context, req *types.OrderDeleteReq) (
 	}
 	err = dao.NewOrderDao(ctx).DeleteOrderById(req.OrderId, u.Id)
 	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return
+}
+
+func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	err = dao.NewOrderDao(ctx).UpdateOrderTypeByBoss(req.OrderId, u.Id, consts.OrderTypePendingShipping, consts.OrderTypeShipping)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("订单状态不允许发货")
+		}
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return
+}
+
+func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	err = dao.NewOrderDao(ctx).UpdateOrderTypeByUser(req.OrderId, u.Id, consts.OrderTypeShipping, consts.OrderTypeReceipt)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("订单状态不允许收货")
+		}
 		util.LogrusObj.Error(err)
 		return nil, err
 	}

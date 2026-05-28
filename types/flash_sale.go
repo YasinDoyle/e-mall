@@ -19,3 +19,10 @@ type ListFlashSaleReq struct {
 type GetFlashSaleReq struct {
 	ProductId uint `json:"product_id" form:"product_id"`
 }
+
+type FlashSaleResp struct {
+	ProductId      uint   `json:"product_id"`
+	UserId         uint   `json:"user_id"`
+	RemainingStock int64  `json:"remaining_stock"`
+	Status         string `json:"status"`
+}

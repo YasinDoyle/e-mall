@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
+	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/log"
@@ -38,6 +40,7 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	var paidEvent *types.OrderPaidEvent
 	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
 		uId := u.Id
 
@@ -46,9 +49,35 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			log.LogrusObj.Error(err)
 			return err
 		}
+		if payment.Type != consts.OrderTypeUnPaid {
+			return errors.New("订单已支付或状态不允许支付")
+		}
+
+		paidAt := time.Now()
+		err = dao.NewOrderDaoByDB(tx).UpdateOrderPaidById(req.OrderId, uId, paidAt)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("订单已支付或状态不允许支付")
+			}
+			log.LogrusObj.Error(err)
+			return err
+		}
+		payment.Type = consts.OrderTypePendingShipping
+		payment.PaidAt = &paidAt
+
 		money := payment.Money
 		num := payment.Num
 		money = money * float64(num)
+		paidEvent = &types.OrderPaidEvent{
+			OrderID:     payment.ID,
+			OrderNum:    payment.OrderNum,
+			UserID:      payment.UserID,
+			BossID:      payment.BossID,
+			ProductID:   payment.ProductID,
+			Num:         payment.Num,
+			TotalAmount: money,
+			PaidAt:      paidAt,
+		}
 
 		userDao := dao.NewUserDaoByDB(tx)
 		user, err := userDao.GetUserById(uId)
@@ -109,17 +138,11 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			log.LogrusObj.Error(err)
 			return err
 		}
-		product.Num -= num
-		err = productDao.UpdateProduct(uint(req.ProductID), product)
+		err = productDao.DecreaseStock(uint(req.ProductID), num)
 		if err != nil { // 更新商品数量减少失败，回滚
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		// 更新订单状态
-		payment.Type = consts.OrderTypePendingShipping
-		err = dao.NewOrderDaoByDB(tx).UpdateOrderById(req.OrderId, uId, payment)
-		if err != nil { // 更新订单失败，回滚
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("库存不足")
+			}
 			log.LogrusObj.Error(err)
 			return err
 		}
@@ -152,6 +175,11 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 	if err != nil {
 		log.LogrusObj.Error(err)
 		return
+	}
+	if paidEvent != nil {
+		if publishErr := rabbitmq.PublishJSON(consts.OrderPaidQueue, paidEvent); publishErr != nil {
+			log.LogrusObj.Error(publishErr)
+		}
 	}
 
 	return

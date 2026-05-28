@@ -38,6 +38,14 @@ type OrderDeleteReq struct {
 	OrderId uint `json:"order_id" form:"order_id"`
 }
 
+type OrderShipReq struct {
+	OrderId uint `json:"order_id" form:"order_id"`
+}
+
+type OrderReceiveReq struct {
+	OrderId uint `json:"order_id" form:"order_id"`
+}
+
 type OrderListResp struct {
 	ID            uint   `json:"id"`
 	OrderNum      uint64 `json:"order_num"`

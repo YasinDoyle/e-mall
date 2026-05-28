@@ -7,6 +7,8 @@ const (
 	OrderTypeReceipt
 )
 
+const OrderPaidQueue = "rabbitmq-order-paid-queue"
+
 var OrderTypeMap = map[int]string{
 	OrderTypeUnPaid:          "未支付",
 	OrderTypePendingShipping: "已支付，待发货",

@@ -72,6 +72,20 @@ func (dao *ProductDao) UpdateProduct(pId uint, product *model.Product) error {
 		Where("id=?", pId).Updates(&product).Error
 }
 
+func (dao *ProductDao) DecreaseStock(pId uint, count int) error {
+	result := dao.DB.Model(&model.Product{}).
+		Where("id = ? AND num >= ?", pId, count).
+		UpdateColumn("num", gorm.Expr("num - ?", count))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 // SearchProduct 搜索商品
 func (dao *ProductDao) SearchProduct(info string, page types.BasePage) (products []*model.Product, count int64, err error) {
 	err = dao.DB.Model(&model.Product{}).

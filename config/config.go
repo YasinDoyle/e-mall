@@ -17,7 +17,7 @@ type Conf struct {
 	Redis         *Redis                  `yaml:"redis"`
 	EncryptSecret *EncryptSecret          `yaml:"encryptSecret"`
 	Cache         *Cache                  `yaml:"cache"`
-	KafKa         map[string]*KafkaConfig `yaml:"kafKa"`
+	KafKa         map[string]*KafkaConfig `yaml:"kafka"`
 	RabbitMq      *RabbitMq               `yaml:"rabbitMq"`
 	Es            *Es                     `yaml:"es"`
 	PhotoPath     *LocalPhotoPath         `yaml:"photoPath"`

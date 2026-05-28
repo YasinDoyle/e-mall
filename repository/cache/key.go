@@ -7,10 +7,11 @@ import (
 
 const (
 	// RankKey 每日排名
-	RankKey          = "rank"
-	FlashSaleKey     = "skill:product:%d"
-	FlashSaleListKey = "skill:product_list"
-	FlashSaleUserKey = "skill:user:%s"
+	RankKey           = "rank"
+	FlashSaleKey      = "skill:product:%d"
+	FlashSaleListKey  = "skill:product_list"
+	FlashSaleStockKey = "skill:stock:%d"
+	FlashSaleUserKey  = "skill:user:%s"
 )
 
 func ProductViewKey(id uint) string {

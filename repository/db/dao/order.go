@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -109,4 +110,49 @@ func (dao *OrderDao) DeleteOrderById(id, uId uint) error {
 func (dao *OrderDao) UpdateOrderById(id, uId uint, order *model.Order) error {
 	return dao.DB.Where("id = ? AND user_id = ?", id, uId).
 		Updates(order).Error
+}
+
+func (dao *OrderDao) UpdateOrderPaidById(id, uId uint, paidAt time.Time) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, 1).
+		Updates(map[string]interface{}{
+			"type":    2,
+			"paid_at": paidAt,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) UpdateOrderTypeByBoss(id, bossId, fromType, toType uint) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND boss_id = ? AND type = ?", id, bossId, fromType).
+		Update("type", toType)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) UpdateOrderTypeByUser(id, uId, fromType, toType uint) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, fromType).
+		Update("type", toType)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
