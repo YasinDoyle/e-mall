@@ -156,3 +156,8 @@ func (dao *OrderDao) UpdateOrderTypeByUser(id, uId, fromType, toType uint) error
 
 	return nil
 }
+
+func (dao *OrderDao) DeleteUnpaidOrderByOrderNum(orderNum uint64) error {
+	return dao.DB.Where("order_num = ? AND type = ?", orderNum, 1).
+		Delete(&model.Order{}).Error
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	conf "github.com/YasinDoyle/e-mall/config"
@@ -12,6 +13,7 @@ import (
 	"github.com/YasinDoyle/e-mall/repository/kafka"
 	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
 	"github.com/YasinDoyle/e-mall/routes"
+	"github.com/YasinDoyle/e-mall/service"
 	log "github.com/YasinDoyle/e-mall/utils/log"
 	"github.com/YasinDoyle/e-mall/utils/track"
 
@@ -40,5 +42,5 @@ func loading() {
 }
 
 func startScript() {
-	// 这里可以放一些启动时需要执行的脚本，比如数据迁移、定时任务等
+	service.StartOrderTimeoutWorker(context.Background())
 }

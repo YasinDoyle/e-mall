@@ -23,6 +23,7 @@ import (
 )
 
 const OrderTimeKey = "OrderTime"
+const orderTimeoutScanInterval = 5 * time.Second
 
 var OrderSrvIns *OrderSrv
 var OrderSrvOnce sync.Once
@@ -81,6 +82,55 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 	cache.RedisClient.ZAdd(cache.RedisContext, OrderTimeKey, data)
 
 	return
+}
+
+func StartOrderTimeoutWorker(ctx context.Context) {
+	ticker := time.NewTicker(orderTimeoutScanInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			consumeExpiredOrders(ctx)
+		}
+	}
+}
+
+func consumeExpiredOrders(ctx context.Context) {
+	orderNums, err := cache.RedisClient.ZRangeByScore(ctx, OrderTimeKey, &redis.ZRangeBy{
+		Min:   "-inf",
+		Max:   strconv.FormatInt(time.Now().Unix(), 10),
+		Count: 50,
+	}).Result()
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return
+	}
+
+	if len(orderNums) == 0 {
+		return
+	}
+
+	orderDao := dao.NewOrderDao(ctx)
+	for _, orderNumStr := range orderNums {
+		orderNum, parseErr := strconv.ParseUint(orderNumStr, 10, 64)
+		if parseErr != nil {
+			util.LogrusObj.Error(parseErr)
+			_ = cache.RedisClient.ZRem(ctx, OrderTimeKey, orderNumStr).Err()
+			continue
+		}
+
+		if err = orderDao.DeleteUnpaidOrderByOrderNum(orderNum); err != nil {
+			util.LogrusObj.Error(err)
+			continue
+		}
+
+		if err = cache.RedisClient.ZRem(ctx, OrderTimeKey, orderNumStr).Err(); err != nil {
+			util.LogrusObj.Error(err)
+		}
+	}
 }
 
 func (s *OrderSrv) OrderList(ctx context.Context, req *types.OrderListReq) (resp interface{}, err error) {
