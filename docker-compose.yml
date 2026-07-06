@@ -1,5 +1,3 @@
-version: "3.7"
-
 networks:
   mall:
     driver: bridge
@@ -87,7 +85,7 @@ services:
       - mall
 
   kafka:
-    image: bitnami/kafka:3.7
+    image: apache/kafka:latest
     container_name: kafka
     ports:
       - "9092:9092"
