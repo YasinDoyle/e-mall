@@ -11,8 +11,12 @@ const request = axios.create({
 request.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
+    const refreshToken = localStorage.getItem("refreshToken");
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers["access_token"] = token;
+    }
+    if (refreshToken) {
+      config.headers["refresh_token"] = refreshToken;
     }
     return config;
   },
@@ -28,11 +32,18 @@ request.interceptors.response.use(
       ElMessage.error(data.msg || "请求失败");
       return Promise.reject(new Error(data.msg || "请求失败"));
     }
+    if (response.headers["access_token"]) {
+      localStorage.setItem("token", response.headers["access_token"]);
+    }
+    if (response.headers["refresh_token"]) {
+      localStorage.setItem("refreshToken", response.headers["refresh_token"]);
+    }
     return data;
   },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("userInfo");
       router.push("/login");
       ElMessage.error("登录已过期，请重新登录");

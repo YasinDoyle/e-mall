@@ -58,7 +58,9 @@ async function handleLogin() {
   loading.value = true;
   try {
     const res: any = await userLogin(form);
-    userStore.setToken(res.data.token);
+    // 后端返回字段为 access_token / refresh_token
+    userStore.setToken(res.data.access_token);
+    localStorage.setItem("refreshToken", res.data.refresh_token);
     const infoRes: any = await getUserInfo();
     userStore.setUserInfo(infoRes.data);
     const redirect = (route.query.redirect as string) || "/";
