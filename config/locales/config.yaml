@@ -6,6 +6,11 @@ system:
   Host: "localhost"
   UploadModel: "local"
 
+admin:
+  userName: "admin"
+  password: "admin123456"
+  nickName: "超级管理员"
+
 mysql:
   default:
     dialect: "mysql"

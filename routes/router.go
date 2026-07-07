@@ -93,6 +93,33 @@ func NewRouter() *gin.Engine {
 			authed.POST("flash_sale/skill", api.FlashSaleHandler())
 		}
 
+		// 管理员路由（需登录 + IsAdmin）
+		admin := v1.Group("/admin")
+		admin.Use(middleware.AuthMiddleware(), middleware.AdminAuthMiddleware())
+		{
+			// 分类管理
+			admin.POST("category/create", api.AdminCategoryCreateHandler())
+			admin.POST("category/update", api.AdminCategoryUpdateHandler())
+			admin.POST("category/delete", api.AdminCategoryDeleteHandler())
+
+			// 轮播图管理
+			admin.POST("carousel/create", api.AdminCarouselCreateHandler())
+			admin.POST("carousel/delete", api.AdminCarouselDeleteHandler())
+
+			// 公告管理
+			admin.GET("notice/list", api.AdminNoticeListHandler())
+			admin.POST("notice/create", api.AdminNoticeCreateHandler())
+			admin.POST("notice/update", api.AdminNoticeUpdateHandler())
+			admin.POST("notice/delete", api.AdminNoticeDeleteHandler())
+
+			// 用户管理
+			admin.GET("user/list", api.AdminUserListHandler())
+			admin.POST("user/ban", api.AdminUserBanHandler())
+
+			// 商品审核
+			admin.GET("product/list", api.AdminProductListHandler())
+			admin.POST("product/audit", api.AdminProductAuditHandler())
+		}
 	}
 	return r
 }

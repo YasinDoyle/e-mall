@@ -23,6 +23,7 @@ type Product struct {
 	BossID        uint
 	BossName      string
 	BossAvatar    string
+	AuditStatus   uint `gorm:"default:0"` // 0:待审核 1:已上架 2:已拒绝
 }
 
 // View 获取点击数

@@ -11,6 +11,7 @@ var Config *Conf
 
 type Conf struct {
 	System        *System                 `yaml:"system"`
+	Admin         *AdminConf              `yaml:"admin"`
 	Oss           *Oss                    `yaml:"oss"`
 	MySql         map[string]*MySql       `yaml:"mysql"`
 	Email         *Email                  `yaml:"email"`
@@ -21,6 +22,12 @@ type Conf struct {
 	RabbitMq      *RabbitMq               `yaml:"rabbitMq"`
 	Es            *Es                     `yaml:"es"`
 	PhotoPath     *LocalPhotoPath         `yaml:"photoPath"`
+}
+
+type AdminConf struct {
+	UserName string `yaml:"userName"`
+	Password string `yaml:"password"`
+	NickName string `yaml:"nickName"`
 }
 
 type RabbitMq struct {

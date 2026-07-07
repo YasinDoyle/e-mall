@@ -19,6 +19,7 @@ type User struct {
 	Status         string
 	Avatar         string `gorm:"size:1000"`
 	Money          string
+	IsAdmin        bool   `gorm:"default:false"`
 	Relations      []User `gorm:"many2many:relation;"`
 }
 
