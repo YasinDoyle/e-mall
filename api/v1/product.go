@@ -174,3 +174,39 @@ func ListProductImgHandler() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
 	}
 }
+
+// BossProductListHandler 卖家查看自己的商品列表
+func BossProductListHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.BossProductListReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		resp, err := service.GetProductSrv().BossProductList(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+// BossProductOnSaleHandler 卖家上架/下架商品
+func BossProductOnSaleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.BossProductOnSaleReq
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		resp, err := service.GetProductSrv().BossProductOnSale(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}

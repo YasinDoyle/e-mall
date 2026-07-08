@@ -12,6 +12,17 @@ type ProductSearchReq struct {
 	BasePage
 }
 
+// BossProductListReq 卖家查看自己的商品列表
+type BossProductListReq struct {
+	BasePage
+}
+
+// BossProductOnSaleReq 卖家上架/下架商品
+type BossProductOnSaleReq struct {
+	ID     uint `json:"id" binding:"required"`
+	OnSale bool `json:"on_sale"`
+}
+
 type ProductCreateReq struct {
 	ID            uint   `form:"id" json:"id"`
 	Name          string `form:"name" json:"name"`

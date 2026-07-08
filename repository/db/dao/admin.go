@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 )
 
@@ -93,5 +94,10 @@ func (d *AdminDao) ListProductsAdmin(page, size int, auditStatus *uint) (product
 }
 
 func (d *AdminDao) AuditProduct(id, auditStatus uint) error {
-	return d.DB.Model(&model.Product{}).Where("id = ?", id).Update("audit_status", auditStatus).Error
+	onSale := auditStatus == consts.ProductAuditApproved
+	return d.DB.Model(&model.Product{}).Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"audit_status": auditStatus,
+			"on_sale":      onSale,
+		}).Error
 }

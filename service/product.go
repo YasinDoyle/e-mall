@@ -93,7 +93,8 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		Price:         req.Price,
 		DiscountPrice: req.DiscountPrice,
 		Num:           req.Num,
-		OnSale:        true,
+		OnSale:        false,               // 发布后待管理员审核，审核通过后才上架
+		AuditStatus:   consts.ProductAuditPending,
 		BossID:        uId,
 		BossName:      boss.UserName,
 		BossAvatar:    boss.Avatar,
@@ -296,6 +297,39 @@ func normalizeProductPage(page types.BasePage) types.BasePage {
 		page.PageSize = consts.BasePageSize
 	}
 	return page
+}
+
+// ===== 卖家中心 =====
+
+// BossProductList 卖家查看自己发布的商品列表
+func (s *ProductSrv) BossProductList(ctx context.Context, req *types.BossProductListReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		return
+	}
+	req.BasePage = normalizeProductPage(req.BasePage)
+	products, total, err := dao.NewProductDao(ctx).ListProductByBoss(u.Id, req.BasePage)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = &types.DataListResp{Item: products, Total: total}
+	return
+}
+
+// BossProductOnSale 卖家上架/下架自己的商品（仅审核通过的商品可上架）
+func (s *ProductSrv) BossProductOnSale(ctx context.Context, req *types.BossProductOnSaleReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		return
+	}
+	err = dao.NewProductDao(ctx).SetProductOnSale(req.ID, u.Id, req.OnSale)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = "操作成功"
+	return
 }
 
 // ProductImgList 获取商品列表图片

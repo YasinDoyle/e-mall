@@ -105,3 +105,20 @@ func (dao *ProductDao) SearchProduct(info string, page types.BasePage) (products
 
 	return
 }
+
+// ListProductByBoss 查询某个卖家自己发布的商品列表
+func (dao *ProductDao) ListProductByBoss(bossID uint, page types.BasePage) (products []*model.Product, total int64, err error) {
+	db := dao.DB.Model(&model.Product{}).Where("boss_id = ?", bossID)
+	if err = db.Count(&total).Error; err != nil {
+		return
+	}
+	err = db.Offset((page.PageNum - 1) * page.PageSize).Limit(page.PageSize).Find(&products).Error
+	return
+}
+
+// SetProductOnSale 卖家上架/下架自己的商品
+func (dao *ProductDao) SetProductOnSale(pId, bossID uint, onSale bool) error {
+	return dao.DB.Model(&model.Product{}).
+		Where("id = ? AND boss_id = ?", pId, bossID).
+		Update("on_sale", onSale).Error
+}
