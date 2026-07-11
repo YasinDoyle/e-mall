@@ -11,9 +11,11 @@ func migrate() (err error) {
 		AutoMigrate(&model.User{}, &model.Favorite{},
 			&model.Order{}, &model.Admin{}, &model.Address{},
 			&model.Cart{}, &model.Category{}, &model.Carousel{},
-			&model.Notice{}, &model.Notice{}, &model.Product{},
+			&model.Notice{}, &model.Product{},
 			&model.ProductImg{}, &model.FlashSale{},
-			&model.FlashSale2MQ{},
+			&model.FlashSale2MQ{}, &model.Review{},
+			&model.Coupon{}, &model.UserCoupon{},
+			&model.RechargeOrder{},
 		)
 	if err != nil {
 		return
@@ -51,4 +53,3 @@ func seedAdmin() {
 	}
 	log.LogrusObj.Infof("seedAdmin: 管理员账号 [%s] 创建成功", adminConf.UserName)
 }
-

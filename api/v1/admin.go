@@ -66,6 +66,18 @@ func AdminCategoryDeleteHandler() gin.HandlerFunc {
 
 // ===== 轮播图 =====
 
+func AdminCarouselListHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp, err := service.GetAdminSrv().CarouselList(c.Request.Context())
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
 func AdminCarouselCreateHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req types.AdminCarouselReq
@@ -74,6 +86,23 @@ func AdminCarouselCreateHandler() gin.HandlerFunc {
 			return
 		}
 		resp, err := service.GetAdminSrv().CarouselCreate(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func AdminCarouselUpdateHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminCarouselUpdateReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().CarouselUpdate(c.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			c.JSON(http.StatusOK, ErrorResponse(c, err))
@@ -228,6 +257,37 @@ func AdminProductAuditHandler() gin.HandlerFunc {
 			return
 		}
 		resp, err := service.GetAdminSrv().ProductAudit(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+// ===== 统计 =====
+
+func AdminStatsOverviewHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp, err := service.GetAdminSrv().StatsOverview(c.Request.Context())
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func AdminStatsOrdersHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminStatsOrdersReq
+		if err := c.ShouldBind(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().StatsOrders(c.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			c.JSON(http.StatusOK, ErrorResponse(c, err))

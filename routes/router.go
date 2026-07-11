@@ -35,7 +35,17 @@ func NewRouter() *gin.Engine {
 		v1.POST("product/search", api.SearchProductsHandler())
 		v1.GET("product/imgs/list", api.ListProductImgHandler()) // 商品图片
 		v1.GET("category/list", api.ListCategoryHandler())       // 商品分类
-		v1.GET("carousels", api.ListCarouselsHandler())
+		v1.GET("carousel/list", api.ListCarouselsHandler())      // 轮播图
+		v1.GET("carousels", api.ListCarouselsHandler())          // 前端兼容别名
+		// 商品评价（公开）
+		v1.GET("product/reviews", api.ListReviewsHandler())
+
+		// 优惠券（公开可查）
+		v1.GET("coupons", api.CouponListHandler())
+
+		// 支付宝/微信回调（无需 JWT）
+		v1.POST("pay/wechat/notify", api.WechatNotifyHandler())
+		v1.POST("pay/alipay/notify", api.AlipayNotifyHandler())
 
 		authed := v1.Group("/") //需要用户保护
 
@@ -58,6 +68,13 @@ func NewRouter() *gin.Engine {
 			// 卖家中心：查看自己的商品、上架/下架
 			authed.GET("boss/product/list", api.BossProductListHandler())
 			authed.POST("boss/product/on_sale", api.BossProductOnSaleHandler())
+
+			// 商品评价（需登录）
+			authed.POST("reviews/create", api.CreateReviewHandler())
+
+			// 优惠券（需登录）
+			authed.POST("coupon/claim", api.CouponClaimHandler())
+			authed.GET("coupon/list", api.UserCouponListHandler())
 			// 收藏夹
 			authed.GET("favorites/list", api.ListFavoritesHandler())
 			authed.POST("favorites/create", api.CreateFavoriteHandler())
@@ -70,6 +87,7 @@ func NewRouter() *gin.Engine {
 			authed.POST("orders/delete", api.DeleteOrderHandler())
 			authed.POST("orders/ship", api.ShipOrderHandler())
 			authed.POST("orders/receive", api.ReceiveOrderHandler())
+			authed.POST("orders/refund/request", api.RefundRequestOrderHandler())
 
 			// 购物车
 			authed.POST("carts/create", api.CreateCartHandler())
@@ -95,6 +113,13 @@ func NewRouter() *gin.Engine {
 			authed.GET("flash_sale/list", api.ListFlashSaleHandler())
 			authed.GET("flash_sale/show", api.GetFlashSaleHandler())
 			authed.POST("flash_sale/skill", api.FlashSaleHandler())
+
+			// 充值（需登录）
+			authed.POST("recharge/wechat", api.WechatRechargeHandler())
+			authed.POST("recharge/alipay", api.AlipayRechargeHandler())
+			authed.GET("recharge/status", api.RechargeStatusHandler())
+			authed.GET("recharge/pending", api.GetPendingCreditHandler())
+			authed.POST("recharge/apply", api.ApplyPendingCreditHandler())
 		}
 
 		// 管理员路由（需登录 + IsAdmin）
@@ -102,12 +127,15 @@ func NewRouter() *gin.Engine {
 		admin.Use(middleware.AuthMiddleware(), middleware.AdminAuthMiddleware())
 		{
 			// 分类管理
+			admin.GET("category/list", api.ListCategoryHandler())
 			admin.POST("category/create", api.AdminCategoryCreateHandler())
 			admin.POST("category/update", api.AdminCategoryUpdateHandler())
 			admin.POST("category/delete", api.AdminCategoryDeleteHandler())
 
 			// 轮播图管理
+			admin.GET("carousel/list", api.AdminCarouselListHandler())
 			admin.POST("carousel/create", api.AdminCarouselCreateHandler())
+			admin.POST("carousel/update", api.AdminCarouselUpdateHandler())
 			admin.POST("carousel/delete", api.AdminCarouselDeleteHandler())
 
 			// 公告管理
@@ -118,11 +146,31 @@ func NewRouter() *gin.Engine {
 
 			// 用户管理
 			admin.GET("user/list", api.AdminUserListHandler())
+			admin.GET("users", api.AdminUserListHandler())
 			admin.POST("user/ban", api.AdminUserBanHandler())
+			admin.POST("users/ban", api.AdminUserBanHandler())
 
 			// 商品审核
 			admin.GET("product/list", api.AdminProductListHandler())
 			admin.POST("product/audit", api.AdminProductAuditHandler())
+
+			// 统计
+			admin.GET("stats/overview", api.AdminStatsOverviewHandler())
+			admin.GET("stats/orders", api.AdminStatsOrdersHandler())
+
+			// 评价管理
+			admin.POST("review/delete", api.AdminDeleteReviewHandler())
+
+			// 优惠券管理
+			admin.GET("coupon/list", api.CouponListHandler())
+			admin.POST("coupon/create", api.AdminCouponCreateHandler())
+
+			// 订单售后
+			admin.POST("orders/refund/approve", api.AdminRefundApproveOrderHandler())
+
+			// 充值退款
+			admin.POST("recharge/wechat/refund", api.WechatRefundHandler())
+			admin.POST("recharge/alipay/refund", api.AlipayRefundHandler())
 		}
 	}
 	return r

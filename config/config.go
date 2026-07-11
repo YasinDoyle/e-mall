@@ -22,6 +22,29 @@ type Conf struct {
 	RabbitMq      *RabbitMq               `yaml:"rabbitMq"`
 	Es            *Es                     `yaml:"es"`
 	PhotoPath     *LocalPhotoPath         `yaml:"photoPath"`
+	WechatPay     *WechatPayConf          `yaml:"wechatPay"`
+	Alipay        *AlipayConf             `yaml:"alipay"`
+}
+
+type WechatPayConf struct {
+	AppID       string `yaml:"appId"`
+	MchID       string `yaml:"mchId"`
+	ApiV3Key    string `yaml:"apiV3Key"`
+	SerialNo    string `yaml:"serialNo"`
+	PrivateKey  string `yaml:"privateKey"` // PKCS#8 私钥内容或文件路径
+	PublicKey   string `yaml:"publicKey"`  // 微信支付公钥/平台证书内容，用于回调验签
+	PublicKeyID string `yaml:"publicKeyId"`
+	NotifyURL   string `yaml:"notifyUrl"`
+	IsSandbox   bool   `yaml:"isSandbox"`
+}
+
+type AlipayConf struct {
+	AppID           string `yaml:"appId"`
+	PrivateKey      string `yaml:"privateKey"`
+	AlipayPublicKey string `yaml:"alipayPublicKey"`
+	NotifyURL       string `yaml:"notifyUrl"`
+	ReturnURL       string `yaml:"returnUrl"`
+	IsSandbox       bool   `yaml:"isSandbox"`
 }
 
 type AdminConf struct {

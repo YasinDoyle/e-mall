@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
+	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 )
@@ -42,6 +44,9 @@ func (dao *OrderDao) ListOrderByCondition(uid uint, req *types.OrderListReq) (r 
 		Joins("As o LEFT JOIN product as p ON p.id = o.product_id").
 		Joins("LEFT JOIN address as a ON a.id = o.address_id").
 		Where("o.user_id = ?", uid)
+	if req.Type != 0 {
+		db = db.Where("o.type = ?", req.Type)
+	}
 
 	db.Offset((req.PageNum - 1) * req.PageSize).
 		Limit(req.PageSize).Order("created_at DESC").
@@ -54,6 +59,10 @@ func (dao *OrderDao) ListOrderByCondition(uid uint, req *types.OrderListReq) (r 
 			"o.boss_id AS boss_id," +
 			"o.num AS num," +
 			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.tracking_no AS tracking_no," +
 			"p.name AS name," +
 			"p.discount_price AS discount_price," +
 			"p.img_path AS img_path," +
@@ -73,6 +82,13 @@ func (dao *OrderDao) GetOrderById(id, uId uint) (r *model.Order, err error) {
 	return
 }
 
+func (dao *OrderDao) GetOrderByIdForUpdate(id uint) (r *model.Order, err error) {
+	err = dao.DB.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&r).Error
+	return
+}
+
 // ShowOrderById 获取订单详情
 func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err error) {
 	err = dao.DB.Model(&model.Order{}).
@@ -88,6 +104,10 @@ func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err er
 			"o.boss_id AS boss_id," +
 			"o.num AS num," +
 			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.tracking_no AS tracking_no," +
 			"p.name AS name," +
 			"p.discount_price AS discount_price," +
 			"p.img_path AS img_path," +
@@ -143,10 +163,67 @@ func (dao *OrderDao) UpdateOrderTypeByBoss(id, bossId, fromType, toType uint) er
 	return nil
 }
 
+func (dao *OrderDao) UpdateOrderShippingByBoss(id, bossId uint, trackingNo string) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND boss_id = ? AND type = ?", id, bossId, consts.OrderTypePendingShipping).
+		Updates(map[string]interface{}{
+			"type":        consts.OrderTypeShipping,
+			"tracking_no": trackingNo,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 func (dao *OrderDao) UpdateOrderTypeByUser(id, uId, fromType, toType uint) error {
 	result := dao.DB.Model(&model.Order{}).
 		Where("id = ? AND user_id = ? AND type = ?", id, uId, fromType).
 		Update("type", toType)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) RequestRefundByUser(id, uId uint, reason string) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND user_id = ? AND type IN ?", id, uId, []uint{
+			consts.OrderTypePendingShipping,
+			consts.OrderTypeShipping,
+			consts.OrderTypeReceipt,
+		}).
+		Where("refund_status = ?", consts.OrderRefundStatusNone).
+		Updates(map[string]interface{}{
+			"type":          consts.OrderTypeRefundRequested,
+			"refund_status": consts.OrderRefundStatusRequested,
+			"refund_reason": reason,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) MarkOrderRefunded(id uint) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND type = ? AND refund_status = ?", id, consts.OrderTypeRefundRequested, consts.OrderRefundStatusRequested).
+		Updates(map[string]interface{}{
+			"type":          consts.OrderTypeRefunded,
+			"refund_status": consts.OrderRefundStatusRefunded,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

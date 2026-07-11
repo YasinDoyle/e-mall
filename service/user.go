@@ -91,6 +91,9 @@ func (s *UserSrv) UserLogin(ctx context.Context, req *types.UserServiceReq) (res
 	if !user.CheckPassword(req.Password) {
 		return nil, errors.New("账号/密码不正确")
 	}
+	if user.Status == "banned" {
+		return nil, errors.New("账号已被封禁")
+	}
 
 	accessToken, refreshToken, err := jwt.GenerateToken(user.ID, req.UserName)
 	if err != nil {

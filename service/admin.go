@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
@@ -13,6 +15,8 @@ var AdminSrvIns *AdminSrv
 var AdminSrvOnce sync.Once
 
 type AdminSrv struct{}
+
+const adminStatsDateLayout = "2006-01-02"
 
 func GetAdminSrv() *AdminSrv {
 	AdminSrvOnce.Do(func() { AdminSrvIns = &AdminSrv{} })
@@ -56,6 +60,19 @@ func (s *AdminSrv) CarouselCreate(ctx context.Context, req *types.AdminCarouselR
 		return
 	}
 	resp = "创建成功"
+	return
+}
+
+func (s *AdminSrv) CarouselList(ctx context.Context) (resp interface{}, err error) {
+	return GetCarouselSrv().ListCarousel(ctx, &types.ListCarouselReq{})
+}
+
+func (s *AdminSrv) CarouselUpdate(ctx context.Context, req *types.AdminCarouselUpdateReq) (resp interface{}, err error) {
+	if err = dao.NewAdminDao(ctx).UpdateCarousel(req.ID, req.ImgPath, req.ProductID); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = "更新成功"
 	return
 }
 
@@ -121,7 +138,20 @@ func (s *AdminSrv) UserList(ctx context.Context, req *types.AdminListReq) (resp 
 		log.LogrusObj.Error(err)
 		return
 	}
-	resp = &types.DataListResp{Item: users, Total: total}
+	list := make([]*types.AdminUserResp, 0, len(users))
+	for _, user := range users {
+		list = append(list, &types.AdminUserResp{
+			ID:        user.ID,
+			UserName:  user.UserName,
+			NickName:  user.NickName,
+			Email:     user.Email,
+			Status:    user.Status,
+			Avatar:    user.Avatar,
+			IsAdmin:   user.IsAdmin,
+			CreatedAt: user.CreatedAt.Unix(),
+		})
+	}
+	resp = &types.DataListResp{Item: list, Total: total}
 	return
 }
 
@@ -143,20 +173,142 @@ func (s *AdminSrv) ProductList(ctx context.Context, req *types.AdminProductListR
 	if req.PageNum == 0 {
 		req.PageNum = 1
 	}
+	if req.AuditStatus == nil && req.Status != nil {
+		req.AuditStatus = req.Status
+	}
 	products, total, err := dao.NewAdminDao(ctx).ListProductsAdmin(req.PageNum, req.PageSize, req.AuditStatus)
 	if err != nil {
 		log.LogrusObj.Error(err)
 		return
 	}
-	resp = &types.DataListResp{Item: products, Total: total}
+	list := make([]*types.AdminProductResp, 0, len(products))
+	for _, product := range products {
+		list = append(list, &types.AdminProductResp{
+			ID:            product.ID,
+			Name:          product.Name,
+			CategoryID:    product.CategoryID,
+			Title:         product.Title,
+			Info:          product.Info,
+			ImgPath:       product.ImgPath,
+			Price:         product.Price,
+			DiscountPrice: product.DiscountPrice,
+			OnSale:        product.OnSale,
+			Num:           product.Num,
+			BossID:        product.BossID,
+			BossName:      product.BossName,
+			BossAvatar:    product.BossAvatar,
+			AuditStatus:   product.AuditStatus,
+			Status:        product.AuditStatus,
+			CreatedAt:     product.CreatedAt.Unix(),
+		})
+	}
+	resp = &types.DataListResp{Item: list, Total: total}
 	return
 }
 
 func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAuditReq) (resp interface{}, err error) {
+	if req.AuditStatus == 0 && req.Status != 0 {
+		req.AuditStatus = req.Status
+	}
 	if err = dao.NewAdminDao(ctx).AuditProduct(req.ID, req.AuditStatus); err != nil {
 		log.LogrusObj.Error(err)
 		return
 	}
 	resp = "审核完成"
 	return
+}
+
+// ===== 统计 =====
+
+func (s *AdminSrv) StatsOverview(ctx context.Context) (resp interface{}, err error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	tomorrowStart := todayStart.AddDate(0, 0, 1)
+
+	adminDao := dao.NewAdminDao(ctx)
+	todayOrders, err := adminDao.CountTodayOrders(todayStart, tomorrowStart)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	totalSales, err := adminDao.SumTotalSales()
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	registeredUsers, err := adminDao.CountRegisteredUsers()
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+
+	resp = &types.AdminStatsOverviewResp{
+		TodayOrders:     todayOrders,
+		TotalSales:      totalSales,
+		RegisteredUsers: registeredUsers,
+	}
+	return
+}
+
+func (s *AdminSrv) StatsOrders(ctx context.Context, req *types.AdminStatsOrdersReq) (resp interface{}, err error) {
+	start, endExclusive, err := parseAdminStatsRange(req)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := dao.NewAdminDao(ctx).OrderTrend(start, endExclusive)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+
+	countByDate := make(map[string]int64, len(rows))
+	salesByDate := make(map[string]float64, len(rows))
+	for _, row := range rows {
+		countByDate[row.Date] = row.OrderCount
+		salesByDate[row.Date] = row.SalesAmount
+	}
+
+	dates := make([]string, 0)
+	orderCounts := make([]int64, 0)
+	salesAmounts := make([]float64, 0)
+	for day := start; day.Before(endExclusive); day = day.AddDate(0, 0, 1) {
+		date := day.Format(adminStatsDateLayout)
+		dates = append(dates, date)
+		orderCounts = append(orderCounts, countByDate[date])
+		salesAmounts = append(salesAmounts, salesByDate[date])
+	}
+
+	resp = &types.AdminStatsOrdersResp{
+		Dates:        dates,
+		OrderCounts:  orderCounts,
+		SalesAmounts: salesAmounts,
+	}
+	return
+}
+
+func parseAdminStatsRange(req *types.AdminStatsOrdersReq) (time.Time, time.Time, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	start := todayStart.AddDate(0, 0, -6)
+	end := todayStart
+	var err error
+
+	if req.StartDate != "" {
+		start, err = time.ParseInLocation(adminStatsDateLayout, req.StartDate, time.Local)
+		if err != nil {
+			return time.Time{}, time.Time{}, errors.New("start_date格式应为YYYY-MM-DD")
+		}
+	}
+	if req.EndDate != "" {
+		end, err = time.ParseInLocation(adminStatsDateLayout, req.EndDate, time.Local)
+		if err != nil {
+			return time.Time{}, time.Time{}, errors.New("end_date格式应为YYYY-MM-DD")
+		}
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, errors.New("end_date不能早于start_date")
+	}
+
+	return start, end.AddDate(0, 0, 1), nil
 }

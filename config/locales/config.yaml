@@ -11,6 +11,25 @@ admin:
   password: "admin123456"
   nickName: "超级管理员"
 
+wechatPay:
+  appId: ""
+  mchId: ""
+  apiV3Key: ""
+  serialNo: ""
+  privateKey: ""
+  publicKey: ""
+  publicKeyId: ""
+  notifyUrl: "http://your-domain.com/api/v1/pay/wechat/notify"
+  isSandbox: true
+
+alipay:
+  appId: ""
+  privateKey: ""
+  alipayPublicKey: ""
+  notifyUrl: "http://your-domain.com/api/v1/pay/alipay/notify"
+  returnUrl: "http://your-domain.com/payment/result"
+  isSandbox: true
+
 mysql:
   default:
     dialect: "mysql"

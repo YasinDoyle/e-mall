@@ -44,14 +44,8 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		util.LogrusObj.Error(err)
 		return nil, err
 	}
-	order := &model.Order{
-		UserID:    u.Id,
-		ProductID: req.ProductID,
-		BossID:    req.BossID,
-		Num:       int(req.Num),
-		Money:     float64(req.Money),
-		Type:      1,
-	}
+
+	originalMoney := float64(req.Money)
 	addressDao := dao.NewAddressDao(ctx)
 	address, err := addressDao.GetAddressByAid(req.AddressID, u.Id)
 	if err != nil {
@@ -59,19 +53,52 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		return
 	}
 
-	order.AddressID = address.ID
 	number := fmt.Sprintf("%09v", rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000000))
 	productNum := strconv.Itoa(int(req.ProductID))
 	userNum := strconv.Itoa(int(u.Id))
 	number = number + productNum + userNum
 	orderNum, _ := strconv.ParseUint(number, 10, 64)
-	order.OrderNum = orderNum
 
 	orderDao := dao.NewOrderDao(ctx)
-	err = orderDao.CreateOrder(order)
+	var order *model.Order
+	err = orderDao.Transaction(func(tx *gorm.DB) error {
+		finalMoney := originalMoney
+		var userCouponID uint
+		if req.CouponID > 0 {
+			finalMoney, userCouponID, err = calcDiscount(dao.NewCouponDaoByDB(tx), u.Id, req.CouponID, originalMoney)
+			if err != nil {
+				return err
+			}
+		}
+
+		order = &model.Order{
+			UserID:    u.Id,
+			ProductID: req.ProductID,
+			BossID:    req.BossID,
+			AddressID: address.ID,
+			Num:       int(req.Num),
+			Money:     finalMoney,
+			Type:      consts.OrderTypeUnPaid,
+			OrderNum:  orderNum,
+		}
+		if err = dao.NewOrderDaoByDB(tx).CreateOrder(order); err != nil {
+			return err
+		}
+
+		if userCouponID > 0 {
+			if err = dao.NewCouponDaoByDB(tx).UseCoupon(userCouponID, order.ID); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
+		if errors.Is(err, dao.ErrCouponUseFailed) {
+			return nil, errors.New("优惠券不存在或已使用")
+		}
 		util.LogrusObj.Error(err)
-		return
+		return nil, err
 	}
 
 	// 订单号存入Redis中，设置过期时间
@@ -80,6 +107,13 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		Member: orderNum,
 	}
 	cache.RedisClient.ZAdd(cache.RedisContext, OrderTimeKey, data)
+
+	resp = &types.OrderCreateResp{
+		ID:       order.ID,
+		OrderNum: order.OrderNum,
+		Money:    order.Money,
+		CouponID: req.CouponID,
+	}
 
 	return
 }
@@ -200,7 +234,7 @@ func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp
 		return nil, err
 	}
 
-	err = dao.NewOrderDao(ctx).UpdateOrderTypeByBoss(req.OrderId, u.Id, consts.OrderTypePendingShipping, consts.OrderTypeShipping)
+	err = dao.NewOrderDao(ctx).UpdateOrderShippingByBoss(req.OrderId, u.Id, req.TrackingNo)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("订单状态不允许发货")
@@ -209,6 +243,117 @@ func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp
 		return nil, err
 	}
 
+	return
+}
+
+func (s *OrderSrv) OrderRefundRequest(ctx context.Context, req *types.OrderRefundRequestReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	if err = dao.NewOrderDao(ctx).RequestRefundByUser(req.OrderId, u.Id, req.Reason); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("订单状态不允许申请退款")
+		}
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	order, err := dao.NewOrderDao(ctx).GetOrderById(req.OrderId, u.Id)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	resp = &types.OrderRefundResp{
+		OrderId:      order.ID,
+		OrderNum:     order.OrderNum,
+		RefundAmount: order.Money * float64(order.Num),
+		RefundStatus: order.RefundStatus,
+		Type:         order.Type,
+	}
+	return
+}
+
+func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.AdminOrderRefundApproveReq) (resp interface{}, err error) {
+	refundAmount := float64(0)
+	var orderNum uint64
+
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
+			return errors.New("订单状态不允许退款审批")
+		}
+
+		refundAmount = order.Money * float64(order.Num)
+		if refundAmount <= 0 {
+			return errors.New("退款金额不合法")
+		}
+		orderNum = order.OrderNum
+
+		userDao := dao.NewUserDaoByDB(tx)
+		buyer, txErr := userDao.GetUserById(order.UserID)
+		if txErr != nil {
+			return txErr
+		}
+		boss, txErr := userDao.GetUserById(order.BossID)
+		if txErr != nil {
+			return txErr
+		}
+
+		buyerMoney, txErr := buyer.DecryptMoney(req.Key)
+		if txErr != nil {
+			return errors.New("支付密码错误")
+		}
+		bossMoney, txErr := boss.DecryptMoney(req.Key)
+		if txErr != nil {
+			return errors.New("支付密码错误")
+		}
+		if bossMoney-refundAmount < 0 {
+			return errors.New("商家余额不足，无法退款")
+		}
+
+		buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
+		buyer.Money, txErr = buyer.EncryptMoney(req.Key)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = userDao.UpdateUserById(order.UserID, buyer); txErr != nil {
+			return txErr
+		}
+
+		boss.Money = fmt.Sprintf("%f", bossMoney-refundAmount)
+		boss.Money, txErr = boss.EncryptMoney(req.Key)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = userDao.UpdateUserById(order.BossID, boss); txErr != nil {
+			return txErr
+		}
+
+		return orderDao.MarkOrderRefunded(order.ID)
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("退款申请不存在")
+		}
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	resp = &types.OrderRefundResp{
+		OrderId:      req.OrderId,
+		OrderNum:     orderNum,
+		RefundAmount: refundAmount,
+		RefundStatus: consts.OrderRefundStatusRefunded,
+		Type:         consts.OrderTypeRefunded,
+	}
 	return
 }
 

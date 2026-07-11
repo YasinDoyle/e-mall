@@ -25,3 +25,12 @@ type OrderPaidEvent struct {
 	TotalAmount float64   `json:"total_amount"`
 	PaidAt      time.Time `json:"paid_at"`
 }
+
+type RechargePaidEvent struct {
+	OrderNum        string    `json:"order_num"`
+	UserID          uint      `json:"user_id"`
+	Channel         string    `json:"channel"`
+	Amount          float64   `json:"amount"`
+	ProviderTradeNo string    `json:"provider_trade_no"`
+	PaidAt          time.Time `json:"paid_at"`
+}

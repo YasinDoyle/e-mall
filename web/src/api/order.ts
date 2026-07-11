@@ -21,6 +21,13 @@ export const receiveOrder = (data: { id: number }) =>
 
 export const payOrder = (data: {
   order_id: number;
+  money: number;
+  boss_id: number;
+  key: string;
+}) => request.post("/paydown", data);
+
+export const payOrder = (data: {
+  order_id: number;
   payment_password: string;
   money: number;
   boss_id: number;
