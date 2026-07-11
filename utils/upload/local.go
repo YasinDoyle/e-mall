@@ -54,6 +54,27 @@ func AvatarUploadToLocalStatic(file multipart.File, userId uint, userName string
 	return fmt.Sprintf("user%s/%s.jpg", bId, userName), err
 }
 
+// ReviewUploadToLocalStatic 上传评价图片
+func ReviewUploadToLocalStatic(file multipart.File, userId uint, fileName string) (filePath string, err error) {
+	uId := strconv.Itoa(int(userId))
+	basePath := "." + conf.Config.PhotoPath.ProductPath + "review/user" + uId + "/"
+	if !DirExistOrNot(basePath) {
+		CreateDir(basePath)
+	}
+	reviewPath := fmt.Sprintf("%s%s.jpg", basePath, fileName)
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return "", err
+	}
+	err = ioutil.WriteFile(reviewPath, content, 0666)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return "", err
+	}
+	return fmt.Sprintf("review/user%s/%s.jpg", uId, fileName), err
+}
+
 // DirExistOrNot 判断文件是否存在
 func DirExistOrNot(fileAddr string) bool {
 	s, err := os.Stat(fileAddr)

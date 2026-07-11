@@ -117,6 +117,10 @@ func (d *AdminDao) AuditProduct(id, auditStatus uint) error {
 		}).Error
 }
 
+func (d *AdminDao) DeleteProduct(id uint) error {
+	return d.DB.Delete(&model.Product{}, id).Error
+}
+
 // ===== 统计 =====
 
 func (d *AdminDao) CountTodayOrders(start, end time.Time) (int64, error) {

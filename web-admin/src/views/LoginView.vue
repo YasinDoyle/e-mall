@@ -34,7 +34,7 @@ import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
-import { adminLogin } from "@/api";
+import { adminLogin, getStatsOverview } from "@/api";
 import { useAdminStore } from "@/stores/admin";
 
 const router = useRouter();
@@ -52,13 +52,19 @@ async function handleLogin() {
   loading.value = true;
   try {
     const res: any = await adminLogin(form);
-    // 验证是否为管理员（后端会在非管理员时鉴权失败，这里做前端提示）
     if (!res.data?.user) {
       ElMessage.error("账号或密码错误");
       return;
     }
     store.setToken(res.data.access_token);
     localStorage.setItem("admin_refresh_token", res.data.refresh_token);
+    try {
+      await getStatsOverview();
+    } catch {
+      store.logout();
+      ElMessage.error("当前账号不是管理员");
+      return;
+    }
     store.setAdminInfo({
       user_name: res.data.user.user_name,
       nick_name: res.data.user.nick_name,

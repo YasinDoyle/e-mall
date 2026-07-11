@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 
+	conf "github.com/YasinDoyle/e-mall/config"
+	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
@@ -33,15 +35,31 @@ func (s *CartSrv) CartCreate(ctx context.Context, req *types.CartCreateReq) (res
 		return nil, err
 	}
 	// 判断有无这个商品
-	_, err = dao.NewProductDao(ctx).GetProductById(req.ProductId)
+	product, err := dao.NewProductDao(ctx).GetProductById(req.ProductId)
 	if err != nil {
 		util.LogrusObj.Error(err)
+		return
+	}
+	if req.Num == 0 {
+		req.Num = 1
+	}
+	if product.Num <= 0 {
+		err = errors.New("库存不足")
+		return
+	}
+	productStock := uint(product.Num)
+	if req.Num > productStock {
+		err = errors.New("库存不足")
 		return
 	}
 
 	// 创建购物车
 	cartDao := dao.NewCartDao(ctx)
-	_, status, _ := cartDao.CreateCart(req.ProductId, u.Id, req.BossID)
+	_, status, err := cartDao.CreateCart(req.ProductId, u.Id, req.BossID, req.Num, productStock)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return
+	}
 	if status == e.ErrorProductMoreCart {
 		err = errors.New(e.GetMsg(status))
 		return
@@ -60,6 +78,11 @@ func (s *CartSrv) CartList(ctx context.Context, req *types.CartListReq) (resp in
 	if err != nil {
 		util.LogrusObj.Error(err)
 		return
+	}
+	for i := range carts {
+		if conf.Config.System.UploadModel == consts.UploadModelLocal {
+			carts[i].ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + carts[i].ImgPath
+		}
 	}
 
 	resp = &types.DataListResp{

@@ -41,12 +41,34 @@ func (dao *FlashSaleDao) ListFlashSales() (resp []*model.FlashSale, err error) {
 	return
 }
 
+func (dao *FlashSaleDao) ListFlashSalesAdmin(page, size int) (resp []*model.FlashSale, total int64, err error) {
+	db := dao.Model(&model.FlashSale{})
+	if err = db.Count(&total).Error; err != nil {
+		return
+	}
+	err = db.Offset((page - 1) * size).Limit(size).Order("id DESC").Find(&resp).Error
+	return
+}
+
 func (dao *FlashSaleDao) GetByProductID(productID uint) (resp *model.FlashSale, err error) {
 	err = dao.Model(&model.FlashSale{}).
 		Where("product_id = ? AND num > 0", productID).
 		First(&resp).Error
 
 	return
+}
+
+func (dao *FlashSaleDao) GetByID(id uint) (resp *model.FlashSale, err error) {
+	err = dao.Model(&model.FlashSale{}).Where("id = ?", id).First(&resp).Error
+	return
+}
+
+func (dao *FlashSaleDao) Update(id uint, in *model.FlashSale) error {
+	return dao.Model(&model.FlashSale{}).Where("id = ?", id).Updates(in).Error
+}
+
+func (dao *FlashSaleDao) Delete(id uint) error {
+	return dao.Where("id = ?", id).Delete(&model.FlashSale{}).Error
 }
 
 func (dao *FlashSaleDao) CreateAsyncOrder(record *model.FlashSale2MQ) error {

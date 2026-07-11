@@ -71,6 +71,7 @@ func NewRouter() *gin.Engine {
 
 			// 商品评价（需登录）
 			authed.POST("reviews/create", api.CreateReviewHandler())
+			authed.POST("reviews/upload", api.UploadReviewImageHandler())
 
 			// 优惠券（需登录）
 			authed.POST("coupon/claim", api.CouponClaimHandler())
@@ -153,6 +154,7 @@ func NewRouter() *gin.Engine {
 			// 商品审核
 			admin.GET("product/list", api.AdminProductListHandler())
 			admin.POST("product/audit", api.AdminProductAuditHandler())
+			admin.POST("product/delete", api.AdminProductDeleteHandler())
 
 			// 统计
 			admin.GET("stats/overview", api.AdminStatsOverviewHandler())
@@ -162,11 +164,19 @@ func NewRouter() *gin.Engine {
 			admin.POST("review/delete", api.AdminDeleteReviewHandler())
 
 			// 优惠券管理
-			admin.GET("coupon/list", api.CouponListHandler())
+			admin.GET("coupon/list", api.AdminCouponListHandler())
 			admin.POST("coupon/create", api.AdminCouponCreateHandler())
+			admin.POST("coupon/offline", api.AdminCouponOfflineHandler())
 
-			// 订单售后
+			// 订单管理/售后
+			admin.GET("orders/list", api.AdminListOrdersHandler())
 			admin.POST("orders/refund/approve", api.AdminRefundApproveOrderHandler())
+
+			// 秒杀管理
+			admin.GET("flash-sale/list", api.AdminListFlashSaleHandler())
+			admin.POST("flash-sale/create", api.AdminCreateFlashSaleHandler())
+			admin.POST("flash-sale/update", api.AdminUpdateFlashSaleHandler())
+			admin.POST("flash-sale/delete", api.AdminDeleteFlashSaleHandler())
 
 			// 充值退款
 			admin.POST("recharge/wechat/refund", api.WechatRefundHandler())

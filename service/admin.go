@@ -218,6 +218,18 @@ func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAudi
 	return
 }
 
+func (s *AdminSrv) ProductDelete(ctx context.Context, req *types.AdminIDReq) (resp interface{}, err error) {
+	if err = dao.NewAdminDao(ctx).DeleteProduct(req.ID); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if syncErr := GetProductIndexSrv().DeleteProduct(ctx, req.ID); syncErr != nil {
+		log.LogrusObj.Errorln(syncErr)
+	}
+	resp = "删除成功"
+	return
+}
+
 // ===== 统计 =====
 
 func (s *AdminSrv) StatsOverview(ctx context.Context) (resp interface{}, err error) {

@@ -67,6 +67,76 @@ SDK：`github.com/go-pay/gopay`（同时支持微信V3 和支付宝）
 
 ---
 
+## Part 1.1 — 延伸优化补充（主线完成后可选）
+
+> 说明：以下内容不属于原 B1-B6 的核心验收范围，是在后端主链路跑通后用于增强支付、售后、统计和后台运营能力的补充阶段。
+
+**Phase BE1 — 支付/充值网关增强** `约2-4天，依赖 B5`
+
+1. 充值订单管理：
+   - `GET /api/v1/admin/recharge/orders`：按用户、渠道、状态、时间筛选充值订单
+   - `GET /api/v1/admin/recharge/orders/:order_num`：查看充值订单详情、支付流水号、退款状态
+2. 退款状态查询：
+   - `GET /api/v1/admin/recharge/refund/status`：查询微信/支付宝充值退款状态
+   - 同步本地 `RechargeOrder.RefundStatus`、`RefundNo`、`RefundedAt`
+3. 退款异步回调：
+   - `POST /api/v1/pay/wechat/refund/notify`
+   - `POST /api/v1/pay/alipay/refund/notify`
+   - 验签后更新本地退款状态，避免只依赖主动查询
+4. 商品订单直连三方支付（可选替代余额支付）：
+   - 新增订单支付流水模型，如 `OrderPayment`
+   - `WechatOrderPay(orderNum, amount)`、`AlipayOrderPay(orderNum, amount)`
+   - 商品订单支付回调更新 `Order.Type` 并发 MQ
+   - 商品订单退款审批通过后调用对应三方退款接口
+
+**Phase BE2 — 订单售后增强** `约2-3天，依赖 B4 + BE1 可选`
+
+1. 售后单独建模：`model/after_sale.go`，支持仅退款、退货退款、换货等类型
+2. 退款审批补充拒绝流程：
+   - `POST /api/v1/admin/orders/refund/reject`
+   - 记录拒绝原因，订单恢复到原业务状态
+3. 退货物流：
+   - 用户提交退货单号
+   - 管理员确认收货后再退款
+4. 售后操作日志：
+   - 记录申请、审核、退款、拒绝、关闭等节点
+   - 后台订单详情展示时间线
+
+**Phase BE3 — Admin 统计增强** `约2-3天，依赖 B6`
+
+1. 扩展总览指标：
+   - GMV、净销售额、退款金额、退款订单数
+   - 待发货数、售后待处理数、待审核商品数
+2. 用户增长趋势：
+   - `GET /api/v1/admin/stats/users`
+   - 按天返回新增用户数、累计用户数
+3. 商品销售排行：
+   - `GET /api/v1/admin/stats/products/rank`
+   - 返回销量、销售额、退款量
+4. 分类销售占比：
+   - `GET /api/v1/admin/stats/categories`
+   - 用于 ECharts 饼图/柱状图
+5. 转化漏斗（可选）：
+   - 浏览/收藏/加购/下单/支付等节点统计
+   - 若当前埋点不足，先补事件采集模型与上报接口
+
+**Phase FE1 — 前端/后台增强联动** `约3-5天，依赖 BE1-BE3`
+
+1. Admin Dashboard 增强：
+   - 展示 GMV、净销售额、退款金额、售后待处理数
+   - 增加用户增长、商品排行、分类占比图表
+2. 充值订单管理页面：
+   - 列表筛选、详情抽屉、退款状态刷新
+   - 支持按渠道/状态/时间筛选
+3. 售后管理页面增强：
+   - 退款审批、拒绝、退货物流、售后时间线
+4. 用户端订单售后增强：
+   - 申请退款/退货、填写退货物流、查看处理进度
+5. 支付页增强：
+   - 商品订单支持余额、微信、支付宝多支付方式切换
+
+---
+
 ## Part 2 — Vue3 用户端 `web/`
 
 **技术栈：** Vite 5 · Vue3 · TypeScript · Element Plus · Pinia · Vue Router 4 · Axios
@@ -146,17 +216,17 @@ SDK：`github.com/go-pay/gopay`（同时支持微信V3 和支付宝）
 
 **Phase F9 — Admin 后台** `5-7天，依赖 B1 完成`
 
-1. 独立 Vite 工程初始化（加 ECharts）
-2. Admin 专属登录页（`isAdmin` 校验）
-3. Dashboard：统计卡片（订单量/销售额/用户数）+ ECharts 折线图（对接 B6）
-4. 商品管理：列表/新增/编辑（多图上传）/审核上架/下架
-5. 分类管理 CRUD
-6. 轮播图管理 CRUD（含图片上传预览）
-7. 用户管理：列表/封禁/解封
-8. 订单管理：全量列表/退款申请审批（通过/拒绝）
-9. 优惠券管理：创建/下线
-10. 秒杀管理：新增/编辑秒杀商品
-11. 公告管理 CRUD
+1. [x] 独立 Vite 工程初始化（加 ECharts）
+2. [x] Admin 专属登录页（登录后访问 Admin API 校验权限）
+3. [x] Dashboard：统计卡片（订单量/销售额/用户数）+ ECharts 折线图（对接 B6）
+4. [~] 商品管理：列表/审核上架/拒绝/删除已完成；新增/编辑/多图上传待增强
+5. [x] 分类管理 CRUD
+6. [~] 轮播图管理创建/删除/列表已完成；编辑与上传预览待增强
+7. [x] 用户管理：列表/封禁/解封
+8. [~] 订单管理：全量列表/退款申请通过审批已完成；拒绝退款待补
+9. [x] 优惠券管理：创建/下线
+10. [x] 秒杀管理：新增/编辑/删除秒杀商品
+11. [x] 公告管理 CRUD
 
 ---
 

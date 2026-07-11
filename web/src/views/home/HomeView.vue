@@ -25,6 +25,21 @@
       </el-tag>
     </div>
 
+    <!-- 秒杀预告 -->
+    <div class="section-title">
+      秒杀专场
+      <el-button link type="danger" @click="$router.push('/flash-sale')"
+        >进入专场</el-button
+      >
+    </div>
+    <div class="flash-entry" @click="$router.push('/flash-sale')">
+      <div>
+        <div class="flash-title">限时秒杀</div>
+        <div class="flash-subtitle">好价商品限量开抢，先到先得</div>
+      </div>
+      <el-button type="danger">立即查看</el-button>
+    </div>
+
     <!-- 商品列表 -->
     <div class="section-title">
       热门商品
@@ -39,6 +54,7 @@
         :product="product"
       />
     </div>
+    <el-empty v-if="!loading && !products.length" description="暂无商品" />
   </div>
 </template>
 
@@ -54,8 +70,10 @@ const carousels = ref<Carousel[]>([]);
 const categories = ref<Category[]>([]);
 const products = ref<Product[]>([]);
 const selectedCategory = ref<number | undefined>(undefined);
+const loading = ref(false);
 
 async function loadData() {
+  loading.value = true;
   try {
     const [carouselRes, categoryRes, productRes]: any[] = await Promise.all([
       getCarousels(),
@@ -67,6 +85,8 @@ async function loadData() {
     products.value = productRes.data?.item ?? [];
   } catch (err) {
     console.error("首页数据加载失败，请确认后端服务是否启动：", err);
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -101,6 +121,26 @@ onMounted(loadData);
 .category-tag {
   font-size: 14px;
   padding: 6px 12px;
+}
+.flash-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f56c6c, #e6a23c);
+}
+.flash-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+.flash-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  opacity: 0.92;
 }
 .product-grid {
   display: grid;

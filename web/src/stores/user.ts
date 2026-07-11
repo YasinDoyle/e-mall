@@ -17,8 +17,12 @@ export const useUserStore = defineStore("user", () => {
   }
 
   function setUserInfo(info: UserInfo) {
-    userInfo.value = info;
-    localStorage.setItem("userInfo", JSON.stringify(info));
+    const normalized = {
+      ...info,
+      nick_name: info.nick_name || info.nickname || info.user_name,
+    };
+    userInfo.value = normalized;
+    localStorage.setItem("userInfo", JSON.stringify(normalized));
   }
 
   function logout() {
@@ -26,6 +30,7 @@ export const useUserStore = defineStore("user", () => {
     userInfo.value = null;
     cartCount.value = 0;
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("userInfo");
   }
 

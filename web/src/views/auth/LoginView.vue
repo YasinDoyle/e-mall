@@ -35,6 +35,7 @@
 <script setup lang="ts">
 import { ref, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { userLogin } from "@/api/user";
 import { getUserInfo } from "@/api/user";
@@ -63,6 +64,7 @@ async function handleLogin() {
     localStorage.setItem("refreshToken", res.data.refresh_token);
     const infoRes: any = await getUserInfo();
     userStore.setUserInfo(infoRes.data);
+    ElMessage.success("登录成功");
     const redirect = (route.query.redirect as string) || "/";
     router.push(redirect);
   } finally {

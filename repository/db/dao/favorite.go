@@ -35,7 +35,8 @@ func (dao *FavoritesDao) ListFavoriteByUserId(uId uint, pageSize, pageNum int) (
 		Joins("LEFT JOIN category AS c ON c.id = p.category_id").
 		Where("f.user_id = ?", uId).
 		Offset((pageNum - 1) * pageSize).Limit(pageSize).
-		Select("f.user_id AS user_id," +
+		Select("f.id AS id," +
+			"f.user_id AS user_id," +
 			"f.product_id AS product_id," +
 			"UNIX_TIMESTAMP(f.created_at) AS created_at," +
 			"p.title AS title," +

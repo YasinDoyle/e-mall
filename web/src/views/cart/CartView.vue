@@ -9,7 +9,11 @@
     </el-empty>
 
     <template v-else>
-      <el-table :data="cartList" @selection-change="handleSelectionChange">
+      <el-table
+        ref="tableRef"
+        :data="cartList"
+        @selection-change="handleSelectionChange"
+      >
         <el-table-column type="selection" width="50" />
         <el-table-column label="商品" min-width="260">
           <template #default="{ row }">
@@ -17,14 +21,14 @@
               class="cart-product"
               @click="$router.push(`/product/${row.product_id}`)"
             >
-              <img :src="row.product_img" class="cart-img" />
-              <span>{{ row.product_name }}</span>
+              <img :src="row.img_path" class="cart-img" />
+              <span>{{ row.name }}</span>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="单价" width="110">
           <template #default="{ row }">
-            <span class="price">¥{{ row.price }}</span>
+            <span class="price">¥{{ unitPrice(row) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="数量" width="160">
@@ -41,7 +45,7 @@
         <el-table-column label="小计" width="110">
           <template #default="{ row }">
             <span class="price"
-              >¥{{ (Number(row.price) * row.num).toFixed(2) }}</span
+              >¥{{ (unitPriceValue(row) * row.num).toFixed(2) }}</span
             >
           </template>
         </el-table-column>
@@ -56,7 +60,7 @@
 
       <div class="cart-footer">
         <div class="footer-left">
-          <el-checkbox v-model="allChecked" @change="toggleAll"
+          <el-checkbox :model-value="allChecked" @change="toggleAll"
             >全选</el-checkbox
           >
           <el-button
@@ -99,6 +103,7 @@ const userStore = useUserStore();
 
 const cartList = ref<any[]>([]);
 const selected = ref<any[]>([]);
+const tableRef = ref<any>();
 
 const allChecked = computed(
   () =>
@@ -108,14 +113,23 @@ const allChecked = computed(
 
 const totalPrice = computed(() =>
   selected.value
-    .reduce((sum, item) => sum + Number(item.price) * item.num, 0)
+    .reduce((sum, item) => sum + unitPriceValue(item) * item.num, 0)
     .toFixed(2),
 );
+
+function unitPriceValue(item: any) {
+  return Number(item.discount_price || item.price || 0);
+}
+
+function unitPrice(item: any) {
+  return unitPriceValue(item).toFixed(2);
+}
 
 async function loadCart() {
   try {
     const res: any = await getCartList();
     cartList.value = res.data?.item ?? [];
+    selected.value = [];
     userStore.setCartCount(cartList.value.length);
   } catch {}
 }
@@ -125,11 +139,10 @@ function handleSelectionChange(rows: any[]) {
 }
 
 function toggleAll(val: boolean) {
-  // el-table 没有直接的全选 API，通过替换触发
   if (val) {
-    selected.value = [...cartList.value];
+    cartList.value.forEach((row) => tableRef.value?.toggleRowSelection(row, true));
   } else {
-    selected.value = [];
+    tableRef.value?.clearSelection();
   }
 }
 
@@ -137,11 +150,7 @@ async function handleNumChange(row: any, val: number) {
   try {
     await updateCart({
       id: row.id,
-      product_id: row.product_id,
-      boss_id: row.boss_id,
       num: val,
-      max_num: row.max_num,
-      check: row.check,
     });
   } catch {}
 }

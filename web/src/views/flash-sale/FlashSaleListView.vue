@@ -6,9 +6,12 @@
       <el-tag type="danger" effect="dark" style="margin-left: 12px"
         >火热进行中</el-tag
       >
+      <span class="countdown">距本场结束 {{ countdownText }}</span>
     </div>
 
-    <el-empty v-if="!list.length && !loading" description="暂无秒杀商品">
+    <el-skeleton v-if="loading" :rows="5" animated />
+
+    <el-empty v-else-if="!list.length" description="暂无秒杀商品">
       <el-button type="primary" @click="$router.push('/products')"
         >逛逛普通商品</el-button
       >
@@ -17,17 +20,17 @@
     <div v-else class="flash-grid">
       <el-card
         v-for="item in list"
-        :key="item.id"
+        :key="flashSaleId(item)"
         shadow="hover"
         class="flash-card"
-        @click="$router.push(`/flash-sale/${item.id}`)"
+        @click="$router.push(`/flash-sale/${productId(item)}`)"
       >
         <div class="flash-badge">秒杀</div>
         <div class="flash-name">
-          {{ item.title || `商品 #${item.product_id}` }}
+          {{ titleText(item) }}
         </div>
         <div class="flash-price">
-          <span class="price">¥{{ item.money }}</span>
+          <span class="price">¥{{ moneyText(item) }}</span>
         </div>
         <div class="flash-stock">
           <el-progress
@@ -36,14 +39,15 @@
             status="exception"
             :show-text="false"
           />
-          <span class="stock-text">剩余 {{ item.num }} 件</span>
+          <span class="stock-text">剩余 {{ stockNum(item) }} 件</span>
         </div>
         <el-button
           type="danger"
           size="small"
           style="width: 100%; margin-top: 10px"
+          :disabled="stockNum(item) <= 0"
         >
-          立即抢购
+          {{ stockNum(item) > 0 ? "立即抢购" : "已售罄" }}
         </el-button>
       </el-card>
     </div>
@@ -51,16 +55,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { Lightning } from "@element-plus/icons-vue";
 import { getFlashSaleList } from "@/api/flashSale";
 
 const list = ref<any[]>([]);
 const loading = ref(true);
+const now = ref(Date.now());
+let timer: number | undefined;
+
+const countdownText = computed(() => {
+  const end = new Date(now.value);
+  end.setHours(23, 59, 59, 999);
+  const diff = Math.max(0, end.getTime() - now.value);
+  const hours = Math.floor(diff / 1000 / 60 / 60);
+  const minutes = Math.floor((diff / 1000 / 60) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return `${padTime(hours)}:${padTime(minutes)}:${padTime(seconds)}`;
+});
+
+function padTime(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function flashSaleId(item: any) {
+  return item.id ?? item.Id;
+}
+
+function productId(item: any) {
+  return item.product_id ?? item.ProductId;
+}
+
+function stockNum(item: any) {
+  return Number(item.num ?? item.Num ?? 0);
+}
+
+function titleText(item: any) {
+  return item.title ?? item.Title ?? `商品 #${productId(item)}`;
+}
+
+function moneyText(item: any) {
+  return Number(item.money ?? item.Money ?? 0).toFixed(2);
+}
 
 // 简单估算已售比例（没有原始库存字段时固定显示剩余热度）
 function stockPercent(item: any) {
-  const remain = item.num ?? 0;
+  const remain = stockNum(item);
   if (remain <= 0) return 100;
   if (remain <= 5) return 80;
   if (remain <= 20) return 50;
@@ -68,15 +108,27 @@ function stockPercent(item: any) {
 }
 
 async function loadList() {
+  loading.value = true;
   try {
     const res: any = await getFlashSaleList();
-    list.value = res.data?.item ?? [];
+    list.value = Array.isArray(res.data) ? res.data : (res.data?.item ?? []);
+  } catch {
+    list.value = [];
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(loadList);
+onMounted(() => {
+  loadList();
+  timer = window.setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (timer) window.clearInterval(timer);
+});
 </script>
 
 <style scoped>
@@ -94,6 +146,11 @@ onMounted(loadList);
   font-size: 24px;
   font-weight: bold;
   color: #f56c6c;
+}
+.countdown {
+  margin-left: auto;
+  color: #666;
+  font-size: 14px;
 }
 .flash-grid {
   display: grid;

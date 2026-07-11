@@ -13,21 +13,24 @@
       </div>
     </template>
 
-    <el-empty v-if="!list.length" description="还没有收货地址" />
+    <el-skeleton v-if="loading" :rows="3" animated />
+    <el-empty v-else-if="!list.length" description="还没有收货地址" />
 
-    <div v-for="addr in list" :key="addr.id" class="addr-card">
-      <div class="addr-info">
-        <b>{{ addr.name }}</b>
-        <span style="margin-left: 12px; color: #666">{{ addr.phone }}</span>
+    <template v-else>
+      <div v-for="addr in list" :key="addr.id" class="addr-card">
+        <div class="addr-info">
+          <b>{{ addr.name }}</b>
+          <span style="margin-left: 12px; color: #666">{{ addr.phone }}</span>
+        </div>
+        <div class="addr-detail">{{ addr.address }}</div>
+        <div class="addr-actions">
+          <el-button size="small" @click="openEdit(addr)">编辑</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(addr.id)"
+            >删除</el-button
+          >
+        </div>
       </div>
-      <div class="addr-detail">{{ addr.address }}</div>
-      <div class="addr-actions">
-        <el-button size="small" @click="openEdit(addr)">编辑</el-button>
-        <el-button size="small" type="danger" @click="handleDelete(addr.id)"
-          >删除</el-button
-        >
-      </div>
-    </div>
+    </template>
 
     <el-dialog
       v-model="dialogVisible"
@@ -68,11 +71,19 @@ import {
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
 const saving = ref(false);
+const loading = ref(false);
 const form = reactive({ id: 0, name: "", phone: "", address: "" });
 
 async function loadList() {
-  const res: any = await getAddressList();
-  list.value = res.data?.item ?? [];
+  loading.value = true;
+  try {
+    const res: any = await getAddressList();
+    list.value = res.data?.item ?? [];
+  } catch {
+    list.value = [];
+  } finally {
+    loading.value = false;
+  }
 }
 
 function openCreate() {
@@ -86,22 +97,22 @@ function openEdit(addr: any) {
 }
 
 async function handleSave() {
-  if (!form.name || !form.phone || !form.address)
+  if (!form.name.trim() || !form.phone.trim() || !form.address.trim())
     return ElMessage.warning("请填写完整信息");
   saving.value = true;
   try {
     if (form.id) {
       await updateAddress({
         id: form.id,
-        name: form.name,
-        phone: form.phone,
-        address: form.address,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
       });
     } else {
       await createAddress({
-        name: form.name,
-        phone: form.phone,
-        address: form.address,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
       });
     }
     ElMessage.success("保存成功");
@@ -113,10 +124,12 @@ async function handleSave() {
 }
 
 async function handleDelete(id: number) {
-  await ElMessageBox.confirm("确认删除该地址？", "提示", { type: "warning" });
-  await deleteAddress({ id });
-  ElMessage.success("已删除");
-  loadList();
+  try {
+    await ElMessageBox.confirm("确认删除该地址？", "提示", { type: "warning" });
+    await deleteAddress({ id });
+    ElMessage.success("已删除");
+    loadList();
+  } catch {}
 }
 
 onMounted(loadList);

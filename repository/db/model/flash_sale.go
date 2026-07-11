@@ -1,14 +1,14 @@
 package model
 
 type FlashSale struct {
-	Id         uint `gorm:"primarykey"`
-	ProductId  uint `gorm:"not null"`
-	BossId     uint `gorm:"not null"`
-	Title      string
-	Money      float64
-	Num        int `gorm:"not null"`
-	CustomId   uint
-	CustomName string
+	Id         uint    `gorm:"primarykey" json:"id"`
+	ProductId  uint    `gorm:"not null" json:"product_id"`
+	BossId     uint    `gorm:"not null" json:"boss_id"`
+	Title      string  `json:"title"`
+	Money      float64 `json:"money"`
+	Num        int     `gorm:"not null" json:"num"`
+	CustomId   uint    `json:"custom_id"`
+	CustomName string  `json:"custom_name"`
 }
 
 func (FlashSale) TableName() string {

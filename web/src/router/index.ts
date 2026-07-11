@@ -97,6 +97,10 @@ const router = createRouter({
               component: () => import("@/views/user/FavoriteView.vue"),
             },
             {
+              path: "coupons",
+              component: () => import("@/views/user/CouponView.vue"),
+            },
+            {
               path: "wallet",
               component: () => import("@/views/user/WalletView.vue"),
             },

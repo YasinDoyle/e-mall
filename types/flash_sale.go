@@ -26,3 +26,24 @@ type FlashSaleResp struct {
 	RemainingStock int64  `json:"remaining_stock"`
 	Status         string `json:"status"`
 }
+
+type AdminFlashSaleReq struct {
+	ProductId  uint    `json:"product_id" binding:"required"`
+	BossId     uint    `json:"boss_id" binding:"required"`
+	Title      string  `json:"title" binding:"required"`
+	Money      float64 `json:"money" binding:"required"`
+	Num        int     `json:"num" binding:"required"`
+	CustomId   uint    `json:"custom_id"`
+	CustomName string  `json:"custom_name"`
+}
+
+type AdminFlashSaleUpdateReq struct {
+	ID         uint    `json:"id" binding:"required"`
+	ProductId  uint    `json:"product_id" binding:"required"`
+	BossId     uint    `json:"boss_id" binding:"required"`
+	Title      string  `json:"title" binding:"required"`
+	Money      float64 `json:"money" binding:"required"`
+	Num        int     `json:"num" binding:"required"`
+	CustomId   uint    `json:"custom_id"`
+	CustomName string  `json:"custom_name"`
+}

@@ -2,34 +2,27 @@
   <div>
     <div class="filter-bar">
       <span
+        :class="['cat-item', { active: !selectedCategory }]"
+        @click="selectCategory(undefined)"
+        >全部</span
+      >
+      <span
         v-for="cat in categories"
         :key="cat.id"
         :class="['cat-item', { active: selectedCategory === cat.id }]"
-        @click="
-          selectedCategory = cat.id;
-          loadProducts();
-        "
+        @click="selectCategory(cat.id)"
         >{{ cat.category_name }}</span
       >
-      <span
-        :class="['cat-item', { active: !selectedCategory }]"
-        @click="
-          selectedCategory = undefined;
-          loadProducts();
-        "
-        >全部</span
-      >
     </div>
-    <div class="product-grid">
+    <div v-loading="loading" class="product-grid">
       <ProductCard v-for="p in products" :key="p.id" :product="p" />
     </div>
-    <el-pagination
-      v-model:current-page="page"
+    <el-empty v-if="!loading && !products.length" description="暂无商品" />
+    <Pagination
+      v-model:page="page"
       :page-size="pageSize"
       :total="total"
-      layout="prev, pager, next"
-      style="margin-top: 20px; justify-content: center"
-      @current-change="loadProducts"
+      @change="loadProducts"
     />
   </div>
 </template>
@@ -38,6 +31,7 @@
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import ProductCard from "@/components/common/ProductCard.vue";
+import Pagination from "@/components/common/Pagination.vue";
 import { getProductList, getCategoryList } from "@/api/product";
 import type { Product, Category } from "@/types";
 
@@ -48,15 +42,27 @@ const selectedCategory = ref<number | undefined>(undefined);
 const page = ref(1);
 const pageSize = 16;
 const total = ref(0);
+const loading = ref(false);
 
 async function loadProducts() {
-  const res: any = await getProductList({
-    page_num: page.value,
-    page_size: pageSize,
-    category_id: selectedCategory.value,
-  });
-  products.value = res.data?.item ?? [];
-  total.value = res.data?.total ?? 0;
+  loading.value = true;
+  try {
+    const res: any = await getProductList({
+      page_num: page.value,
+      page_size: pageSize,
+      category_id: selectedCategory.value,
+    });
+    products.value = res.data?.item ?? [];
+    total.value = res.data?.total ?? 0;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function selectCategory(id?: number) {
+  selectedCategory.value = id;
+  page.value = 1;
+  loadProducts();
 }
 
 onMounted(async () => {
@@ -72,6 +78,7 @@ watch(
   () => route.query.category_id,
   (val) => {
     selectedCategory.value = val ? Number(val) : undefined;
+    page.value = 1;
     loadProducts();
   },
 );

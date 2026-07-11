@@ -37,14 +37,15 @@
     <!-- 商品清单 -->
     <el-card class="section-card">
       <template #header>商品清单</template>
+      <el-empty v-if="!checkoutItems.length" description="暂无待结算商品" />
       <div v-for="item in checkoutItems" :key="item.id" class="order-item">
-        <img :src="item.product_img" class="order-img" />
+        <img :src="item.img_path" class="order-img" />
         <div class="order-info">
-          <div>{{ item.product_name }}</div>
-          <div class="order-price">¥{{ item.price }} × {{ item.num }}</div>
+          <div>{{ item.name }}</div>
+          <div class="order-price">¥{{ unitPrice(item) }} × {{ item.num }}</div>
         </div>
         <div class="order-subtotal">
-          ¥{{ (Number(item.price) * item.num).toFixed(2) }}
+          ¥{{ (unitPriceValue(item) * item.num).toFixed(2) }}
         </div>
       </div>
     </el-card>
@@ -57,12 +58,19 @@
       </div>
       <div class="summary-row">
         <span>优惠券</span>
-        <span style="color: #67c23a">暂无优惠</span>
+        <div class="coupon-row">
+          <span :class="{ discount: couponDiscountValue > 0 }">
+            {{ selectedCoupon ? `-${couponDiscount}` : "未选择" }}
+          </span>
+          <el-button link type="primary" @click="showCouponDialog = true">
+            {{ selectedCoupon ? "更换" : "选择" }}
+          </el-button>
+        </div>
       </div>
       <el-divider style="margin: 10px 0" />
       <div class="summary-row total">
         <span>应付金额</span>
-        <span class="total-price">¥{{ totalPrice }}</span>
+        <span class="total-price">¥{{ payablePrice }}</span>
       </div>
     </el-card>
 
@@ -73,6 +81,7 @@
       <el-button
         type="primary"
         size="large"
+        :loading="submitting"
         :disabled="!selectedAddress || !checkoutItems.length"
         @click="handleSubmit"
       >
@@ -113,6 +122,42 @@
         >
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showCouponDialog" title="选择优惠券" width="560px">
+      <el-skeleton v-if="couponLoading" :rows="3" animated />
+      <el-empty v-else-if="!usableCoupons.length" description="暂无可用优惠券" />
+      <div v-else class="coupon-list">
+        <div
+          v-for="coupon in usableCoupons"
+          :key="coupon.id"
+          :class="[
+            'coupon-option',
+            {
+              active: selectedCoupon?.id === coupon.id,
+              disabled: !eligibleItemForCoupon(coupon),
+            },
+          ]"
+          @click="selectCoupon(coupon)"
+        >
+          <div>
+            <b>{{ coupon.name }}</b>
+            <div class="coupon-desc">
+              {{ couponText(coupon) }} · {{ couponScopeText(coupon) }}
+            </div>
+          </div>
+          <el-tag v-if="!eligibleItemForCoupon(coupon)" type="info"
+            >未达门槛</el-tag
+          >
+          <el-tag v-else type="success">可用</el-tag>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="clearCoupon">不使用优惠券</el-button>
+        <el-button type="primary" @click="showCouponDialog = false"
+          >确定</el-button
+        >
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -123,6 +168,8 @@ import { ElMessage } from "element-plus";
 import { Location } from "@element-plus/icons-vue";
 import { getAddressList, createAddress } from "@/api/address";
 import { createOrder } from "@/api/order";
+import { deleteCart } from "@/api/cart";
+import { getUserCouponList } from "@/api/coupon";
 
 const router = useRouter();
 
@@ -132,13 +179,88 @@ const checkoutItems = ref<any[]>(
 const addresses = ref<any[]>([]);
 const selectedAddress = ref<any>(null);
 const showAddressDialog = ref(false);
+const showCouponDialog = ref(false);
+const submitting = ref(false);
+const couponLoading = ref(false);
+const coupons = ref<any[]>([]);
+const selectedCoupon = ref<any>(null);
 const newAddr = reactive({ name: "", phone: "", address: "" });
 
 const totalPrice = computed(() =>
   checkoutItems.value
-    .reduce((s, i) => s + Number(i.price) * i.num, 0)
+    .reduce((s, i) => s + unitPriceValue(i) * i.num, 0)
     .toFixed(2),
 );
+
+const usableCoupons = computed(() =>
+  coupons.value.filter(
+    (coupon) =>
+      coupon.status === 0 && new Date(coupon.expire_at).getTime() > Date.now(),
+  ),
+);
+
+const couponEligibleItem = computed(() =>
+  selectedCoupon.value ? eligibleItemForCoupon(selectedCoupon.value) : null,
+);
+
+const couponDiscountValue = computed(() => {
+  if (!selectedCoupon.value || !couponEligibleItem.value) return 0;
+  const item = couponEligibleItem.value;
+  const originUnit = unitPriceValue(item);
+  const finalUnit = discountedUnitPrice(originUnit, selectedCoupon.value);
+  return Math.max(0, originUnit - finalUnit) * Number(item.num || 0);
+});
+
+const couponDiscount = computed(() => `¥${couponDiscountValue.value.toFixed(2)}`);
+
+const payablePrice = computed(() =>
+  Math.max(0, Number(totalPrice.value) - couponDiscountValue.value).toFixed(2),
+);
+
+function unitPriceValue(item: any) {
+  return Number(item.discount_price || item.price || 0);
+}
+
+function unitPrice(item: any) {
+  return unitPriceValue(item).toFixed(2);
+}
+
+function discountedUnitPrice(unitPrice: number, coupon: any) {
+  if (!coupon || unitPrice < Number(coupon.min_amount || 0)) return unitPrice;
+  if (coupon.coupon_type === 2) {
+    return unitPrice * Number(coupon.discount || 1);
+  }
+  return Math.max(0, unitPrice - Number(coupon.discount || 0));
+}
+
+function eligibleItemForCoupon(coupon: any) {
+  return checkoutItems.value.find(
+    (item) => unitPriceValue(item) >= Number(coupon.min_amount || 0),
+  );
+}
+
+function couponText(coupon: any) {
+  if (coupon.coupon_type === 2) {
+    return `${Number(coupon.discount * 10).toFixed(1)}折`;
+  }
+  return `减 ¥${Number(coupon.discount || 0).toFixed(0)}`;
+}
+
+function couponScopeText(coupon: any) {
+  const item = eligibleItemForCoupon(coupon);
+  if (!item) return `满 ${Number(coupon.min_amount || 0).toFixed(0)} 可用`;
+  return `应用到 ${item.name || "首个可用商品"}`;
+}
+
+function selectCoupon(coupon: any) {
+  if (!eligibleItemForCoupon(coupon)) return;
+  selectedCoupon.value = coupon;
+}
+
+function clearCoupon() {
+  selectedCoupon.value = null;
+  showCouponDialog.value = false;
+}
 
 async function loadAddresses() {
   try {
@@ -146,6 +268,18 @@ async function loadAddresses() {
     addresses.value = res.data?.item ?? [];
     if (addresses.value.length) selectedAddress.value = addresses.value[0];
   } catch {}
+}
+
+async function loadCoupons() {
+  couponLoading.value = true;
+  try {
+    const res: any = await getUserCouponList();
+    coupons.value = res.data?.item ?? [];
+  } catch {
+    coupons.value = [];
+  } finally {
+    couponLoading.value = false;
+  }
 }
 
 async function handleAddAddress() {
@@ -166,42 +300,44 @@ async function handleSubmit() {
   if (!checkoutItems.value.length) return ElMessage.warning("订单为空");
 
   // 每件购物车商品单独创建一个订单（当前后端一个订单对应一个商品）
+  submitting.value = true;
   try {
-    const orderNums: number[] = [];
-    const orderIds: number[] = [];
+    const pendingOrders: any[] = [];
     for (const item of checkoutItems.value) {
-      const orderNum = Date.now() + Math.floor(Math.random() * 1000);
+      const useCoupon =
+        selectedCoupon.value && couponEligibleItem.value?.id === item.id;
       const res: any = await createOrder({
         product_id: item.product_id,
         num: item.num,
         address_id: selectedAddress.value.id,
         boss_id: item.boss_id,
-        money: Math.round(Number(item.price) * item.num),
-        order_num: orderNum,
+        money: Math.round(unitPriceValue(item)),
+        coupon_id: useCoupon ? selectedCoupon.value.coupon_id : undefined,
       } as any);
-      orderNums.push(orderNum);
-      orderIds.push(res.data?.id);
+      pendingOrders.push({
+        ...item,
+        money: res.data?.money,
+        order_id: res.data?.id,
+        order_num: res.data?.order_num,
+        address_id: selectedAddress.value.id,
+      });
     }
+    await Promise.all(checkoutItems.value.map((item) => deleteCart({ id: item.id })));
     // 将订单信息传给支付页
-    sessionStorage.setItem(
-      "pending_orders",
-      JSON.stringify(
-        checkoutItems.value.map((item, i) => ({
-          ...item,
-          order_id: orderIds[i],
-          order_num: orderNums[i],
-          address_id: selectedAddress.value.id,
-        })),
-      ),
-    );
+    sessionStorage.setItem("pending_orders", JSON.stringify(pendingOrders));
     sessionStorage.removeItem("checkout_items");
     router.push("/payment");
   } catch (err) {
     ElMessage.error("下单失败，请重试");
+  } finally {
+    submitting.value = false;
   }
 }
 
-onMounted(loadAddresses);
+onMounted(() => {
+  loadAddresses();
+  loadCoupons();
+});
 </script>
 
 <style scoped>
@@ -277,6 +413,41 @@ onMounted(loadAddresses);
   font-size: 22px;
   font-weight: bold;
   color: #f56c6c;
+}
+.coupon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.discount {
+  color: #67c23a;
+}
+.coupon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coupon-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.coupon-option.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.coupon-option.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.coupon-desc {
+  margin-top: 4px;
+  color: #666;
+  font-size: 12px;
 }
 .checkout-footer {
   display: flex;

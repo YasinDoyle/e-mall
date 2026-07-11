@@ -21,6 +21,7 @@ type FavoriteDeleteReq struct {
 }
 
 type FavoriteListResp struct {
+	ID            uint   `json:"id"`
 	UserID        uint   `json:"user_id"`
 	ProductID     uint   `json:"product_id"`
 	CreatedAt     int64  `json:"create_at"`

@@ -76,10 +76,47 @@
       </el-col>
     </el-row>
 
-    <!-- 评价列表占位 -->
     <el-card style="margin-top: 24px">
-      <template #header>商品评价</template>
-      <el-empty description="暂无评价" />
+      <template #header>
+        <div class="review-header">
+          <span>商品评价</span>
+          <span class="review-total">共 {{ reviewTotal }} 条</span>
+        </div>
+      </template>
+      <el-skeleton v-if="reviewLoading" :rows="3" animated />
+      <el-empty v-else-if="!reviews.length" description="暂无评价" />
+      <div v-else class="review-list">
+        <div v-for="review in reviews" :key="review.id" class="review-item">
+          <el-avatar :size="36" :src="review.user_avatar" />
+          <div class="review-content">
+            <div class="review-line">
+              <span class="review-user">{{ review.user_name || "匿名用户" }}</span>
+              <el-rate :model-value="review.rating" disabled size="small" />
+            </div>
+            <p>{{ review.content || "用户未填写评价内容" }}</p>
+            <div v-if="reviewImageList(review).length" class="review-images">
+              <el-image
+                v-for="img in reviewImageList(review)"
+                :key="img"
+                :src="img"
+                :preview-src-list="reviewImageList(review)"
+                fit="cover"
+                class="review-img"
+              />
+            </div>
+            <div class="review-time">{{ formatTime(review.created_at) }}</div>
+          </div>
+        </div>
+      </div>
+      <el-pagination
+        v-if="reviewTotal > reviewPageSize"
+        v-model:current-page="reviewPage"
+        :page-size="reviewPageSize"
+        :total="reviewTotal"
+        layout="prev, pager, next"
+        style="justify-content: center; margin-top: 16px"
+        @current-change="loadReviews"
+      />
     </el-card>
   </div>
 
@@ -102,7 +139,8 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Loading } from "@element-plus/icons-vue";
 import { getProductDetail, getProductImgs } from "@/api/product";
-import { createCart } from "@/api/cart";
+import { createCart, getCartList } from "@/api/cart";
+import { getReviewList } from "@/api/review";
 import {
   createFavorite,
   deleteFavorite,
@@ -121,7 +159,13 @@ const loading = ref(true);
 const buyNum = ref(1);
 const addingCart = ref(false);
 const isFavorite = ref(false);
+const favoriteId = ref<number | null>(null);
 const togglingFav = ref(false);
+const reviews = ref<any[]>([]);
+const reviewLoading = ref(false);
+const reviewPage = ref(1);
+const reviewPageSize = 5;
+const reviewTotal = ref(0);
 
 const allImgs = computed(() => {
   const cover = product.value?.img_path ? [product.value.img_path] : [];
@@ -142,6 +186,7 @@ async function loadProduct() {
     if (userStore.isLoggedIn) {
       checkFavorite(id);
     }
+    loadReviews();
   } catch {
     product.value = null;
   } finally {
@@ -149,11 +194,44 @@ async function loadProduct() {
   }
 }
 
+async function loadReviews() {
+  const productId = Number(route.params.id);
+  reviewLoading.value = true;
+  try {
+    const res: any = await getReviewList({
+      product_id: productId,
+      page_num: reviewPage.value,
+      page_size: reviewPageSize,
+    });
+    reviews.value = res.data?.item ?? [];
+    reviewTotal.value = res.data?.total ?? 0;
+  } catch {
+    reviews.value = [];
+    reviewTotal.value = 0;
+  } finally {
+    reviewLoading.value = false;
+  }
+}
+
+function reviewImageList(review: any) {
+  return String(review.images || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatTime(timestamp: number) {
+  if (!timestamp) return "";
+  return new Date(timestamp * 1000).toLocaleDateString();
+}
+
 async function checkFavorite(productId: number) {
   try {
     const res: any = await getFavoriteList({ page_num: 1, page_size: 100 });
     const list = res.data?.item ?? [];
-    isFavorite.value = list.some((f: any) => f.product_id === productId);
+    const favorite = list.find((f: any) => f.product_id === productId);
+    isFavorite.value = !!favorite;
+    favoriteId.value = favorite?.id ?? null;
   } catch {}
 }
 
@@ -167,7 +245,8 @@ async function handleAddCart() {
       num: buyNum.value,
       max_num: product.value.num,
     });
-    userStore.setCartCount(userStore.cartCount + 1);
+    const cartRes: any = await getCartList();
+    userStore.setCartCount((cartRes.data?.item ?? []).length);
     ElMessage.success("已加入购物车");
   } finally {
     addingCart.value = false;
@@ -179,14 +258,20 @@ async function handleToggleFavorite() {
   togglingFav.value = true;
   try {
     if (isFavorite.value) {
-      await deleteFavorite({ product_id: product.value.id });
+      if (!favoriteId.value) {
+        await checkFavorite(product.value.id);
+      }
+      if (!favoriteId.value) return;
+      await deleteFavorite({ id: favoriteId.value });
       isFavorite.value = false;
+      favoriteId.value = null;
       ElMessage.success("已取消收藏");
     } else {
       await createFavorite({
         product_id: product.value.id,
         boss_id: product.value.boss_id,
       });
+      await checkFavorite(product.value.id);
       isFavorite.value = true;
       ElMessage.success("收藏成功");
     }
@@ -267,5 +352,46 @@ onMounted(loadProduct);
   color: #555;
   font-size: 14px;
   line-height: 1.8;
+}
+.review-header,
+.review-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.review-total,
+.review-time {
+  color: #999;
+  font-size: 12px;
+}
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.review-item {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f2f2f2;
+}
+.review-content {
+  flex: 1;
+  min-width: 0;
+}
+.review-user {
+  font-weight: 500;
+}
+.review-images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.review-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 4px;
 }
 </style>

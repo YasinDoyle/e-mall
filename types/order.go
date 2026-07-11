@@ -38,6 +38,12 @@ type OrderListReq struct {
 	BasePage
 }
 
+type AdminOrderListReq struct {
+	Type         int  `form:"type" json:"type"`
+	RefundStatus *int `form:"refund_status" json:"refund_status"`
+	BasePage
+}
+
 type OrderShowReq struct {
 	OrderId uint `json:"order_id" form:"order_id"`
 }

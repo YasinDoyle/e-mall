@@ -20,6 +20,7 @@ export interface UserInfo {
   id: number;
   user_name: string;
   nick_name: string;
+  nickname?: string;
   email: string;
   avatar: string;
   money: string;
@@ -33,13 +34,13 @@ export interface UserLoginReq {
 
 export interface UserRegisterReq {
   user_name: string;
+  nick_name?: string;
   password: string;
   key: string;
 }
 
 export interface UserUpdateReq {
   nick_name?: string;
-  email?: string;
 }
 
 // ===== 商品 =====
@@ -89,25 +90,22 @@ export interface CartItem {
   num: number;
   max_num: number;
   check: boolean;
-  product_name: string;
-  product_img: string;
+  name: string;
+  img_path: string;
   price: string;
+  discount_price: string;
 }
 
 export interface CartCreateReq {
   product_id: number;
   boss_id: number;
-  num: number;
-  max_num: number;
+  num?: number;
+  max_num?: number;
 }
 
 export interface CartUpdateReq {
   id: number;
-  product_id: number;
-  boss_id: number;
   num: number;
-  max_num: number;
-  check: boolean;
 }
 
 // ===== 订单 =====
@@ -121,6 +119,15 @@ export interface Order {
   order_num: number;
   type: number;
   money: number;
+  refund_status?: number;
+  refund_reason?: string;
+  tracking_no?: string;
+  name?: string;
+  img_path?: string;
+  discount_price?: string;
+  address_name?: string;
+  address_phone?: string;
+  address?: string;
   paid_at: string;
 }
 
@@ -130,8 +137,7 @@ export interface OrderCreateReq {
   address_id: number;
   boss_id: number;
   money: number;
-  order_num: number;
-  payment_password: string;
+  coupon_id?: number;
 }
 
 // ===== 收货地址 =====

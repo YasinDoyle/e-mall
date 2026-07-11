@@ -1,15 +1,18 @@
 <template>
   <div class="detail-wrap" v-if="item">
+    <div class="detail-header">
+      <el-button link @click="$router.push('/flash-sale')">返回秒杀列表</el-button>
+      <span>距本场结束 {{ countdownText }}</span>
+    </div>
+
     <el-row :gutter="32">
       <el-col :span="12">
         <div class="flash-badge-large">秒杀专场</div>
         <el-card class="info-card">
-          <h2 class="item-title">
-            {{ item.title || `秒杀商品 #${item.product_id}` }}
-          </h2>
+          <h2 class="item-title">{{ titleText }}</h2>
 
           <div class="price-row">
-            <span class="flash-price">¥{{ item.money }}</span>
+            <span class="flash-price">¥{{ moneyText }}</span>
             <el-tag type="danger" effect="dark" style="margin-left: 12px"
               >限时特惠</el-tag
             >
@@ -34,6 +37,7 @@
               v-model="selectedAddressId"
               placeholder="请选择收货地址"
               style="width: 100%"
+              :loading="addressLoading"
             >
               <el-option
                 v-for="addr in addresses"
@@ -42,6 +46,14 @@
                 :label="`${addr.name} ${addr.phone} - ${addr.address}`"
               />
             </el-select>
+            <el-button
+              v-if="userStore.isLoggedIn && !addresses.length && !addressLoading"
+              link
+              type="primary"
+              @click="$router.push('/user/addresses')"
+            >
+              去新增地址
+            </el-button>
           </el-form-item>
 
           <!-- 支付密码 -->
@@ -60,14 +72,24 @@
             size="large"
             style="width: 100%"
             :loading="grabbing"
-            :disabled="grabbed || (remainStock !== null && remainStock <= 0)"
+            :disabled="!canGrab"
             @click="handleGrab"
           >
-            <template v-if="grabbed">已抢购成功 🎉</template>
+            <template v-if="grabbed">已抢购成功</template>
             <template v-else-if="remainStock !== null && remainStock <= 0"
               >已售罄</template
             >
+            <template v-else-if="!userStore.isLoggedIn">登录后抢购</template>
             <template v-else>立即抢购</template>
+          </el-button>
+
+          <el-button
+            v-if="grabbed"
+            size="large"
+            style="width: 100%; margin-top: 10px"
+            @click="$router.push('/user/orders')"
+          >
+            查看我的订单
           </el-button>
         </el-card>
       </el-col>
@@ -77,9 +99,9 @@
           <template #header>活动说明</template>
           <ul class="rules">
             <li>每人限购 1 件，先到先得</li>
-            <li>秒杀商品不支持退换货</li>
-            <li>抢购成功后需在 24 小时内完成支付，否则自动取消</li>
-            <li>秒杀价格以实际支付为准</li>
+            <li>抢购时会直接按秒杀价扣减余额</li>
+            <li>请提前确认收货地址和支付密码</li>
+            <li>重复提交会被系统拦截</li>
           </ul>
         </el-card>
       </el-col>
@@ -100,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Loading } from "@element-plus/icons-vue";
@@ -120,25 +142,65 @@ const remainStock = ref<number | null>(null);
 const addresses = ref<any[]>([]);
 const selectedAddressId = ref<number | undefined>(undefined);
 const payKey = ref("");
+const addressLoading = ref(false);
+const now = ref(Date.now());
+let timer: number | undefined;
 
 const stockPercent = computed(() => {
-  const stock = remainStock.value ?? item.value?.num ?? 0;
+  const stock = remainStock.value ?? stockNum.value;
   if (stock <= 0) return 100;
   if (stock <= 5) return 85;
   if (stock <= 20) return 55;
   return 25;
 });
 
+const countdownText = computed(() => {
+  const end = new Date(now.value);
+  end.setHours(23, 59, 59, 999);
+  const diff = Math.max(0, end.getTime() - now.value);
+  const hours = Math.floor(diff / 1000 / 60 / 60);
+  const minutes = Math.floor((diff / 1000 / 60) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+  return `${padTime(hours)}:${padTime(minutes)}:${padTime(seconds)}`;
+});
+
+const canGrab = computed(() => {
+  const soldOut = remainStock.value !== null && remainStock.value <= 0;
+  return (
+    !grabbing.value &&
+    !grabbed.value &&
+    !soldOut &&
+    (!userStore.isLoggedIn ||
+      (!!selectedAddressId.value && payKey.value.length === 6))
+  );
+});
+
+const flashSaleId = computed(() => item.value?.id ?? item.value?.Id);
+const productId = computed(() => item.value?.product_id ?? item.value?.ProductId);
+const bossId = computed(() => item.value?.boss_id ?? item.value?.BossId);
+const stockNum = computed(() => Number(item.value?.num ?? item.value?.Num ?? 0));
+const titleText = computed(
+  () =>
+    item.value?.title ??
+    item.value?.Title ??
+    `秒杀商品 #${productId.value || ""}`,
+);
+const moneyValue = computed(() => Number(item.value?.money ?? item.value?.Money ?? 0));
+const moneyText = computed(() => moneyValue.value.toFixed(2));
+
+function padTime(value: number) {
+  return String(value).padStart(2, "0");
+}
+
 async function loadData() {
   try {
-    const id = Number(route.params.id);
-    const [itemRes, addrRes]: any[] = await Promise.all([
-      getFlashSaleDetail({ id }),
-      getAddressList(),
-    ]);
+    const productId = Number(route.params.id);
+    const itemRes: any = await getFlashSaleDetail({ product_id: productId });
     item.value = itemRes.data;
-    addresses.value = addrRes.data?.item ?? [];
-    if (addresses.value.length) selectedAddressId.value = addresses.value[0].id;
+    remainStock.value = stockNum.value;
+    if (userStore.isLoggedIn) {
+      await loadAddresses();
+    }
   } catch {
     item.value = null;
   } finally {
@@ -146,25 +208,41 @@ async function loadData() {
   }
 }
 
+async function loadAddresses() {
+  addressLoading.value = true;
+  try {
+    const addrRes: any = await getAddressList();
+    addresses.value = addrRes.data?.item ?? [];
+    if (addresses.value.length) selectedAddressId.value = addresses.value[0].id;
+  } catch {
+    addresses.value = [];
+  } finally {
+    addressLoading.value = false;
+  }
+}
+
 async function handleGrab() {
-  if (!userStore.isLoggedIn) return router.push("/login");
+  if (!userStore.isLoggedIn) {
+    return router.push({ path: "/login", query: { redirect: route.fullPath } });
+  }
   if (!selectedAddressId.value) return ElMessage.warning("请选择收货地址");
-  if (!payKey.value) return ElMessage.warning("请输入支付密码");
+  if (payKey.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
   if (grabbing.value || grabbed.value) return;
 
   grabbing.value = true;
   try {
-    await doFlashSale({
-      product_id: item.value.product_id,
-      boss_id: item.value.boss_id,
+    const res: any = await doFlashSale({
+      flash_sale_id: flashSaleId.value,
+      product_id: productId.value,
+      boss_id: bossId.value,
       address_id: selectedAddressId.value,
       key: payKey.value,
       num: 1,
-      money: item.value.money,
+      money: moneyValue.value,
     });
     grabbed.value = true;
-    if (remainStock.value !== null) remainStock.value--;
-    ElMessage.success("抢购成功！订单已生成，请前往我的订单查看");
+    remainStock.value = res.data?.remaining_stock ?? Math.max(0, (remainStock.value ?? 1) - 1);
+    ElMessage.success("抢购成功，订单生成中");
   } catch {
     ElMessage.error("抢购失败，可能已售罄或您已购买过");
   } finally {
@@ -172,13 +250,30 @@ async function handleGrab() {
   }
 }
 
-onMounted(loadData);
+onMounted(() => {
+  loadData();
+  timer = window.setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (timer) window.clearInterval(timer);
+});
 </script>
 
 <style scoped>
 .detail-wrap {
   max-width: 1000px;
   margin: 0 auto;
+}
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  color: #666;
+  font-size: 14px;
 }
 .flash-badge-large {
   display: inline-block;

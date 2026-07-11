@@ -13,6 +13,7 @@
         <el-menu-item index="/user/orders">我的订单</el-menu-item>
         <el-menu-item index="/user/addresses">收货地址</el-menu-item>
         <el-menu-item index="/user/favorites">我的收藏</el-menu-item>
+        <el-menu-item index="/user/coupons">我的优惠券</el-menu-item>
         <el-menu-item index="/user/wallet">我的钱包</el-menu-item>
       </el-menu>
     </el-aside>
@@ -27,5 +28,8 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
-const activeMenu = computed(() => route.path);
+const activeMenu = computed(() => {
+  if (route.path.startsWith("/user/orders")) return "/user/orders";
+  return route.path;
+});
 </script>

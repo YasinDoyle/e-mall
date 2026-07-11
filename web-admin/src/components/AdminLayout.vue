@@ -15,8 +15,17 @@
         <el-menu-item index="/product">
           <el-icon><Goods /></el-icon>商品管理
         </el-menu-item>
+        <el-menu-item index="/order">
+          <el-icon><Tickets /></el-icon>订单管理
+        </el-menu-item>
         <el-menu-item index="/category">
           <el-icon><Grid /></el-icon>分类管理
+        </el-menu-item>
+        <el-menu-item index="/coupon">
+          <el-icon><Discount /></el-icon>优惠券
+        </el-menu-item>
+        <el-menu-item index="/flash-sale">
+          <el-icon><Timer /></el-icon>秒杀管理
         </el-menu-item>
         <el-menu-item index="/carousel">
           <el-icon><Picture /></el-icon>轮播图

@@ -11,6 +11,7 @@ type CartServiceReq struct {
 type CartCreateReq struct {
 	BossID    uint `form:"boss_id" json:"boss_id"`
 	ProductId uint `form:"product_id" json:"product_id"`
+	Num       uint `form:"num" json:"num"`
 }
 
 type CartDeleteReq struct {
@@ -37,6 +38,7 @@ type CartResp struct {
 	Check_        bool   `json:"check"`
 	Name          string `json:"name"`
 	ImgPath       string `json:"img_path"`
+	Price         string `json:"price"`
 	DiscountPrice string `json:"discount_price"`
 	BossId        uint   `json:"boss_id"`
 	BossName      string `json:"boss_name"`

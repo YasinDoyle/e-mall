@@ -17,7 +17,11 @@ export const uploadAvatar = (formData: FormData) =>
     headers: { "Content-Type": "multipart/form-data" },
   });
 
-export const sendEmail = (data: { email: string; password: string }) =>
+export const sendEmail = (data: {
+  email: string;
+  password?: string;
+  operation_type: 1 | 2 | 3;
+}) =>
   request.post("/user/send_email", data);
 
 export const validEmail = (params: { token: string }) =>

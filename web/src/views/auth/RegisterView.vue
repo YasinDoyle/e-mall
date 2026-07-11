@@ -6,6 +6,9 @@
         <el-form-item label="用户名" prop="user_name">
           <el-input v-model="form.user_name" placeholder="请输入用户名" />
         </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="form.nick_name" placeholder="请输入昵称" />
+        </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input
             v-model="form.password"
@@ -49,7 +52,7 @@ import { userRegister } from "@/api/user";
 const router = useRouter();
 const formRef = ref<FormInstance>();
 const loading = ref(false);
-const form = reactive({ user_name: "", password: "", key: "" });
+const form = reactive({ user_name: "", nick_name: "", password: "", key: "" });
 
 const rules = {
   user_name: [{ required: true, message: "请输入用户名", trigger: "blur" }],
@@ -67,7 +70,10 @@ async function handleRegister() {
   await formRef.value?.validate();
   loading.value = true;
   try {
-    await userRegister(form);
+    await userRegister({
+      ...form,
+      nick_name: form.nick_name || form.user_name,
+    });
     ElMessage.success("注册成功，请登录");
     router.push("/login");
   } finally {

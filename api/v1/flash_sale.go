@@ -97,3 +97,79 @@ func FlashSaleHandler() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
 	}
 }
+
+func AdminListFlashSaleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.ListFlashSaleReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := service.GetFlashSaleSrv().AdminFlashSaleList(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminCreateFlashSaleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AdminFlashSaleReq
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := service.GetFlashSaleSrv().AdminFlashSaleCreate(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminUpdateFlashSaleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AdminFlashSaleUpdateReq
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := service.GetFlashSaleSrv().AdminFlashSaleUpdate(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminDeleteFlashSaleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AdminIDReq
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := service.GetFlashSaleSrv().AdminFlashSaleDelete(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}

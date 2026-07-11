@@ -58,10 +58,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Search, ShoppingCart } from "@element-plus/icons-vue";
 import { useUserStore } from "@/stores/user";
+import { getCartList } from "@/api/cart";
+import { getUserInfo } from "@/api/user";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -84,6 +86,30 @@ function handleCommand(command: string) {
     router.push(`/user/${command}`);
   }
 }
+
+async function syncUserSession() {
+  if (!userStore.isLoggedIn) return;
+  try {
+    const [userRes, cartRes]: any[] = await Promise.all([
+      getUserInfo(),
+      getCartList(),
+    ]);
+    userStore.setUserInfo(userRes.data);
+    userStore.setCartCount(cartRes.data?.item?.length ?? 0);
+  } catch {
+    userStore.logout();
+    router.push("/login");
+  }
+}
+
+onMounted(syncUserSession);
+
+watch(
+  () => userStore.token,
+  () => {
+    syncUserSession();
+  },
+);
 </script>
 
 <style scoped>

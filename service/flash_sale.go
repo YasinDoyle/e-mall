@@ -103,6 +103,21 @@ func (s *FlashSaleSrv) warmFlashSaleCache(ctx context.Context, flashSales []*mod
 	return nil
 }
 
+func (s *FlashSaleSrv) refreshFlashSaleCache(ctx context.Context) error {
+	flashSales, err := dao.NewFlashSaleDao(ctx).ListFlashSales()
+	if err != nil {
+		return err
+	}
+	return s.warmFlashSaleCache(ctx, flashSales)
+}
+
+func (s *FlashSaleSrv) clearFlashSaleDetail(ctx context.Context, productID uint) error {
+	return cache.RedisClient.Del(ctx,
+		fmt.Sprintf(cache.FlashSaleKey, productID),
+		fmt.Sprintf(cache.FlashSaleStockKey, productID),
+	).Err()
+}
+
 func (s *FlashSaleSrv) loadFlashSaleByProductID(ctx context.Context, productID uint) (*model.FlashSale, error) {
 	flashSale, err := dao.NewFlashSaleDao(ctx).GetByProductID(productID)
 	if err != nil {
@@ -255,6 +270,99 @@ func (s *FlashSaleSrv) GetFlashSale(ctx context.Context, req *types.GetFlashSale
 	}
 
 	return &flashSale, nil
+}
+
+func (s *FlashSaleSrv) AdminFlashSaleList(ctx context.Context, req *types.ListFlashSaleReq) (resp interface{}, err error) {
+	pageSize := int(req.PageSize)
+	pageNum := int(req.PageNum)
+	if pageSize == 0 {
+		pageSize = 15
+	}
+	if pageNum == 0 {
+		pageNum = 1
+	}
+
+	list, total, err := dao.NewFlashSaleDao(ctx).ListFlashSalesAdmin(pageNum, pageSize)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = &types.DataListResp{Item: list, Total: total}
+	return
+}
+
+func (s *FlashSaleSrv) AdminFlashSaleCreate(ctx context.Context, req *types.AdminFlashSaleReq) (resp interface{}, err error) {
+	flashSale := &model.FlashSale{
+		ProductId:  req.ProductId,
+		BossId:     req.BossId,
+		Title:      req.Title,
+		Money:      req.Money,
+		Num:        req.Num,
+		CustomId:   req.CustomId,
+		CustomName: req.CustomName,
+	}
+	if err = dao.NewFlashSaleDao(ctx).Create(flashSale); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if err = s.refreshFlashSaleCache(ctx); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = flashSale
+	return
+}
+
+func (s *FlashSaleSrv) AdminFlashSaleUpdate(ctx context.Context, req *types.AdminFlashSaleUpdateReq) (resp interface{}, err error) {
+	oldFlashSale, _ := dao.NewFlashSaleDao(ctx).GetByID(req.ID)
+	flashSale := &model.FlashSale{
+		ProductId:  req.ProductId,
+		BossId:     req.BossId,
+		Title:      req.Title,
+		Money:      req.Money,
+		Num:        req.Num,
+		CustomId:   req.CustomId,
+		CustomName: req.CustomName,
+	}
+	if err = dao.NewFlashSaleDao(ctx).Update(req.ID, flashSale); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if oldFlashSale != nil && oldFlashSale.ProductId != req.ProductId {
+		if clearErr := s.clearFlashSaleDetail(ctx, oldFlashSale.ProductId); clearErr != nil {
+			log.LogrusObj.Error(clearErr)
+		}
+	}
+	if err = s.clearFlashSaleDetail(ctx, req.ProductId); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if err = s.refreshFlashSaleCache(ctx); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = "更新成功"
+	return
+}
+
+func (s *FlashSaleSrv) AdminFlashSaleDelete(ctx context.Context, req *types.AdminIDReq) (resp interface{}, err error) {
+	flashSale, _ := dao.NewFlashSaleDao(ctx).GetByID(req.ID)
+	if err = dao.NewFlashSaleDao(ctx).Delete(req.ID); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if flashSale != nil {
+		if err = s.clearFlashSaleDetail(ctx, flashSale.ProductId); err != nil {
+			log.LogrusObj.Error(err)
+			return
+		}
+	}
+	if err = s.refreshFlashSaleCache(ctx); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = "删除成功"
+	return
 }
 
 // FlashSale 秒杀商品

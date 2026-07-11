@@ -8,8 +8,8 @@
         sub-title="您的账号已激活"
       >
         <template #extra>
-          <el-button type="primary" @click="$router.push('/login')"
-            >去登录</el-button
+          <el-button type="primary" @click="$router.push(successPath)"
+            >{{ successButtonText }}</el-button
           >
         </template>
       </el-result>
@@ -31,11 +31,15 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { Loading } from "@element-plus/icons-vue";
-import { validEmail } from "@/api/user";
+import { getUserInfo, validEmail } from "@/api/user";
+import { useUserStore } from "@/stores/user";
 
 const route = useRoute();
+const userStore = useUserStore();
 const status = ref<"pending" | "success" | "error">("pending");
 const errorMsg = ref("");
+const successPath = ref("/login");
+const successButtonText = ref("去登录");
 
 onMounted(async () => {
   const token = route.query.token as string;
@@ -45,7 +49,13 @@ onMounted(async () => {
     return;
   }
   try {
-    await validEmail({ token });
+    const res: any = await validEmail({ token });
+    if (userStore.isLoggedIn) {
+      const infoRes: any = await getUserInfo().catch(() => null);
+      userStore.setUserInfo(infoRes?.data ?? res.data);
+      successPath.value = "/user/profile";
+      successButtonText.value = "返回个人资料";
+    }
     status.value = "success";
   } catch {
     status.value = "error";

@@ -266,6 +266,23 @@ func AdminProductAuditHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminProductDeleteHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminIDReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().ProductDelete(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
 // ===== 统计 =====
 
 func AdminStatsOverviewHandler() gin.HandlerFunc {

@@ -74,6 +74,54 @@ func (dao *OrderDao) ListOrderByCondition(uid uint, req *types.OrderListReq) (r 
 	return
 }
 
+func (dao *OrderDao) ListOrdersAdmin(req *types.AdminOrderListReq) (r []*types.OrderListResp, count int64, err error) {
+	db := dao.DB.Model(&model.Order{})
+	if req.Type != 0 {
+		db = db.Where("type = ?", req.Type)
+	}
+	if req.RefundStatus != nil {
+		db = db.Where("refund_status = ?", *req.RefundStatus)
+	}
+	if err = db.Count(&count).Error; err != nil {
+		return
+	}
+
+	query := dao.DB.Model(&model.Order{}).
+		Joins("AS o LEFT JOIN product AS p ON p.id = o.product_id").
+		Joins("LEFT JOIN address AS a ON a.id = o.address_id")
+	if req.Type != 0 {
+		query = query.Where("o.type = ?", req.Type)
+	}
+	if req.RefundStatus != nil {
+		query = query.Where("o.refund_status = ?", *req.RefundStatus)
+	}
+
+	err = query.Offset((req.PageNum - 1) * req.PageSize).
+		Limit(req.PageSize).Order("o.created_at DESC").
+		Select("o.id AS id," +
+			"o.order_num AS order_num," +
+			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
+			"UNIX_TIMESTAMP(o.updated_at) AS updated_at," +
+			"o.user_id AS user_id," +
+			"o.product_id AS product_id," +
+			"o.boss_id AS boss_id," +
+			"o.num AS num," +
+			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.tracking_no AS tracking_no," +
+			"p.name AS name," +
+			"p.discount_price AS discount_price," +
+			"p.img_path AS img_path," +
+			"a.name AS address_name," +
+			"a.phone AS address_phone," +
+			"a.address AS address").
+		Find(&r).Error
+
+	return
+}
+
 func (dao *OrderDao) GetOrderById(id, uId uint) (r *model.Order, err error) {
 	err = dao.DB.Model(&model.Order{}).
 		Where("id = ? AND user_id = ?", id, uId).

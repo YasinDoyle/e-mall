@@ -192,6 +192,32 @@ func (s *OrderSrv) OrderList(ctx context.Context, req *types.OrderListReq) (resp
 	return
 }
 
+func (s *OrderSrv) AdminOrderList(ctx context.Context, req *types.AdminOrderListReq) (resp interface{}, err error) {
+	if req.PageSize == 0 {
+		req.PageSize = consts.BasePageSize
+	}
+	if req.PageNum == 0 {
+		req.PageNum = 1
+	}
+
+	orders, total, err := dao.NewOrderDao(ctx).ListOrdersAdmin(req)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return
+	}
+	for i := range orders {
+		if conf.Config.System.UploadModel == consts.UploadModelLocal && orders[i].ImgPath != "" {
+			orders[i].ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + orders[i].ImgPath
+		}
+	}
+
+	resp = types.DataListResp{
+		Item:  orders,
+		Total: total,
+	}
+	return
+}
+
 func (s *OrderSrv) OrderShow(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(ctx)
 	if err != nil {

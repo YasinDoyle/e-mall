@@ -58,6 +58,32 @@ func ListOrdersHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminListOrdersHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AdminOrderListReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		if req.PageSize == 0 {
+			req.PageSize = consts.BasePageSize
+		}
+		if req.PageNum == 0 {
+			req.PageNum = 1
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.AdminOrderList(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
 // ShowOrderHandler 订单详情
 func ShowOrderHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {

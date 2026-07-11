@@ -23,7 +23,7 @@ func NewCartDaoByDB(db *gorm.DB) *CartDao {
 }
 
 // CreateCart 创建 cart pId(商品 id)、uId(用户id)、bId(店家id)
-func (dao *CartDao) CreateCart(pId, uId, bId uint) (cart *model.Cart, status int, err error) {
+func (dao *CartDao) CreateCart(pId, uId, bId, num, maxNum uint) (cart *model.Cart, status int, err error) {
 	// 查询有无此条商品
 	cart, err = dao.GetCartById(pId, uId, bId)
 	// 空的，第一次加入
@@ -32,8 +32,8 @@ func (dao *CartDao) CreateCart(pId, uId, bId uint) (cart *model.Cart, status int
 			UserID:    uId,
 			ProductID: pId,
 			BossID:    bId,
-			Num:       1,
-			MaxNum:    10,
+			Num:       num,
+			MaxNum:    maxNum,
 			Check:     false,
 		}
 		err = dao.DB.Create(&cart).Error
@@ -42,9 +42,14 @@ func (dao *CartDao) CreateCart(pId, uId, bId uint) (cart *model.Cart, status int
 		}
 		return cart, e.SUCCESS, err
 	}
-	if cart.Num < cart.MaxNum {
+	if err != nil {
+		return cart, e.ERROR, err
+	}
+	nextNum := cart.Num + num
+	if nextNum <= maxNum {
 		// 小于最大 num
-		cart.Num++
+		cart.Num = nextNum
+		cart.MaxNum = maxNum
 		err = dao.DB.Save(&cart).Error
 		if err != nil {
 			return
@@ -77,10 +82,12 @@ func (dao *CartDao) ListCartByUserId(uId uint) (cart []*types.CartResp, err erro
 			"c.num AS num," +
 			"c.max_num AS max_num," +
 			"c.check AS check_," +
+			"p.name AS name," +
 			"p.img_path AS img_path," +
 			"p.boss_id AS boss_id," +
 			"p.boss_name AS boss_name," +
 			"p.info AS info," +
+			"p.price AS price," +
 			"p.discount_price AS discount_price").
 		Find(&cart).Error
 
