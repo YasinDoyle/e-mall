@@ -14,12 +14,12 @@
     </template>
 
     <el-table :data="list" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="text" label="内容" show-overflow-tooltip />
+      <el-table-column prop="ID" label="ID" width="80" />
+      <el-table-column prop="Text" label="内容" show-overflow-tooltip />
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row.id)"
+          <el-button size="small" type="danger" @click="handleDelete(row.ID)"
             >删除</el-button
           >
         </template>
@@ -73,8 +73,8 @@ function openCreate() {
 }
 
 function openEdit(row: any) {
-  form.id = row.id;
-  form.text = row.text;
+  form.id = row.ID;
+  form.text = row.Text;
   dialogVisible.value = true;
 }
 
