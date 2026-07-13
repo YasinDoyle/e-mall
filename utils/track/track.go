@@ -19,7 +19,7 @@ func GetDefaultConfig() *config.Configuration {
 			Param: 1,
 		},
 		Reporter: &config.ReporterConfig{
-			LogSpans:           true,
+			LogSpans:           false,
 			LocalAgentHostPort: "127.0.0.1:6831",
 		},
 	}
