@@ -72,8 +72,10 @@ func InitMysql() {
 }
 
 func NewDBClient(ctx context.Context) *gorm.DB {
-	db := _db
-	return db.WithContext(ctx)
+	return _db.Session(&gorm.Session{
+		Context: ctx,
+		NewDB:  true,
+	})
 }
 
 const gormTraceSpanKey = "trace:span"
