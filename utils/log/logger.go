@@ -53,7 +53,7 @@ func setOutputFile() (*os.File, error) {
 
 	logFileName := now.Format("2006-01-02") + ".log"
 	fileName := path.Join(logFilePath, logFileName)
-	src, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	src, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Println("err", err.Error())
 		return nil, err
