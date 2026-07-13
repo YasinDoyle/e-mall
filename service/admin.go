@@ -3,12 +3,17 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"mime/multipart"
 	"sync"
 	"time"
 
+	conf "github.com/YasinDoyle/e-mall/config"
+	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/log"
+	util "github.com/YasinDoyle/e-mall/utils/upload"
 )
 
 var AdminSrvIns *AdminSrv
@@ -60,6 +65,25 @@ func (s *AdminSrv) CarouselCreate(ctx context.Context, req *types.AdminCarouselR
 		return
 	}
 	resp = "创建成功"
+	return
+}
+
+func (s *AdminSrv) CarouselUpload(ctx context.Context, file multipart.File, fileSize int64) (resp interface{}, err error) {
+	fileName := fmt.Sprintf("carousel_%d", time.Now().UnixNano())
+	var path string
+	if conf.Config.System.UploadModel == consts.UploadModelLocal {
+		path, err = util.CarouselUploadToLocalStatic(file, fileName)
+		if err == nil {
+			path = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + path
+		}
+	} else {
+		path, err = util.UploadToQiNiu(file, fileSize)
+	}
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	resp = &types.AdminUploadResp{URL: path}
 	return
 }
 

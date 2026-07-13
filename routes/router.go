@@ -136,6 +136,7 @@ func NewRouter() *gin.Engine {
 			// 轮播图管理
 			admin.GET("carousel/list", api.AdminCarouselListHandler())
 			admin.POST("carousel/create", api.AdminCarouselCreateHandler())
+			admin.POST("carousel/upload", api.AdminCarouselUploadHandler())
 			admin.POST("carousel/update", api.AdminCarouselUpdateHandler())
 			admin.POST("carousel/delete", api.AdminCarouselDeleteHandler())
 

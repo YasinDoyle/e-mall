@@ -19,6 +19,10 @@ export const createCarousel = (data: {
   img_path: string;
   product_id?: number;
 }) => request.post("/admin/carousel/create", data);
+export const uploadCarouselImage = (formData: FormData) =>
+  request.post("/admin/carousel/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 export const updateCarousel = (data: {
   id: number;
   img_path: string;

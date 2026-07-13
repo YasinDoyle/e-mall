@@ -51,10 +51,31 @@
       </el-col>
     </el-row>
 
-    <el-dialog v-model="dialogVisible" title="新增轮播图" width="440px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="新增轮播图"
+      width="520px"
+      @closed="resetForm"
+    >
       <el-form :model="form" label-width="90px">
+        <el-form-item label="上传图片">
+          <el-upload
+            accept="image/*"
+            :show-file-list="false"
+            :before-upload="handleImageUpload"
+          >
+            <el-button>选择图片</el-button>
+          </el-upload>
+          <div v-if="imagePreview" class="image-preview">
+            <img :src="imagePreview" />
+          </div>
+        </el-form-item>
         <el-form-item label="图片地址">
-          <el-input v-model="form.img_path" placeholder="输入图片 URL" />
+          <el-input
+            v-model="form.img_path"
+            placeholder="输入图片 URL"
+            @input="handleManualUrlInput"
+          />
         </el-form-item>
         <el-form-item label="关联商品ID">
           <el-input-number v-model="form.product_id" :min="0" />
@@ -71,14 +92,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from "vue";
+import { computed, ref, onMounted, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { getCarouselList, createCarousel, deleteCarousel } from "@/api";
+import {
+  getCarouselList,
+  createCarousel,
+  deleteCarousel,
+  uploadCarouselImage,
+} from "@/api";
 
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
 const saving = ref(false);
+const selectedFile = ref<File | null>(null);
+const previewUrl = ref("");
 const form = reactive({ img_path: "", product_id: 0 });
+const imagePreview = computed(() => previewUrl.value || form.img_path.trim());
 
 async function loadList() {
   const res: any = await getCarouselList();
@@ -86,20 +115,53 @@ async function loadList() {
 }
 
 async function handleSave() {
-  if (!form.img_path.trim()) return ElMessage.warning("请输入图片地址");
+  if (!selectedFile.value && !form.img_path.trim()) {
+    return ElMessage.warning("请上传图片或输入图片地址");
+  }
   saving.value = true;
   try {
+    let imgPath = form.img_path.trim();
+    if (selectedFile.value) {
+      const formData = new FormData();
+      formData.append("file", selectedFile.value);
+      const uploadRes: any = await uploadCarouselImage(formData);
+      imgPath = uploadRes.data?.url ?? "";
+    }
+    if (!imgPath) return ElMessage.warning("图片上传失败");
+
     await createCarousel({
-      img_path: form.img_path,
+      img_path: imgPath,
       product_id: form.product_id || undefined,
     });
     ElMessage.success("创建成功");
     dialogVisible.value = false;
-    form.img_path = "";
-    form.product_id = 0;
     loadList();
   } finally {
     saving.value = false;
+  }
+}
+
+function handleImageUpload(file: File) {
+  if (!file.type.startsWith("image/")) {
+    ElMessage.warning("请选择图片文件");
+    return false;
+  }
+  selectedFile.value = file;
+  form.img_path = "";
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+  }
+  previewUrl.value = URL.createObjectURL(file);
+  return false;
+}
+
+function handleManualUrlInput() {
+  if (selectedFile.value) {
+    selectedFile.value = null;
+  }
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = "";
   }
 }
 
@@ -110,5 +172,29 @@ async function handleDelete(id: number) {
   loadList();
 }
 
+function resetForm() {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value);
+  }
+  form.img_path = "";
+  form.product_id = 0;
+  selectedFile.value = null;
+  previewUrl.value = "";
+}
+
 onMounted(loadList);
 </script>
+
+<style scoped>
+.image-preview {
+  width: 100%;
+  margin-top: 10px;
+}
+.image-preview img {
+  width: 220px;
+  height: 100px;
+  object-fit: cover;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+</style>

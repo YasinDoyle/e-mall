@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -86,6 +87,24 @@ func AdminCarouselCreateHandler() gin.HandlerFunc {
 			return
 		}
 		resp, err := service.GetAdminSrv().CarouselCreate(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func AdminCarouselUploadHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, fileHeader, _ := c.Request.FormFile("file")
+		if fileHeader == nil {
+			err := errors.New("请选择轮播图图片")
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().CarouselUpload(c.Request.Context(), file, fileHeader.Size)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			c.JSON(http.StatusOK, ErrorResponse(c, err))

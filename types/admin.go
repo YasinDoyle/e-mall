@@ -33,6 +33,10 @@ type AdminCarouselUpdateReq struct {
 	ProductID uint   `json:"product_id"`
 }
 
+type AdminUploadResp struct {
+	URL string `json:"url"`
+}
+
 // ===== 公告 =====
 
 type AdminNoticeReq struct {

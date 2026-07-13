@@ -75,6 +75,26 @@ func ReviewUploadToLocalStatic(file multipart.File, userId uint, fileName string
 	return fmt.Sprintf("review/user%s/%s.jpg", uId, fileName), err
 }
 
+// CarouselUploadToLocalStatic 上传轮播图
+func CarouselUploadToLocalStatic(file multipart.File, fileName string) (filePath string, err error) {
+	basePath := "." + conf.Config.PhotoPath.ProductPath + "carousel/"
+	if !DirExistOrNot(basePath) {
+		CreateDir(basePath)
+	}
+	carouselPath := fmt.Sprintf("%s%s.jpg", basePath, fileName)
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return "", err
+	}
+	err = ioutil.WriteFile(carouselPath, content, 0666)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return "", err
+	}
+	return fmt.Sprintf("carousel/%s.jpg", fileName), err
+}
+
 // DirExistOrNot 判断文件是否存在
 func DirExistOrNot(fileAddr string) bool {
 	s, err := os.Stat(fileAddr)
