@@ -36,6 +36,7 @@ import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { adminLogin, getStatsOverview } from "@/api";
 import { useAdminStore } from "@/stores/admin";
+import { ApiErrorCode } from "@/utils/api-error";
 
 const router = useRouter();
 const store = useAdminStore();
@@ -60,9 +61,12 @@ async function handleLogin() {
     localStorage.setItem("admin_refresh_token", res.data.refresh_token);
     try {
       await getStatsOverview();
-    } catch {
+    } catch (error: any) {
+      const status = error?.response?.data?.status;
       store.logout();
-      ElMessage.error("当前账号不是管理员");
+      if (status === ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL) {
+        return;
+      }
       return;
     }
     store.setAdminInfo({

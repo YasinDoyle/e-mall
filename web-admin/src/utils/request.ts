@@ -1,5 +1,6 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
+import { ApiErrorCode, resolveApiErrorMessage } from "@/utils/api-error";
 
 const request = axios.create({
   baseURL: "/api/v1",
@@ -17,9 +18,16 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => {
     const data = response.data;
-    if (data.status !== undefined && data.status !== 200) {
-      ElMessage.error(data.msg || "请求失败");
-      return Promise.reject(new Error(data.msg));
+    if (data?.status !== undefined && data.status !== ApiErrorCode.SUCCESS) {
+      const message = resolveApiErrorMessage(data);
+      ElMessage.error(message);
+      if (data.status === ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL) {
+        localStorage.removeItem("admin_token");
+        import("@/router").then(({ default: router }) => {
+          router.push("/login");
+        });
+      }
+      return Promise.reject(new Error(message));
     }
     // 自动刷新 token
     if (response.headers["access_token"]) {
@@ -39,7 +47,11 @@ request.interceptors.response.use(
       import("@/router").then(({ default: router }) => router.push("/login"));
       ElMessage.error("登录已过期");
     } else {
-      ElMessage.error(error.response?.data?.msg || error.message || "网络错误");
+      const message = resolveApiErrorMessage(
+        error.response?.data,
+        error.message || "网络错误",
+      );
+      ElMessage.error(message);
     }
     return Promise.reject(error);
   },

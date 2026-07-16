@@ -1,8 +1,10 @@
 // ===== 通用 =====
 export interface ApiResponse<T = unknown> {
-  code: number;
+  status: number;
   data: T;
   msg: string;
+  error?: string;
+  track_id?: string;
 }
 
 export interface PageReq {
