@@ -17,7 +17,7 @@
       </el-table-column>
       <el-table-column label="优惠" width="120">
         <template #default="{ row }">
-          {{ row.coupon_type === 1 ? `¥${row.discount}` : `${Number(row.discount) * 10} 折` }}
+          {{ discountText(row) }}
         </template>
       </el-table-column>
       <el-table-column prop="min_amount" label="门槛" width="110" />
@@ -49,8 +49,31 @@
             <el-radio-button :value="2">折扣券</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="优惠值">
-          <el-input-number v-model="form.discount" :min="0" :step="form.coupon_type === 1 ? 1 : 0.01" :precision="2" />
+        <el-form-item v-if="form.coupon_type === 1" label="减免金额">
+          <div class="field-line">
+            <el-input-number
+              v-model="form.discount_amount"
+              :min="0"
+              :precision="2"
+              :step="1"
+            />
+            <span class="field-hint">元</span>
+          </div>
+        </el-form-item>
+        <el-form-item v-else label="折扣比例">
+          <div class="field-line">
+            <el-input-number
+              v-model="form.discount_percent"
+              :min="1"
+              :max="100"
+              :precision="0"
+              :step="1"
+            />
+            <span class="field-hint">
+              支付 {{ form.discount_percent }}%，约
+              {{ percentToFold(form.discount_percent) }} 折
+            </span>
+          </div>
         </el-form-item>
         <el-form-item label="使用门槛">
           <el-input-number v-model="form.min_amount" :min="0" :precision="2" />
@@ -88,7 +111,8 @@ const dialogVisible = ref(false);
 const form = reactive({
   name: "",
   coupon_type: 1,
-  discount: 0,
+  discount_amount: 0,
+  discount_percent: 90,
   min_amount: 0,
   stock: 100,
   expire_at: "",
@@ -102,11 +126,27 @@ function formatTime(value: string) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function percentToFold(percent: number) {
+  return (Number(percent || 0) / 10).toFixed(1).replace(/\.0$/, "");
+}
+
+function discountText(row: any) {
+  if (row.coupon_type === 1) {
+    return `减 ¥${Number(row.discount || 0).toFixed(2)}`;
+  }
+  return `${(Number(row.discount || 0) * 100).toFixed(0)}%，${(
+    Number(row.discount || 0) * 10
+  )
+    .toFixed(1)
+    .replace(/\.0$/, "")} 折`;
+}
+
 function openCreate() {
   Object.assign(form, {
     name: "",
     coupon_type: 1,
-    discount: 0,
+    discount_amount: 0,
+    discount_percent: 90,
     min_amount: 0,
     stock: 100,
     expire_at: "",
@@ -127,12 +167,29 @@ async function loadList() {
 async function save() {
   if (!form.name.trim()) return ElMessage.warning("请输入优惠券名称");
   if (!form.expire_at) return ElMessage.warning("请选择过期时间");
-  if (form.coupon_type === 2 && (form.discount <= 0 || form.discount > 1)) {
-    return ElMessage.warning("折扣券优惠值应为 0-1，例如 0.9");
+  if (form.coupon_type === 1 && form.discount_amount <= 0) {
+    return ElMessage.warning("请输入减免金额");
   }
+  if (
+    form.coupon_type === 2 &&
+    (form.discount_percent <= 0 || form.discount_percent > 100)
+  ) {
+    return ElMessage.warning("请输入 1-100 的折扣比例");
+  }
+  const discount =
+    form.coupon_type === 1
+      ? form.discount_amount
+      : Number((form.discount_percent / 100).toFixed(2));
   saving.value = true;
   try {
-    await createAdminCoupon({ ...form });
+    await createAdminCoupon({
+      name: form.name,
+      coupon_type: form.coupon_type,
+      discount,
+      min_amount: form.min_amount,
+      stock: form.stock,
+      expire_at: form.expire_at,
+    });
     ElMessage.success("创建成功");
     dialogVisible.value = false;
     loadList();
@@ -160,5 +217,15 @@ onMounted(loadList);
 .muted {
   color: #909399;
   font-size: 12px;
+}
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.field-hint {
+  color: #909399;
+  font-size: 13px;
 }
 </style>

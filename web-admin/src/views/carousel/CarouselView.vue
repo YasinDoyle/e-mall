@@ -41,7 +41,7 @@
             "
           >
             <span style="font-size: 12px; color: #999"
-              >商品ID: {{ item.product_id || "-" }}</span
+              >商品ID: {{ item.product_id }}</span
             >
             <el-button size="small" type="danger" @click="handleDelete(item.id)"
               >删除</el-button
@@ -78,7 +78,11 @@
           />
         </el-form-item>
         <el-form-item label="关联商品ID">
-          <el-input-number v-model="form.product_id" :min="0" />
+          <el-input-number
+            v-model="form.product_id"
+            :min="1"
+            placeholder="请输入商品ID"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -106,7 +110,10 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const selectedFile = ref<File | null>(null);
 const previewUrl = ref("");
-const form = reactive({ img_path: "", product_id: 0 });
+const form = reactive<{ img_path: string; product_id?: number }>({
+  img_path: "",
+  product_id: undefined,
+});
 const imagePreview = computed(() => previewUrl.value || form.img_path.trim());
 
 async function loadList() {
@@ -117,6 +124,9 @@ async function loadList() {
 async function handleSave() {
   if (!selectedFile.value && !form.img_path.trim()) {
     return ElMessage.warning("请上传图片或输入图片地址");
+  }
+  if (!form.product_id || form.product_id < 1) {
+    return ElMessage.warning("请输入有效的关联商品ID");
   }
   saving.value = true;
   try {
@@ -131,7 +141,7 @@ async function handleSave() {
 
     await createCarousel({
       img_path: imgPath,
-      product_id: form.product_id || undefined,
+      product_id: form.product_id,
     });
     ElMessage.success("创建成功");
     dialogVisible.value = false;
@@ -177,7 +187,7 @@ function resetForm() {
     URL.revokeObjectURL(previewUrl.value);
   }
   form.img_path = "";
-  form.product_id = 0;
+  form.product_id = undefined;
   selectedFile.value = null;
   previewUrl.value = "";
 }

@@ -86,6 +86,7 @@ func AdminCarouselCreateHandler() gin.HandlerFunc {
 			c.JSON(http.StatusOK, ErrorResponse(c, err))
 			return
 		}
+		log.LogrusObj.Infof("imagepath:%s productId:%d", req.ImgPath, req.ProductID)
 		resp, err := service.GetAdminSrv().CarouselCreate(c.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Error(err)

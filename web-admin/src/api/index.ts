@@ -17,16 +17,14 @@ export const deleteCategory = (data: { id: number }) =>
 export const getCarouselList = () => request.get("/admin/carousel/list");
 export const createCarousel = (data: {
   img_path: string;
-  product_id?: number;
+  product_id: number;
 }) => request.post("/admin/carousel/create", data);
 export const uploadCarouselImage = (formData: FormData) =>
-  request.post("/admin/carousel/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  request.post("/admin/carousel/upload", formData);
 export const updateCarousel = (data: {
   id: number;
   img_path: string;
-  product_id?: number;
+  product_id: number;
 }) => request.post("/admin/carousel/update", data);
 export const deleteCarousel = (data: { id: number }) =>
   request.post("/admin/carousel/delete", data);

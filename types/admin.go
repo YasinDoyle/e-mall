@@ -24,13 +24,13 @@ type AdminCategoryUpdateReq struct {
 
 type AdminCarouselReq struct {
 	ImgPath   string `json:"img_path" binding:"required"`
-	ProductID uint   `json:"product_id"`
+	ProductID uint   `json:"product_id" binding:"required,gt=0"`
 }
 
 type AdminCarouselUpdateReq struct {
 	ID        uint   `json:"id" binding:"required"`
 	ImgPath   string `json:"img_path" binding:"required"`
-	ProductID uint   `json:"product_id"`
+	ProductID uint   `json:"product_id" binding:"required,gt=0"`
 }
 
 type AdminUploadResp struct {

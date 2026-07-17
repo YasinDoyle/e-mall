@@ -14,6 +14,7 @@ import (
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/log"
 	util "github.com/YasinDoyle/e-mall/utils/upload"
+	"gorm.io/gorm"
 )
 
 var AdminSrvIns *AdminSrv
@@ -60,6 +61,9 @@ func (s *AdminSrv) CategoryDelete(ctx context.Context, req *types.AdminIDReq) (r
 // ===== 轮播图 =====
 
 func (s *AdminSrv) CarouselCreate(ctx context.Context, req *types.AdminCarouselReq) (resp interface{}, err error) {
+	if err = validateCarouselProduct(ctx, req.ProductID); err != nil {
+		return
+	}
 	if err = dao.NewAdminDao(ctx).CreateCarousel(req.ImgPath, req.ProductID); err != nil {
 		log.LogrusObj.Error(err)
 		return
@@ -92,6 +96,9 @@ func (s *AdminSrv) CarouselList(ctx context.Context) (resp interface{}, err erro
 }
 
 func (s *AdminSrv) CarouselUpdate(ctx context.Context, req *types.AdminCarouselUpdateReq) (resp interface{}, err error) {
+	if err = validateCarouselProduct(ctx, req.ProductID); err != nil {
+		return
+	}
 	if err = dao.NewAdminDao(ctx).UpdateCarousel(req.ID, req.ImgPath, req.ProductID); err != nil {
 		log.LogrusObj.Error(err)
 		return
@@ -107,6 +114,20 @@ func (s *AdminSrv) CarouselDelete(ctx context.Context, req *types.AdminIDReq) (r
 	}
 	resp = "删除成功"
 	return
+}
+
+func validateCarouselProduct(ctx context.Context, productID uint) error {
+	if productID == 0 {
+		return errors.New("请选择关联商品")
+	}
+	if _, err := dao.NewProductDao(ctx).GetProductById(productID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("关联商品不存在")
+		}
+		log.LogrusObj.Error(err)
+		return err
+	}
+	return nil
 }
 
 // ===== 公告 =====
