@@ -67,77 +67,7 @@ SDK：`github.com/go-pay/gopay`（同时支持微信V3 和支付宝）
 
 ---
 
-## Part 1.1 — 延伸优化补充（主线完成后可选）
-
-> 说明：以下内容不属于原 B1-B6 的核心验收范围，是在后端主链路跑通后用于增强支付、售后、统计和后台运营能力的补充阶段。
-
-**Phase BE1 — 支付/充值网关增强** `约2-4天，依赖 B5`
-
-1. 充值订单管理：
-   - `GET /api/v1/admin/recharge/orders`：按用户、渠道、状态、时间筛选充值订单
-   - `GET /api/v1/admin/recharge/orders/:order_num`：查看充值订单详情、支付流水号、退款状态
-2. 退款状态查询：
-   - `GET /api/v1/admin/recharge/refund/status`：查询微信/支付宝充值退款状态
-   - 同步本地 `RechargeOrder.RefundStatus`、`RefundNo`、`RefundedAt`
-3. 退款异步回调：
-   - `POST /api/v1/pay/wechat/refund/notify`
-   - `POST /api/v1/pay/alipay/refund/notify`
-   - 验签后更新本地退款状态，避免只依赖主动查询
-4. 商品订单直连三方支付（可选替代余额支付）：
-   - 新增订单支付流水模型，如 `OrderPayment`
-   - `WechatOrderPay(orderNum, amount)`、`AlipayOrderPay(orderNum, amount)`
-   - 商品订单支付回调更新 `Order.Type` 并发 MQ
-   - 商品订单退款审批通过后调用对应三方退款接口
-
-**Phase BE2 — 订单售后增强** `约2-3天，依赖 B4 + BE1 可选`
-
-1. 售后单独建模：`model/after_sale.go`，支持仅退款、退货退款、换货等类型
-2. 退款审批补充拒绝流程：
-   - `POST /api/v1/admin/orders/refund/reject`
-   - 记录拒绝原因，订单恢复到原业务状态
-3. 退货物流：
-   - 用户提交退货单号
-   - 管理员确认收货后再退款
-4. 售后操作日志：
-   - 记录申请、审核、退款、拒绝、关闭等节点
-   - 后台订单详情展示时间线
-
-**Phase BE3 — Admin 统计增强** `约2-3天，依赖 B6`
-
-1. 扩展总览指标：
-   - GMV、净销售额、退款金额、退款订单数
-   - 待发货数、售后待处理数、待审核商品数
-2. 用户增长趋势：
-   - `GET /api/v1/admin/stats/users`
-   - 按天返回新增用户数、累计用户数
-3. 商品销售排行：
-   - `GET /api/v1/admin/stats/products/rank`
-   - 返回销量、销售额、退款量
-4. 分类销售占比：
-   - `GET /api/v1/admin/stats/categories`
-   - 用于 ECharts 饼图/柱状图
-5. 转化漏斗（可选）：
-   - 浏览/收藏/加购/下单/支付等节点统计
-   - 若当前埋点不足，先补事件采集模型与上报接口
-
-**Phase FE1 — 前端/后台增强联动** `约3-5天，依赖 BE1-BE3`
-
-1. Admin Dashboard 增强：
-   - 展示 GMV、净销售额、退款金额、售后待处理数
-   - 增加用户增长、商品排行、分类占比图表
-2. 充值订单管理页面：
-   - 列表筛选、详情抽屉、退款状态刷新
-   - 支持按渠道/状态/时间筛选
-3. 售后管理页面增强：
-   - 退款审批、拒绝、退货物流、售后时间线
-4. 用户端订单售后增强：
-   - 申请退款/退货、填写退货物流、查看处理进度
-5. 支付页增强：
-   - 商品订单支持余额、微信、支付宝多支付方式切换
-
----
-
-## Part 1.2 — 平台化商业闭环与生产级架构演进
+## Part 1.1 — 平台化商业闭环与生产级架构演进
 
 > 目标：不要一开始就直接堆成淘宝/京东级复杂度，而是按真实平台演进顺序推进：先跑通业务闭环，再补可运营商业闭环，最后用压测和观测数据驱动生产级架构改造。
 >
@@ -175,7 +105,7 @@ SDK：`github.com/go-pay/gopay`（同时支持微信V3 和支付宝）
 
 > 可验收：买家支付一笔订单后，平台产生佣金收入，商家产生待结算收入；确认收货后可生成商家结算单；后台能查到订单、流水、佣金、结算记录。
 
-### Phase P2 — 订单履约闭环 `约2-4周，依赖 P1/B4/FE1`
+### Phase P2 — 订单履约闭环 `约2-4周，依赖 P1/B4/B5/F4/F5/F9`
 
 1. 订单状态机明确化：
    - 待支付、已支付待发货、已发货待收货、已完成、已取消、售后中、已退款
@@ -460,7 +390,6 @@ Month 10+:   V4 高规模专题：分库分表、冷热数据、ES 集群容量�
 | 后端补全（B1-B6）   | 10-15天       |
 | 用户端前端（F1-F8） | 10-12天       |
 | Admin 后台（F9）    | 5-7天         |
-| 延伸优化（BE/FE）   | 5-10天        |
 | 平台商业闭环（P1-P2） | 1-2个月       |
 | 容量边界（C1-C2）   | 1-2个月       |
 | 生产架构专题（A1-A4） | 3-6个月       |
@@ -479,7 +408,7 @@ Month 10+:   V4 高规模专题：分库分表、冷热数据、ES 集群容量�
 | `repository/db/model/account_flow.go` | P1/P2 新增用户、商家、平台资金流水     |
 | `repository/db/model/order.go` | 新增 `RefundStatus`、`TrackingNo`          |
 | `repository/db/model/order_log.go` | P2 新增订单状态流转日志                  |
-| `repository/db/model/after_sale.go` | BE2/P2 新增独立售后单                   |
+| `repository/db/model/after_sale.go` | P2 新增独立售后单                       |
 | `repository/db/model/risk_event.go` | A1 新增风险事件和风险订单记录           |
 | `repository/db/model/user_behavior.go` | A3 新增用户行为埋点事件                |
 | `service/payment.go`           | 现有余额支付逻辑保留                       |
