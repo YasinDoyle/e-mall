@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"mime/multipart"
 	"sync"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
-	"github.com/YasinDoyle/e-mall/utils/email"
 	"github.com/YasinDoyle/e-mall/utils/jwt"
 	"github.com/YasinDoyle/e-mall/utils/log"
 	util "github.com/YasinDoyle/e-mall/utils/upload"
@@ -33,6 +31,17 @@ func GetUserSrv() *UserSrv {
 }
 
 func (s *UserSrv) UserRegister(ctx context.Context, req *types.UserRegisterReq) (resp any, err error) {
+	registerEmail, err := normalizeRegisterEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if req.Password == "" || len(req.Password) < 6 {
+		return nil, errors.New("密码至少6位")
+	}
+	if req.Password != req.PasswordConfirm {
+		return nil, errors.New("两次密码输入不一致")
+	}
+
 	userDao := dao.NewUserDao(ctx)
 	_, exist, err := userDao.ExistOrNotByUserName(req.UserName)
 	if err != nil {
@@ -43,11 +52,22 @@ func (s *UserSrv) UserRegister(ctx context.Context, req *types.UserRegisterReq) 
 		err = errors.New("用户已经存在了")
 		return
 	}
+	if _, exist, err = userDao.ExistOrNotByEmail(registerEmail); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if exist {
+		err = errors.New("邮箱已被注册")
+		return
+	}
+	if err = consumeRegisterEmailCode(ctx, registerEmail, req.EmailCode); err != nil {
+		return nil, err
+	}
 	user := &model.User{
 		NickName: req.NickName,
 		UserName: req.UserName,
+		Email:    registerEmail,
 		Status:   model.Active,
-		Money:    consts.UserInitMoney,
 	}
 
 	//加密密码
@@ -55,14 +75,6 @@ func (s *UserSrv) UserRegister(ctx context.Context, req *types.UserRegisterReq) 
 		log.LogrusObj.Error(err)
 		return
 	}
-	//加密money
-	money, err := user.EncryptMoney(req.Key)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return
-
-	}
-	user.Money = money
 	user.Avatar = consts.UserDefaultAvatarLocal
 	if conf.Config.System.UploadModel == consts.UploadModelOss {
 		//如果是oss上传模式，默认头像设置为oss上的地址
@@ -102,13 +114,14 @@ func (s *UserSrv) UserLogin(ctx context.Context, req *types.UserServiceReq) (res
 	}
 
 	userResp := &types.UserInfoResp{
-		ID:       user.ID,
-		UserName: user.UserName,
-		NickName: user.NickName,
-		Email:    user.Email,
-		Status:   user.Status,
-		Avatar:   user.AvatarURL(),
-		CreateAt: user.CreatedAt.Unix(),
+		ID:        user.ID,
+		UserName:  user.UserName,
+		NickName:  user.NickName,
+		Email:     user.Email,
+		Status:    user.Status,
+		Avatar:    user.AvatarURL(),
+		PayKeySet: user.HasPayKey(),
+		CreateAt:  user.CreatedAt.Unix(),
 	}
 
 	resp = &types.UserTokenData{
@@ -180,95 +193,6 @@ func (s *UserSrv) UserAvatarUpload(ctx context.Context, file multipart.File, fil
 	return
 }
 
-// SendEmail 发送邮件
-func (s *UserSrv) SendEmail(ctx context.Context, req *types.SendEmailServiceReq) (resp interface{}, err error) {
-	u, err := ctl.GetUserInfo(ctx)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return nil, err
-	}
-	var address string
-	token, err := jwt.GenerateEmailToken(u.Id, req.OperationType, req.Email, req.Password)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return nil, err
-	}
-	sender := email.NewEmailSender()
-	address = conf.Config.Email.ValidEmail + token
-	mailText := fmt.Sprintf(consts.EmailOperationMap[req.OperationType], address)
-	if err = sender.Send(mailText, req.Email, "FanOneMall"); err != nil {
-		log.LogrusObj.Error(err)
-		return
-	}
-
-	return
-}
-
-// Valid 验证内容
-func (s *UserSrv) Valid(ctx context.Context, req *types.ValidEmailServiceReq) (resp interface{}, err error) {
-	var userId uint
-	var email string
-	var password string
-	var operationType uint
-	// 验证token
-	if req.Token == "" {
-		err = errors.New("token不存在")
-		log.LogrusObj.Error(err)
-		return
-	}
-	claims, err := jwt.ParseEmailToken(req.Token)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return
-	} else {
-		userId = claims.UserID
-		email = claims.Email
-		password = claims.Password
-		operationType = claims.OperationType
-	}
-
-	// 获取该用户信息
-	userDao := dao.NewUserDao(ctx)
-	user, err := userDao.GetUserById(userId)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return
-	}
-
-	switch operationType {
-	case consts.EmailOperationBinding:
-		user.Email = email
-	case consts.EmailOperationNoBinding:
-		user.Email = ""
-	case consts.EmailOperationUpdatePassword:
-		err = user.SetPassword(password)
-		if err != nil {
-			err = errors.New("密码加密错误")
-			return
-		}
-	default:
-		return nil, errors.New("操作不符合")
-	}
-
-	err = userDao.UpdateUserById(userId, user)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return
-	}
-
-	resp = &types.UserInfoResp{
-		ID:       user.ID,
-		UserName: user.UserName,
-		NickName: user.NickName,
-		Email:    user.Email,
-		Status:   user.Status,
-		Avatar:   user.AvatarURL(),
-		CreateAt: user.CreatedAt.Unix(),
-	}
-
-	return
-}
-
 // UserInfoShow 用户信息展示
 func (s *UserSrv) UserInfoShow(ctx context.Context, req *types.UserInfoShowReq) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(ctx)
@@ -282,13 +206,14 @@ func (s *UserSrv) UserInfoShow(ctx context.Context, req *types.UserInfoShowReq) 
 		return
 	}
 	resp = &types.UserInfoResp{
-		ID:       user.ID,
-		UserName: user.UserName,
-		NickName: user.NickName,
-		Email:    user.Email,
-		Status:   user.Status,
-		Avatar:   user.AvatarURL(),
-		CreateAt: user.CreatedAt.Unix(),
+		ID:        user.ID,
+		UserName:  user.UserName,
+		NickName:  user.NickName,
+		Email:     user.Email,
+		Status:    user.Status,
+		Avatar:    user.AvatarURL(),
+		PayKeySet: user.HasPayKey(),
+		CreateAt:  user.CreatedAt.Unix(),
 	}
 
 	return

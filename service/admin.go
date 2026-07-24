@@ -255,6 +255,21 @@ func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAudi
 	if req.AuditStatus == 0 && req.Status != 0 {
 		req.AuditStatus = req.Status
 	}
+	if req.AuditStatus == consts.ProductAuditApproved {
+		product, loadErr := dao.NewProductDao(ctx).ShowProductById(req.ID)
+		if loadErr != nil {
+			log.LogrusObj.Error(loadErr)
+			return nil, loadErr
+		}
+		boss, loadErr := dao.NewUserDao(ctx).GetUserById(product.BossID)
+		if loadErr != nil {
+			log.LogrusObj.Error(loadErr)
+			return nil, loadErr
+		}
+		if err = ensureSellerCanEnableTrading(boss, true); err != nil {
+			return
+		}
+	}
 	if err = dao.NewAdminDao(ctx).AuditProduct(req.ID, req.AuditStatus); err != nil {
 		log.LogrusObj.Error(err)
 		return

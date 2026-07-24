@@ -38,7 +38,6 @@ const (
 	ErrorAuth                      = 30004
 	ErrorAuthInsufficientAuthority = 30005
 	ErrorReadFile                  = 30006
-	ErrorSendEmail                 = 30007
 	ErrorCallApi                   = 30008
 	ErrorUnmarshalJson             = 30009
 	ErrorAdminFindUser             = 30010

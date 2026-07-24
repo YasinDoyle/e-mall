@@ -26,6 +26,7 @@ func NewRouter() *gin.Engine {
 		})
 
 		//用户操作
+		v1.POST("user/register/email/code", api.RegisterEmailCodeHandler())
 		v1.POST("user/register", api.UserRegisterHandler())
 		v1.POST("user/login", api.UserLoginHandler())
 
@@ -54,8 +55,6 @@ func NewRouter() *gin.Engine {
 			// 用户操作
 			authed.POST("user/update", api.UserUpdateHandler())
 			authed.GET("user/show_info", api.ShowUserInfoHandler())
-			authed.POST("user/send_email", api.SendEmailHandler())
-			authed.GET("user/valid_email", api.ValidEmailHandler())
 			authed.POST("user/following", api.UserFollowingHandler())
 			authed.POST("user/unfollowing", api.UserUnFollowingHandler())
 			authed.POST("user/avatar", api.UploadAvatarHandler()) // 上传头像
@@ -108,6 +107,7 @@ func NewRouter() *gin.Engine {
 
 			// 显示金额
 			authed.POST("money", api.ShowMoneyHandler())
+			authed.POST("money/pay-key", api.SetPayKeyHandler())
 
 			// 秒杀专场
 			authed.POST("flash_sale/init", api.InitFlashSaleHandler())

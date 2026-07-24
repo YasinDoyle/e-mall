@@ -34,7 +34,6 @@ var MsgFlags = map[int]string{
 	ErrorAuth:                      "Token错误",
 	ErrorAuthInsufficientAuthority: "权限不足",
 	ErrorReadFile:                  "读文件失败",
-	ErrorSendEmail:                 "发送邮件失败",
 	ErrorCallApi:                   "调用接口失败",
 	ErrorUnmarshalJson:             "解码JSON失败",
 

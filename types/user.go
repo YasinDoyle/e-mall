@@ -8,10 +8,16 @@ type UserServiceReq struct {
 }
 
 type UserRegisterReq struct {
-	NickName string `form:"nick_name" json:"nick_name"`
-	UserName string `form:"user_name" json:"user_name"`
-	Password string `form:"password" json:"password"`
-	Key      string `form:"key" json:"key"`
+	NickName        string `form:"nick_name" json:"nick_name"`
+	UserName        string `form:"user_name" json:"user_name"`
+	Email           string `form:"email" json:"email"`
+	EmailCode       string `form:"email_code" json:"email_code"`
+	Password        string `form:"password" json:"password"`
+	PasswordConfirm string `form:"password_confirm" json:"password_confirm"`
+}
+
+type RegisterEmailCodeReq struct {
+	Email string `form:"email" json:"email"`
 }
 
 type UserTokenData struct {
@@ -40,24 +46,14 @@ type UserUnFollowingReq struct {
 	Id uint `json:"id" form:"id"`
 }
 
-type SendEmailServiceReq struct {
-	Email    string `form:"email" json:"email"`
-	Password string `form:"password" json:"password"`
-	// OpertionType 1:绑定邮箱 2：解绑邮箱 3：改密码
-	OperationType uint `form:"operation_type" json:"operation_type"`
-}
-
-type ValidEmailServiceReq struct {
-	Token string `json:"token" form:"token"`
-}
-
 type UserInfoResp struct {
-	ID       uint   `json:"id"`
-	UserName string `json:"user_name"`
-	NickName string `json:"nickname"`
-	Type     int    `json:"type"`
-	Email    string `json:"email"`
-	Status   string `json:"status"`
-	Avatar   string `json:"avatar"`
-	CreateAt int64  `json:"create_at"`
+	ID        uint   `json:"id"`
+	UserName  string `json:"user_name"`
+	NickName  string `json:"nickname"`
+	Type      int    `json:"type"`
+	Email     string `json:"email"`
+	Status    string `json:"status"`
+	Avatar    string `json:"avatar"`
+	PayKeySet bool   `json:"pay_key_set"`
+	CreateAt  int64  `json:"create_at"`
 }

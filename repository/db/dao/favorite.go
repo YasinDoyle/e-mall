@@ -29,11 +29,19 @@ func (dao *FavoritesDao) ListFavoriteByUserId(uId uint, pageSize, pageNum int) (
 	if err != nil {
 		return
 	}
-	err = dao.DB.Model(&model.Favorite{}).
-		Joins("AS f LEFT JOIN user AS u on u.id = f.boss_id").
+	err = buildListFavoriteByUserIdQuery(dao.DB, uId, pageSize, pageNum).
+		Find(&r).Error
+
+	return
+}
+
+func buildListFavoriteByUserIdQuery(db *gorm.DB, uId uint, pageSize, pageNum int) *gorm.DB {
+	return db.Table("favorite AS f").
+		Joins("LEFT JOIN user AS u on u.id = f.boss_id").
 		Joins("LEFT JOIN product AS p ON p.id = f.product_id").
 		Joins("LEFT JOIN category AS c ON c.id = p.category_id").
 		Where("f.user_id = ?", uId).
+		Where("f.deleted_at IS NULL").
 		Offset((pageNum - 1) * pageSize).Limit(pageSize).
 		Select("f.id AS id," +
 			"f.user_id AS user_id," +
@@ -51,10 +59,7 @@ func (dao *FavoritesDao) ListFavoriteByUserId(uId uint, pageSize, pageNum int) (
 			"p.img_path AS img_path," +
 			"p.discount_price AS discount_price," +
 			"p.num AS num," +
-			"p.on_sale AS on_sale").
-		Find(&r).Error
-
-	return
+			"p.on_sale AS on_sale")
 }
 
 // CreateFavorite 创建收藏夹

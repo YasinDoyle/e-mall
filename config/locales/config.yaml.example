@@ -40,14 +40,13 @@ cache:
   cacheServer:
 
 email:
-  address: http://localhost:8080/#/vaild/email/
   smtpHost:
+  smtpPort: 465
   smtpEmail:
   smtpPass:
 
 encryptSecret:
   jwtSecret: "FanOne666Secret"
-  emailSecret: "EmailSecret"
   phoneSecret: "PhoneSecret"
 
 oss:

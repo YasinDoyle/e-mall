@@ -12,6 +12,7 @@ create table mall_db.user
     status          varchar(256)  null,
     avatar          varchar(1000) null,
     money           varchar(256)  null,
+    pay_key_set     tinyint(1) default 0 null,
     constraint user_name
         unique (user_name)
 );

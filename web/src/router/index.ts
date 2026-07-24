@@ -15,11 +15,6 @@ const router = createRouter({
       component: () => import("@/views/auth/RegisterView.vue"),
       meta: { guest: true },
     },
-    {
-      path: "/valid-email",
-      component: () => import("@/views/auth/ValidEmailView.vue"),
-    },
-
     // 主布局（含 NavBar）
     {
       path: "/",

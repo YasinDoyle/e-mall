@@ -72,9 +72,17 @@ func (dao *CartDao) GetCartById(pId, uId, bId uint) (cart *model.Cart, err error
 
 // ListCartByUserId 获取 Cart 通过 user_id
 func (dao *CartDao) ListCartByUserId(uId uint) (cart []*types.CartResp, err error) {
-	err = dao.DB.Model(&model.Cart{}).
-		Joins("AS c LEFT JOIN product AS p ON c.product_id = p.id").
+	err = buildListCartByUserIdQuery(dao.DB, uId).
+		Find(&cart).Error
+
+	return
+}
+
+func buildListCartByUserIdQuery(db *gorm.DB, uId uint) *gorm.DB {
+	return db.Table("cart AS c").
+		Joins("LEFT JOIN product AS p ON c.product_id = p.id").
 		Where("c.user_id = ?", uId).
+		Where("c.deleted_at IS NULL").
 		Select("c.id AS id," +
 			"c.user_id AS user_id," +
 			"c.product_id AS product_id," +
@@ -88,10 +96,7 @@ func (dao *CartDao) ListCartByUserId(uId uint) (cart []*types.CartResp, err erro
 			"p.boss_name AS boss_name," +
 			"p.info AS info," +
 			"p.price AS price," +
-			"p.discount_price AS discount_price").
-		Find(&cart).Error
-
-	return
+			"p.discount_price AS discount_price")
 }
 
 // UpdateCartNumById 通过id更新Cart信息

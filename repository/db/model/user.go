@@ -19,6 +19,7 @@ type User struct {
 	Status         string
 	Avatar         string `gorm:"size:1000"`
 	Money          string
+	PayKeySet      bool   `gorm:"default:false"`
 	IsAdmin        bool   `gorm:"default:false"`
 	Relations      []User `gorm:"many2many:relation;"`
 }
@@ -72,4 +73,19 @@ func (u *User) DecryptMoney(key string) (money float64, err error) {
 
 	money = cast.ToFloat64(aesObj.SecretDecrypt(u.Money))
 	return
+}
+
+func (u *User) HasPayKey() bool {
+	return u.PayKeySet || u.Money != ""
+}
+
+func (u *User) SetInitialMoneyWithPayKey(key string) error {
+	u.Money = consts.UserInitMoney
+	money, err := u.EncryptMoney(key)
+	if err != nil {
+		return err
+	}
+	u.Money = money
+	u.PayKeySet = true
+	return nil
 }

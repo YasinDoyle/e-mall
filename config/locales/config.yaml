@@ -64,14 +64,13 @@ cache:
   cacheServer:
 
 email:
-  address: http://localhost:8080/#/vaild/email/
-  smtpHost:
-  smtpEmail:
-  smtpPass:
+  smtpHost: smtp.gmail.com
+  smtpPort: 587
+  smtpEmail: yasindoyle97@gmail.com
+  smtpPass: tmap tprk wtzq qdii
 
 encryptSecret:
   jwtSecret: "FanOne666Secret"
-  emailSecret: "EmailSecret"
   phoneSecret: "PhoneSecret"
 
 oss:

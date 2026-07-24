@@ -220,9 +220,9 @@ async function loadBalance() {
     const res: any = await getMoney({ key: payPassword.value });
     balance.value = Number(res.data?.user_money ?? 0).toFixed(2);
     balanceLoaded.value = true;
-  } catch {
+  } catch (error: any) {
     balanceLoaded.value = false;
-    ElMessage.error("余额查询失败，请检查支付密码");
+    ElMessage.error(error?.message || "余额查询失败，请检查支付密码");
   } finally {
     balanceLoading.value = false;
   }
@@ -317,7 +317,7 @@ async function handlePay() {
     sessionStorage.setItem("paid_order_ids", JSON.stringify(paidOrderIds));
     ElMessage.success("支付成功！");
     router.push("/order/success");
-  } catch {
+  } catch (error: any) {
     if (paidOrderIds.length) {
       pendingOrders.value = pendingOrders.value.filter(
         (item) => !paidOrderIds.includes(item.order_id),
@@ -333,7 +333,7 @@ async function handlePay() {
       ElMessage.error("部分订单支付成功，剩余订单支付失败，请重试");
       return;
     }
-    ElMessage.error("支付失败，请检查余额或支付密码");
+    ElMessage.error(error?.message || "支付失败，请检查余额或支付密码");
   } finally {
     paying.value = false;
   }

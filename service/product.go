@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"mime/multipart"
 	"strconv"
 	"sync"
@@ -93,7 +94,7 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		Price:         req.Price,
 		DiscountPrice: req.DiscountPrice,
 		Num:           req.Num,
-		OnSale:        false,               // 发布后待管理员审核，审核通过后才上架
+		OnSale:        false, // 发布后待管理员审核，审核通过后才上架
 		AuditStatus:   consts.ProductAuditPending,
 		BossID:        uId,
 		BossName:      boss.UserName,
@@ -323,6 +324,14 @@ func (s *ProductSrv) BossProductOnSale(ctx context.Context, req *types.BossProdu
 	if err != nil {
 		return
 	}
+	user, err := dao.NewUserDao(ctx).GetUserById(u.Id)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	if err = ensureSellerCanEnableTrading(user, req.OnSale); err != nil {
+		return
+	}
 	err = dao.NewProductDao(ctx).SetProductOnSale(req.ID, u.Id, req.OnSale)
 	if err != nil {
 		log.LogrusObj.Error(err)
@@ -330,6 +339,16 @@ func (s *ProductSrv) BossProductOnSale(ctx context.Context, req *types.BossProdu
 	}
 	resp = "操作成功"
 	return
+}
+
+func ensureSellerCanEnableTrading(user *model.User, onSale bool) error {
+	if !onSale {
+		return nil
+	}
+	if user == nil || !user.HasPayKey() {
+		return errors.New("请先设置支付密码再上架商品")
+	}
+	return nil
 }
 
 // ProductImgList 获取商品列表图片

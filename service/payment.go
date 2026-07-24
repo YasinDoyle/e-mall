@@ -86,6 +86,9 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			log.LogrusObj.Error(err)
 			return err
 		}
+		if !user.HasPayKey() {
+			return errors.New("请先设置支付密码")
+		}
 
 		// 对钱进行解密。减去订单。再进行加密。
 		moneyFloat, err := user.DecryptMoney(req.Key)
@@ -116,6 +119,9 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 		if err != nil {
 			log.LogrusObj.Error(err)
 			return err
+		}
+		if !boss.HasPayKey() {
+			return errors.New("商家未设置支付密码")
 		}
 
 		moneyFloat, _ = boss.DecryptMoney(req.Key)

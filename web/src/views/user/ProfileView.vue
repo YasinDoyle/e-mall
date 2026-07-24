@@ -27,13 +27,7 @@
         <el-input v-model="form.nick_name" />
       </el-form-item>
       <el-form-item label="邮箱">
-        <el-input :value="form.email || '未绑定'" disabled>
-          <template #append>
-            <el-button @click="openEmailDialog">
-              {{ form.email ? "更换" : "绑定" }}
-            </el-button>
-          </template>
-        </el-input>
+        <el-input :value="form.email || '未绑定'" disabled />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="saving" @click="handleSave"
@@ -41,54 +35,24 @@
         >
       </el-form-item>
     </el-form>
-
-    <el-dialog v-model="emailDialogVisible" title="绑定邮箱" width="420px">
-      <el-form :model="emailForm" label-width="86px">
-        <el-form-item label="新邮箱">
-          <el-input v-model="emailForm.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="登录密码">
-          <el-input
-            v-model="emailForm.password"
-            type="password"
-            show-password
-            placeholder="用于生成邮箱验证链接"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="emailDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="sendingEmail" @click="handleSendEmail"
-          >发送验证邮件</el-button
-        >
-      </template>
-    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import {
-  getUserInfo,
-  sendEmail,
-  updateUserInfo,
-  uploadAvatar,
-} from "@/api/user";
+import { getUserInfo, updateUserInfo, uploadAvatar } from "@/api/user";
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
 const saving = ref(false);
 const uploading = ref(false);
-const emailDialogVisible = ref(false);
-const sendingEmail = ref(false);
 const form = reactive({
   user_name: "",
   nick_name: "",
   email: "",
   avatar: "",
 });
-const emailForm = reactive({ email: "", password: "" });
 
 async function loadProfile() {
   try {
@@ -138,30 +102,6 @@ async function handleAvatarUpload(file: File) {
     uploading.value = false;
   }
   return false; // 阻止自动上传
-}
-
-function openEmailDialog() {
-  emailForm.email = form.email;
-  emailForm.password = "";
-  emailDialogVisible.value = true;
-}
-
-async function handleSendEmail() {
-  if (!emailForm.email || !emailForm.password) {
-    return ElMessage.warning("请填写邮箱和登录密码");
-  }
-  sendingEmail.value = true;
-  try {
-    await sendEmail({
-      email: emailForm.email,
-      password: emailForm.password,
-      operation_type: 1,
-    });
-    emailDialogVisible.value = false;
-    ElMessage.success("验证邮件已发送，请前往邮箱确认");
-  } finally {
-    sendingEmail.value = false;
-  }
 }
 
 onMounted(loadProfile);

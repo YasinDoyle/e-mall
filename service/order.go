@@ -332,6 +332,9 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 		if txErr != nil {
 			return txErr
 		}
+		if !buyer.HasPayKey() || !boss.HasPayKey() {
+			return errors.New("买家或商家未设置支付密码")
+		}
 
 		buyerMoney, txErr := buyer.DecryptMoney(req.Key)
 		if txErr != nil {

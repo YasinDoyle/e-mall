@@ -101,10 +101,10 @@ type MySql struct {
 }
 
 type Email struct {
-	ValidEmail string `yaml:"validEmail"`
-	SmtpHost   string `yaml:"smtpHost"`
-	SmtpEmail  string `yaml:"smtpEmail"`
-	SmtpPass   string `yaml:"smtpPass"`
+	SmtpHost  string `yaml:"smtpHost"`
+	SmtpPort  int    `yaml:"smtpPort"`
+	SmtpEmail string `yaml:"smtpEmail"`
+	SmtpPass  string `yaml:"smtpPass"`
 }
 
 type Redis struct {
@@ -119,7 +119,6 @@ type Redis struct {
 // EncryptSecret 加密的东西
 type EncryptSecret struct {
 	JwtSecret   string `yaml:"jwtSecret"`
-	EmailSecret string `yaml:"emailSecret"`
 	PhoneSecret string `yaml:"phoneSecret"`
 	MoneySecret string `yaml:"moneySecret"`
 }

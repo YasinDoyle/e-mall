@@ -27,6 +27,7 @@ export interface UserInfo {
   avatar: string;
   money: string;
   status: string;
+  pay_key_set?: boolean;
 }
 
 export interface UserLoginReq {
@@ -37,8 +38,10 @@ export interface UserLoginReq {
 export interface UserRegisterReq {
   user_name: string;
   nick_name?: string;
+  email: string;
+  email_code: string;
   password: string;
-  key: string;
+  password_confirm: string;
 }
 
 export interface UserUpdateReq {

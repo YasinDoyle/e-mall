@@ -4,7 +4,34 @@
     <div class="balance-section">
       <div class="balance-label">账户余额</div>
       <div class="balance-amount">{{ balanceText }}</div>
-      <div class="balance-form">
+      <div v-if="!payKeySet" class="set-key-box">
+        <el-alert
+          title="使用余额前需要先设置6位支付密码"
+          type="warning"
+          :closable="false"
+          show-icon
+        />
+        <div class="set-key-form">
+          <el-input
+            v-model="setKeyForm.key"
+            type="password"
+            maxlength="6"
+            show-password
+            placeholder="请输入6位支付密码"
+          />
+          <el-input
+            v-model="setKeyForm.key_confirm"
+            type="password"
+            maxlength="6"
+            show-password
+            placeholder="请再次输入支付密码"
+          />
+          <el-button type="primary" :loading="settingPayKey" @click="handleSetPayKey">
+            设置支付密码
+          </el-button>
+        </div>
+      </div>
+      <div v-else class="balance-form">
         <el-input
           v-model="payKey"
           type="password"
@@ -101,7 +128,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { getMoney } from "@/api/flashSale";
+import { getMoney, setPayKey } from "@/api/flashSale";
+import { getUserInfo } from "@/api/user";
 import {
   alipayRecharge,
   applyPendingCredit,
@@ -109,11 +137,15 @@ import {
   getRechargeStatus,
   wechatRecharge,
 } from "@/api/recharge";
+import { useUserStore } from "@/stores/user";
 
+const userStore = useUserStore();
 const balance = ref("0.00");
 const loaded = ref(false);
 const loading = ref(false);
 const payKey = ref("");
+const settingPayKey = ref(false);
+const setKeyForm = ref({ key: "", key_confirm: "" });
 const rechargeVisible = ref(false);
 const rechargeAmount = ref(100);
 const rechargeChannel = ref<"wechat" | "alipay">("wechat");
@@ -126,8 +158,14 @@ const pendingLoading = ref(false);
 const applyingCredit = ref(false);
 let pollTimer: number | undefined;
 
+const payKeySet = computed(() => userStore.userInfo?.pay_key_set ?? false);
+
 const balanceText = computed(() =>
-  loaded.value ? `¥${balance.value}` : "输入支付密码后查看",
+  !payKeySet.value
+    ? "请先设置支付密码"
+    : loaded.value
+      ? `¥${balance.value}`
+      : "输入支付密码后查看",
 );
 
 const rechargeStatusText = computed(
@@ -158,6 +196,9 @@ const qrImageUrl = computed(
 );
 
 async function loadBalance() {
+  if (!payKeySet.value) {
+    return ElMessage.warning("请先设置支付密码");
+  }
   if (payKey.value.length !== 6) {
     return ElMessage.warning("请输入6位支付密码");
   }
@@ -170,6 +211,33 @@ async function loadBalance() {
     loaded.value = false;
   } finally {
     loading.value = false;
+  }
+}
+
+async function refreshUserInfo() {
+  const res: any = await getUserInfo();
+  if (res.data) {
+    userStore.setUserInfo(res.data);
+  }
+}
+
+async function handleSetPayKey() {
+  if (setKeyForm.value.key.length !== 6) {
+    return ElMessage.warning("请输入6位支付密码");
+  }
+  if (setKeyForm.value.key !== setKeyForm.value.key_confirm) {
+    return ElMessage.warning("两次支付密码输入不一致");
+  }
+  settingPayKey.value = true;
+  try {
+    await setPayKey(setKeyForm.value);
+    ElMessage.success("支付密码设置成功");
+    payKey.value = setKeyForm.value.key;
+    setKeyForm.value = { key: "", key_confirm: "" };
+    await refreshUserInfo();
+    await loadBalance();
+  } finally {
+    settingPayKey.value = false;
   }
 }
 
@@ -238,6 +306,7 @@ async function loadPendingCredit() {
 }
 
 async function handleApplyCredit() {
+  if (!payKeySet.value) return ElMessage.warning("请先设置支付密码");
   if (payKey.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
   applyingCredit.value = true;
   try {
@@ -255,7 +324,10 @@ watch(rechargeVisible, (visible) => {
   if (!visible) stopPolling();
 });
 
-onMounted(loadPendingCredit);
+onMounted(async () => {
+  await refreshUserInfo();
+  await loadPendingCredit();
+});
 onUnmounted(stopPolling);
 </script>
 
@@ -281,6 +353,16 @@ onUnmounted(stopPolling);
 }
 .balance-form .el-input {
   flex: 1;
+}
+.set-key-box {
+  max-width: 520px;
+  margin-top: 18px;
+}
+.set-key-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  margin-top: 12px;
 }
 .wallet-actions {
   display: flex;

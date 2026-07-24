@@ -17,3 +17,6 @@ export const doFlashSale = (data: {
 
 export const getMoney = (data?: { key?: string }) =>
   request.post("/money", data ?? {});
+
+export const setPayKey = (data: { key: string; key_confirm: string }) =>
+  request.post("/money/pay-key", data);
