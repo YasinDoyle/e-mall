@@ -1,0 +1,39 @@
+package types
+
+type AdminSettlementListReq struct {
+	PageNum  int    `json:"page_num" form:"page_num"`
+	PageSize int    `json:"page_size" form:"page_size"`
+	SellerID uint   `json:"seller_id" form:"seller_id"`
+	Status   string `json:"status" form:"status"`
+}
+
+type AdminSettlementGenerateReq struct {
+	SellerID uint `json:"seller_id" binding:"required"`
+}
+
+type AdminSettlementPayReq struct {
+	ID uint `json:"id" binding:"required"`
+}
+
+type AdminSettlementDetailReq struct {
+	ID uint `json:"id" form:"id" binding:"required"`
+}
+
+type AdminSettlementResp struct {
+	ID               uint    `json:"id"`
+	SellerID         uint    `json:"seller_id"`
+	OrderID          uint    `json:"order_id"`
+	OrderNum         uint64  `json:"order_num"`
+	GrossAmount      float64 `json:"gross_amount"`
+	CommissionRate   float64 `json:"commission_rate"`
+	CommissionAmount float64 `json:"commission_amount"`
+	SettlementAmount float64 `json:"settlement_amount"`
+	Status           string  `json:"status"`
+	PaidAt           int64   `json:"paid_at"`
+	CreatedAt        int64   `json:"created_at"`
+}
+
+type AdminSettlementGenerateResp struct {
+	SellerID uint  `json:"seller_id"`
+	Count    int64 `json:"count"`
+}

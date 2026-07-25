@@ -32,6 +32,7 @@ export const useUserStore = defineStore("user", () => {
     localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userInfo");
+    localStorage.removeItem("sellerProfile");
   }
 
   function setCartCount(n: number) {

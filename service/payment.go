@@ -16,6 +16,7 @@ import (
 	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
+	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
 )
 
@@ -51,14 +52,14 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			return err
 		}
 		if payment.Type != consts.OrderTypeUnPaid {
-			return errors.New("订单已支付或状态不允许支付")
+			return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
 		}
 
 		paidAt := time.Now()
 		err = dao.NewOrderDaoByDB(tx).UpdateOrderPaidById(req.OrderId, uId, paidAt)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("订单已支付或状态不允许支付")
+				return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
 			}
 			log.LogrusObj.Error(err)
 			return err
@@ -87,18 +88,18 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			return err
 		}
 		if !user.HasPayKey() {
-			return errors.New("请先设置支付密码")
+			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
 		}
 
 		// 对钱进行解密。减去订单。再进行加密。
 		moneyFloat, err := user.DecryptMoney(req.Key)
 		if err != nil {
 			log.LogrusObj.Error(err)
-			return err
+			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
 		}
 		if moneyFloat-money < 0.0 { // 金额不足进行回滚
 			log.LogrusObj.Error(err)
-			return errors.New("金币不足")
+			return e.NewBusinessError(e.ErrorPaymentBalanceInsufficient)
 		}
 
 		finMoney := fmt.Sprintf("%f", moneyFloat-money)
@@ -115,40 +116,16 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			return err
 		}
 
-		boss, err := userDao.GetUserById(uint(req.BossID))
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-		if !boss.HasPayKey() {
-			return errors.New("商家未设置支付密码")
-		}
-
-		moneyFloat, _ = boss.DecryptMoney(req.Key)
-		finMoney = fmt.Sprintf("%f", moneyFloat+money)
-		boss.Money = finMoney
-		boss.Money, err = boss.EncryptMoney(req.Key)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		err = userDao.UpdateUserById(uint(req.BossID), boss)
-		if err != nil { // 更新boss金额失败，回滚
-			log.LogrusObj.Error(err)
-			return err
-		}
-
 		productDao := dao.NewProductDaoByDB(tx)
-		product, err := productDao.GetProductById(uint(req.ProductID))
+		product, err := productDao.GetProductById(payment.ProductID)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			return err
 		}
-		err = productDao.DecreaseStock(uint(req.ProductID), num)
+		err = productDao.DecreaseStock(payment.ProductID, num)
 		if err != nil { // 更新商品数量减少失败，回滚
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("库存不足")
+				return e.NewBusinessError(e.ErrorPaymentStockInsufficient)
 			}
 			log.LogrusObj.Error(err)
 			return err
@@ -175,7 +152,7 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			return err
 		}
 
-		return nil
+		return GetSettlementSrv().HandleOrderPaid(ctx, tx, payment)
 
 	})
 

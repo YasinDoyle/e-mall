@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useUserStore } from "@/stores/user";
+import { useSellerStore } from "@/stores/seller";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -101,6 +102,31 @@ const router = createRouter({
             },
           ],
         },
+
+        // 卖家中心
+        {
+          path: "seller",
+          component: () => import("@/views/seller/SellerLayout.vue"),
+          meta: { auth: true },
+          children: [
+            { path: "", redirect: "/seller/apply" },
+            {
+              path: "apply",
+              component: () => import("@/views/seller/SellerApplyView.vue"),
+            },
+            {
+              path: "products",
+              component: () =>
+                import("@/views/seller/SellerProductListView.vue"),
+            },
+            {
+              path: "products/new",
+              component: () =>
+                import("@/views/seller/SellerProductFormView.vue"),
+              meta: { sellerApproved: true },
+            },
+          ],
+        },
       ],
     },
 
@@ -112,13 +138,20 @@ const router = createRouter({
 });
 
 // 全局路由守卫
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const userStore = useUserStore();
   if (to.meta.auth && !userStore.isLoggedIn) {
     return { path: "/login", query: { redirect: to.fullPath } };
   }
   if (to.meta.guest && userStore.isLoggedIn) {
     return { path: "/" };
+  }
+  if (to.meta.sellerApproved) {
+    const sellerStore = useSellerStore();
+    await sellerStore.loadProfile({ silentError: true });
+    if (!sellerStore.isApproved) {
+      return { path: "/seller/apply" };
+    }
   }
 });
 

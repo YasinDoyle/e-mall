@@ -83,4 +83,5 @@ type ProductResp struct {
 	BossID        uint   `json:"boss_id"`
 	BossName      string `json:"boss_name"`
 	BossAvatar    string `json:"boss_avatar"`
+	AuditStatus   uint   `json:"audit_status"`
 }

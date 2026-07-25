@@ -15,6 +15,7 @@
         <el-menu-item index="/user/favorites">我的收藏</el-menu-item>
         <el-menu-item index="/user/coupons">我的优惠券</el-menu-item>
         <el-menu-item index="/user/wallet">我的钱包</el-menu-item>
+        <el-menu-item index="/seller/apply">卖家中心</el-menu-item>
       </el-menu>
     </el-aside>
     <el-main>

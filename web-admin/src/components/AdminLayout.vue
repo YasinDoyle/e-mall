@@ -15,8 +15,14 @@
         <el-menu-item index="/product">
           <el-icon><Goods /></el-icon>商品管理
         </el-menu-item>
+        <el-menu-item index="/seller">
+          <el-icon><Shop /></el-icon>商家审核
+        </el-menu-item>
         <el-menu-item index="/order">
           <el-icon><Tickets /></el-icon>订单管理
+        </el-menu-item>
+        <el-menu-item index="/settlement">
+          <el-icon><Money /></el-icon>结算管理
         </el-menu-item>
         <el-menu-item index="/category">
           <el-icon><Grid /></el-icon>分类管理
@@ -72,6 +78,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { useAdminStore } from "@/stores/admin";
+import { Money, Shop } from "@element-plus/icons-vue";
 
 const router = useRouter();
 const store = useAdminStore();

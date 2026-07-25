@@ -328,7 +328,33 @@ func (s *ProductSrv) BossProductList(ctx context.Context, req *types.BossProduct
 		log.LogrusObj.Error(err)
 		return
 	}
-	resp = &types.DataListResp{Item: products, Total: total}
+	list := make([]*types.ProductResp, 0, len(products))
+	for _, product := range products {
+		item := &types.ProductResp{
+			ID:            product.ID,
+			Name:          product.Name,
+			CategoryID:    product.CategoryID,
+			Title:         product.Title,
+			Info:          product.Info,
+			ImgPath:       product.ImgPath,
+			Price:         product.Price,
+			DiscountPrice: product.DiscountPrice,
+			View:          product.View(),
+			CreatedAt:     product.CreatedAt.Unix(),
+			Num:           product.Num,
+			OnSale:        product.OnSale,
+			BossID:        product.BossID,
+			BossName:      product.BossName,
+			BossAvatar:    product.BossAvatar,
+			AuditStatus:   product.AuditStatus,
+		}
+		if conf.Config.System.UploadModel == consts.UploadModelLocal {
+			item.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + product.BossAvatar
+			item.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + product.ImgPath
+		}
+		list = append(list, item)
+	}
+	resp = &types.DataListResp{Item: list, Total: total}
 	return
 }
 

@@ -3,6 +3,12 @@ import { ElMessage } from "element-plus";
 import router from "@/router";
 import { ApiErrorCode, resolveApiErrorMessage } from "@/utils/api-error";
 
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    silentError?: boolean;
+  }
+}
+
 const request = axios.create({
   baseURL: "/api/v1",
   timeout: 10000,
@@ -30,7 +36,9 @@ request.interceptors.response.use(
     const data = response.data;
     if (data?.status !== undefined && data.status !== ApiErrorCode.SUCCESS) {
       const message = resolveApiErrorMessage(data);
-      ElMessage.error(message);
+      if (!response.config.silentError) {
+        ElMessage.error(message);
+      }
       return Promise.reject(new Error(message));
     }
     if (response.headers["access_token"]) {

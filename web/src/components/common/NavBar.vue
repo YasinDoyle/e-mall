@@ -37,6 +37,7 @@
               <el-dropdown-item command="orders">我的订单</el-dropdown-item>
               <el-dropdown-item command="favorites">我的收藏</el-dropdown-item>
               <el-dropdown-item command="wallet">我的钱包</el-dropdown-item>
+              <el-dropdown-item command="seller">卖家中心</el-dropdown-item>
               <el-dropdown-item divided command="logout"
                 >退出登录</el-dropdown-item
               >
@@ -62,11 +63,13 @@ import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Search, ShoppingCart } from "@element-plus/icons-vue";
 import { useUserStore } from "@/stores/user";
+import { useSellerStore } from "@/stores/seller";
 import { getCartList } from "@/api/cart";
 import { getUserInfo } from "@/api/user";
 
 const router = useRouter();
 const userStore = useUserStore();
+const sellerStore = useSellerStore();
 const searchKeyword = ref("");
 
 function handleSearch() {
@@ -81,7 +84,10 @@ function handleSearch() {
 function handleCommand(command: string) {
   if (command === "logout") {
     userStore.logout();
+    sellerStore.clearProfile();
     router.push("/login");
+  } else if (command === "seller") {
+    router.push("/seller");
   } else {
     router.push(`/user/${command}`);
   }

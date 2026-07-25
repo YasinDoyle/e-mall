@@ -26,6 +26,16 @@ export const updateProduct = (formData: FormData) =>
 export const deleteProduct = (data: { id: number }) =>
   request.post("/product/delete", data);
 
+export const getSellerProductList = (params: {
+  page_num: number;
+  page_size: number;
+}) => request.get("/boss/product/list", { params });
+
+export const setSellerProductOnSale = (data: {
+  id: number;
+  on_sale: boolean;
+}) => request.post("/boss/product/on_sale", data);
+
 export const getCategoryList = () => request.get("/category/list");
 
 export const getCarousels = () => request.get("/carousels");

@@ -19,6 +19,7 @@ import (
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
+	"github.com/YasinDoyle/e-mall/utils/e"
 	util "github.com/YasinDoyle/e-mall/utils/log"
 )
 
@@ -314,12 +315,12 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 			return txErr
 		}
 		if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
-			return errors.New("订单状态不允许退款审批")
+			return e.NewBusinessError(e.ErrorRefundStatusInvalid)
 		}
 
 		refundAmount = order.Money * float64(order.Num)
 		if refundAmount <= 0 {
-			return errors.New("退款金额不合法")
+			return e.NewBusinessError(e.ErrorRefundAmountInvalid)
 		}
 		orderNum = order.OrderNum
 
@@ -328,24 +329,13 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 		if txErr != nil {
 			return txErr
 		}
-		boss, txErr := userDao.GetUserById(order.BossID)
-		if txErr != nil {
-			return txErr
-		}
-		if !buyer.HasPayKey() || !boss.HasPayKey() {
-			return errors.New("买家或商家未设置支付密码")
+		if !buyer.HasPayKey() {
+			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
 		}
 
 		buyerMoney, txErr := buyer.DecryptMoney(req.Key)
 		if txErr != nil {
-			return errors.New("支付密码错误")
-		}
-		bossMoney, txErr := boss.DecryptMoney(req.Key)
-		if txErr != nil {
-			return errors.New("支付密码错误")
-		}
-		if bossMoney-refundAmount < 0 {
-			return errors.New("商家余额不足，无法退款")
+			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
 		}
 
 		buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
@@ -357,12 +347,7 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 			return txErr
 		}
 
-		boss.Money = fmt.Sprintf("%f", bossMoney-refundAmount)
-		boss.Money, txErr = boss.EncryptMoney(req.Key)
-		if txErr != nil {
-			return txErr
-		}
-		if txErr = userDao.UpdateUserById(order.BossID, boss); txErr != nil {
+		if txErr = GetSettlementSrv().HandleOrderRefunded(ctx, tx, order); txErr != nil {
 			return txErr
 		}
 
@@ -370,7 +355,7 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("退款申请不存在")
+			return nil, e.NewBusinessError(e.ErrorRefundNotFound)
 		}
 		util.LogrusObj.Error(err)
 		return nil, err

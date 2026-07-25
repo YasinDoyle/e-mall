@@ -181,6 +181,12 @@ func NewRouter() *gin.Engine {
 			admin.GET("orders/list", api.AdminListOrdersHandler())
 			admin.POST("orders/refund/approve", api.AdminRefundApproveOrderHandler())
 
+			// 结算管理
+			admin.GET("settlement/list", api.AdminSettlementListHandler())
+			admin.POST("settlement/generate", api.AdminSettlementGenerateHandler())
+			admin.POST("settlement/paid", api.AdminSettlementPaidHandler())
+			admin.GET("settlement/detail", api.AdminSettlementDetailHandler())
+
 			// 秒杀管理
 			admin.GET("flash-sale/list", api.AdminListFlashSaleHandler())
 			admin.POST("flash-sale/create", api.AdminCreateFlashSaleHandler())
