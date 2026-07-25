@@ -29,6 +29,27 @@
 
 ---
 
+### Task 0: Business Error Code Foundation
+
+**Files:**
+- Create: `utils/e/business_error.go`
+- Test: `utils/e/business_error_test.go`
+- Modify: `utils/e/code.go`
+- Modify: `utils/e/msg.go`
+- Modify: `api/v1/common.go`
+- Modify: `service/seller.go`
+- Modify: `service/product.go`
+- Modify: `service/admin.go`
+- Test: `service/seller_test.go`
+- Test: `service/product_pay_key_test.go`
+
+- [x] Add a backend business error type that carries a stable `utils/e` code and message.
+- [x] Make `api/v1.ErrorResponse` preserve business error codes instead of collapsing all service errors to `500`.
+- [x] Add P1 seller/product/pay-key error codes and messages.
+- [x] Convert seller application, seller audit validation, product publish, product on-sale, and admin product audit guard failures to structured business errors.
+- [x] Keep database/system errors as `500` unless they are intentionally mapped to a business code.
+- [x] Run `env GOCACHE=/private/tmp/e-mall-go-cache go test ./...`.
+
 ### Task 1: Seller Profile Backend Foundation
 
 **Files:**
@@ -161,4 +182,4 @@
 
 ## Execution Order
 
-Implement Tasks 1-4 first to make the seller identity boundary real. Then implement Tasks 5-6 so users and admins can operate it. Implement Tasks 7-8 only after seller product publishing is stable, because commission and settlement depend on reliable order and seller ownership data.
+Implement Task 0 before continuing frontend or fund-flow work so API callers receive stable business codes. Tasks 1-4 make the seller identity boundary real. Then implement Tasks 5-6 so users and admins can operate it. Implement Tasks 7-8 only after seller product publishing is stable, because commission and settlement depend on reliable order and seller ownership data.
