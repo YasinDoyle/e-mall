@@ -7,12 +7,15 @@ import (
 	"strconv"
 	"sync"
 
+	"gorm.io/gorm"
+
 	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
+	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
 	util "github.com/YasinDoyle/e-mall/utils/upload"
 )
@@ -73,6 +76,17 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	}
 	uId := u.Id
 	boss, _ := dao.NewUserDao(ctx).GetUserById(uId)
+	sellerProfile, err := dao.NewSellerDao(ctx).GetSellerProfileByUserID(uId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorSellerNotApproved)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	if err = ensureSellerProfileApproved(sellerProfile); err != nil {
+		return nil, err
+	}
 	// 以第一张作为封面图
 	tmp, _ := files[0].Open()
 	var path string
@@ -329,6 +343,19 @@ func (s *ProductSrv) BossProductOnSale(ctx context.Context, req *types.BossProdu
 		log.LogrusObj.Error(err)
 		return
 	}
+	if req.OnSale {
+		sellerProfile, err := dao.NewSellerDao(ctx).GetSellerProfileByUserID(u.Id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, e.NewBusinessError(e.ErrorSellerNotApproved)
+			}
+			log.LogrusObj.Error(err)
+			return nil, err
+		}
+		if err = ensureSellerCanChangeSaleStatus(sellerProfile, req.OnSale); err != nil {
+			return nil, err
+		}
+	}
 	if err = ensureSellerCanEnableTrading(user, req.OnSale); err != nil {
 		return
 	}
@@ -341,12 +368,26 @@ func (s *ProductSrv) BossProductOnSale(ctx context.Context, req *types.BossProdu
 	return
 }
 
+func ensureSellerCanChangeSaleStatus(profile *model.SellerProfile, onSale bool) error {
+	if !onSale {
+		return nil
+	}
+	return ensureSellerProfileApproved(profile)
+}
+
+func ensureSellerProfileApproved(profile *model.SellerProfile) error {
+	if profile == nil || !profile.IsApproved() {
+		return e.NewBusinessError(e.ErrorSellerNotApproved)
+	}
+	return nil
+}
+
 func ensureSellerCanEnableTrading(user *model.User, onSale bool) error {
 	if !onSale {
 		return nil
 	}
 	if user == nil || !user.HasPayKey() {
-		return errors.New("请先设置支付密码再上架商品")
+		return e.NewBusinessError(e.ErrorSellerPayKeyRequired)
 	}
 	return nil
 }

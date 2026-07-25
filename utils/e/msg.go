@@ -43,6 +43,23 @@ var MsgFlags = map[int]string{
 	ErrorDatabase: "数据库操作出错,请重试",
 
 	ErrorOss: "OSS配置错误",
+
+	ErrorSellerNotApplied:          "尚未申请商家入驻",
+	ErrorSellerAuditPending:        "商家入驻申请正在审核中",
+	ErrorSellerAlreadyApproved:     "商家入驻已通过，无需重复申请",
+	ErrorSellerBanned:              "商家账号已被封禁，无法重新申请",
+	ErrorSellerNotApproved:         "请先完成商家入驻并通过审核",
+	ErrorSellerInvalidStatus:       "商家状态异常",
+	ErrorSellerInvalidApplication:  "参数错误",
+	ErrorSellerShopNameRequired:    "店铺名称不能为空",
+	ErrorSellerShopNameTooLong:     "店铺名称不能超过80个字符",
+	ErrorSellerDescriptionTooLong:  "店铺描述不能超过500个字符",
+	ErrorSellerRejectReasonMissing: "拒绝原因不能为空",
+	ErrorSellerAuditStatusInvalid:  "商家审核状态不正确",
+	ErrorSellerPayKeyRequired:      "请先设置支付密码再上架商品",
+	ErrorProductSellerNotApproved:  "商品卖家尚未完成商家入驻审核",
+	ErrorCarouselProductRequired:   "请选择关联商品",
+	ErrorCarouselProductNotExist:   "关联商品不存在",
 }
 
 // GetMsg 获取状态码对应信息

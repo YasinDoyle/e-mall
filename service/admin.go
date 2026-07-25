@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
+	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
 	util "github.com/YasinDoyle/e-mall/utils/upload"
 	"gorm.io/gorm"
@@ -118,11 +120,11 @@ func (s *AdminSrv) CarouselDelete(ctx context.Context, req *types.AdminIDReq) (r
 
 func validateCarouselProduct(ctx context.Context, productID uint) error {
 	if productID == 0 {
-		return errors.New("请选择关联商品")
+		return e.NewBusinessError(e.ErrorCarouselProductRequired)
 	}
 	if _, err := dao.NewProductDao(ctx).GetProductById(productID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("关联商品不存在")
+			return e.NewBusinessError(e.ErrorCarouselProductNotExist)
 		}
 		log.LogrusObj.Error(err)
 		return err
@@ -209,6 +211,40 @@ func (s *AdminSrv) UserBan(ctx context.Context, req *types.AdminUserBanReq) (res
 	return
 }
 
+// ===== 商家管理 =====
+
+func (s *AdminSrv) SellerList(ctx context.Context, req *types.AdminSellerListReq) (resp interface{}, err error) {
+	if req.PageSize == 0 {
+		req.PageSize = 15
+	}
+	if req.PageNum == 0 {
+		req.PageNum = 1
+	}
+	profiles, total, err := dao.NewSellerDao(ctx).ListSellerProfiles(req.PageNum, req.PageSize, req.Status)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	list := make([]*types.AdminSellerResp, 0, len(profiles))
+	for _, profile := range profiles {
+		list = append(list, buildAdminSellerResp(profile))
+	}
+	resp = &types.DataListResp{Item: list, Total: total}
+	return
+}
+
+func (s *AdminSrv) SellerAudit(ctx context.Context, req *types.AdminSellerAuditReq) (resp interface{}, err error) {
+	if err = validateAdminSellerAuditReq(req); err != nil {
+		return nil, err
+	}
+	if err = dao.NewSellerDao(ctx).AuditSellerProfile(req.ID, req.Status, strings.TrimSpace(req.RejectReason)); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	resp = "审核完成"
+	return
+}
+
 // ===== 商品审核 =====
 
 func (s *AdminSrv) ProductList(ctx context.Context, req *types.AdminProductListReq) (resp interface{}, err error) {
@@ -265,6 +301,17 @@ func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAudi
 		if loadErr != nil {
 			log.LogrusObj.Error(loadErr)
 			return nil, loadErr
+		}
+		sellerProfile, loadErr := dao.NewSellerDao(ctx).GetSellerProfileByUserID(product.BossID)
+		if loadErr != nil {
+			if errors.Is(loadErr, gorm.ErrRecordNotFound) {
+				return nil, e.NewBusinessError(e.ErrorProductSellerNotApproved)
+			}
+			log.LogrusObj.Error(loadErr)
+			return nil, loadErr
+		}
+		if err = ensureSellerProfileApproved(sellerProfile); err != nil {
+			return
 		}
 		if err = ensureSellerCanEnableTrading(boss, true); err != nil {
 			return

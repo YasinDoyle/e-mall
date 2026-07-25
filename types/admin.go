@@ -66,6 +66,35 @@ type AdminUserResp struct {
 	CreatedAt int64  `json:"created_at"`
 }
 
+// ===== 商家管理 =====
+
+type AdminSellerListReq struct {
+	PageNum  int   `json:"page_num" form:"page_num"`
+	PageSize int   `json:"page_size" form:"page_size"`
+	Status   *uint `json:"status" form:"status"`
+}
+
+type AdminSellerAuditReq struct {
+	ID           uint   `json:"id" binding:"required"`
+	Status       uint   `json:"status"`
+	RejectReason string `json:"reject_reason"`
+}
+
+type AdminSellerResp struct {
+	ID           uint   `json:"id"`
+	UserID       uint   `json:"user_id"`
+	UserName     string `json:"user_name"`
+	NickName     string `json:"nick_name"`
+	Email        string `json:"email"`
+	ShopName     string `json:"shop_name"`
+	Description  string `json:"description"`
+	Status       uint   `json:"status"`
+	StatusText   string `json:"status_text"`
+	RejectReason string `json:"reject_reason"`
+	ApprovedAt   int64  `json:"approved_at"`
+	CreatedAt    int64  `json:"created_at"`
+}
+
 // ===== 商品管理 =====
 
 type AdminProductListReq struct {

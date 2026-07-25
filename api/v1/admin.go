@@ -250,6 +250,42 @@ func AdminUserBanHandler() gin.HandlerFunc {
 	}
 }
 
+// ===== 商家管理 =====
+
+func AdminSellerListHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminSellerListReq
+		if err := c.ShouldBind(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().SellerList(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func AdminSellerAuditHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminSellerAuditReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetAdminSrv().SellerAudit(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
 // ===== 商品审核 =====
 
 func AdminProductListHandler() gin.HandlerFunc {

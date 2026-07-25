@@ -25,5 +25,9 @@ func ErrorResponse(ctx *gin.Context, err error) *ctl.Response {
 		return ctl.RespError(ctx, err, "JSON类型不匹配")
 	}
 
+	if code, ok := e.CodeFromError(err); ok {
+		return ctl.RespError(ctx, err, err.Error(), code)
+	}
+
 	return ctl.RespError(ctx, err, err.Error(), e.ERROR)
 }

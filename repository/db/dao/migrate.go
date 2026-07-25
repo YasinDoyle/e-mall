@@ -15,7 +15,7 @@ func migrate() (err error) {
 			&model.ProductImg{}, &model.FlashSale{},
 			&model.FlashSale2MQ{}, &model.Review{},
 			&model.Coupon{}, &model.UserCoupon{},
-			&model.RechargeOrder{},
+			&model.RechargeOrder{}, &model.SellerProfile{},
 		)
 	if err != nil {
 		return

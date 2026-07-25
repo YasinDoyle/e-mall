@@ -47,4 +47,22 @@ const (
 	//对象存储错误
 	ErrorOss        = 50001
 	ErrorUploadFile = 50002
+
+	//商家入驻和平台商品错误
+	ErrorSellerNotApplied          = 60001
+	ErrorSellerAuditPending        = 60002
+	ErrorSellerAlreadyApproved     = 60003
+	ErrorSellerBanned              = 60004
+	ErrorSellerNotApproved         = 60005
+	ErrorSellerInvalidStatus       = 60006
+	ErrorSellerInvalidApplication  = 60007
+	ErrorSellerShopNameRequired    = 60008
+	ErrorSellerShopNameTooLong     = 60009
+	ErrorSellerDescriptionTooLong  = 60010
+	ErrorSellerRejectReasonMissing = 60011
+	ErrorSellerAuditStatusInvalid  = 60012
+	ErrorSellerPayKeyRequired      = 60013
+	ErrorProductSellerNotApproved  = 60014
+	ErrorCarouselProductRequired   = 60015
+	ErrorCarouselProductNotExist   = 60016
 )

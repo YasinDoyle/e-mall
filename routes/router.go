@@ -109,6 +109,10 @@ func NewRouter() *gin.Engine {
 			authed.POST("money", api.ShowMoneyHandler())
 			authed.POST("money/pay-key", api.SetPayKeyHandler())
 
+			// 商家入驻
+			authed.POST("seller/apply", api.SellerApplyHandler())
+			authed.GET("seller/profile", api.SellerProfileHandler())
+
 			// 秒杀专场
 			authed.POST("flash_sale/init", api.InitFlashSaleHandler())
 			authed.GET("flash_sale/list", api.ListFlashSaleHandler())
@@ -151,6 +155,10 @@ func NewRouter() *gin.Engine {
 			admin.GET("users", api.AdminUserListHandler())
 			admin.POST("user/ban", api.AdminUserBanHandler())
 			admin.POST("users/ban", api.AdminUserBanHandler())
+
+			// 商家管理
+			admin.GET("seller/list", api.AdminSellerListHandler())
+			admin.POST("seller/audit", api.AdminSellerAuditHandler())
 
 			// 商品审核
 			admin.GET("product/list", api.AdminProductListHandler())
