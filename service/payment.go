@@ -12,7 +12,6 @@ import (
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/cache"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
-	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
@@ -53,6 +52,9 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 		}
 		if payment.Type != consts.OrderTypeUnPaid {
 			return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
+		}
+		if err = ensureNotBuyingOwnProduct(payment.UserID, payment.BossID); err != nil {
+			return err
 		}
 
 		paidAt := time.Now()
@@ -117,7 +119,7 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 		}
 
 		productDao := dao.NewProductDaoByDB(tx)
-		product, err := productDao.GetProductById(payment.ProductID)
+		_, err = productDao.GetProductById(payment.ProductID)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			return err
@@ -127,27 +129,6 @@ func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (re
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return e.NewBusinessError(e.ErrorPaymentStockInsufficient)
 			}
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		productUser := model.Product{
-			Name:          product.Name,
-			CategoryID:    product.CategoryID,
-			Title:         product.Title,
-			Info:          product.Info,
-			ImgPath:       product.ImgPath,
-			Price:         product.Price,
-			DiscountPrice: product.DiscountPrice,
-			Num:           num,
-			OnSale:        false,
-			BossID:        uId,
-			BossName:      user.UserName,
-			BossAvatar:    user.Avatar,
-		}
-
-		err = productDao.CreateProduct(&productUser)
-		if err != nil { // 买完商品后创建成了自己的商品失败。订单失败，回滚
 			log.LogrusObj.Error(err)
 			return err
 		}

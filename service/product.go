@@ -9,7 +9,6 @@ import (
 
 	"gorm.io/gorm"
 
-	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
@@ -56,10 +55,8 @@ func (s *ProductSrv) ProductShow(ctx context.Context, req *types.ProductShowReq)
 		BossName:      p.BossName,
 		BossAvatar:    p.BossAvatar,
 	}
-	if conf.Config.System.UploadModel == consts.UploadModelLocal {
-		pResp.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + pResp.BossAvatar
-		pResp.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + pResp.ImgPath
-	}
+	pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
+	pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
 
 	resp = pResp
 
@@ -89,16 +86,12 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	}
 	// 以第一张作为封面图
 	tmp, _ := files[0].Open()
-	var path string
-	if conf.Config.System.UploadModel == consts.UploadModelLocal {
-		path, err = util.ProductUploadToLocalStatic(tmp, uId, req.Name)
-	} else {
-		path, err = util.UploadToQiNiu(tmp, files[0].Size)
-	}
+	path, err := util.UploadProductImage(tmp, files[0].Size, uId, req.Name)
 	if err != nil {
 		log.LogrusObj.Error(err)
 		return
 	}
+	coverPath := path
 	product := &model.Product{
 		Name:          req.Name,
 		CategoryID:    req.CategoryID,
@@ -128,16 +121,17 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	wg.Add(len(files))
 	for index, file := range files {
 		num := strconv.Itoa(index)
-		tmp, _ = file.Open()
-		if conf.Config.System.UploadModel == consts.UploadModelLocal {
-			path, err = util.ProductUploadToLocalStatic(tmp, uId, req.Name+num)
+		if index == 0 {
+			path = coverPath
 		} else {
-			path, err = util.UploadToQiNiu(tmp, file.Size)
+			tmp, _ = file.Open()
+			path, err = util.UploadProductImage(tmp, file.Size, uId, req.Name+num)
+			if err != nil {
+				log.LogrusObj.Error(err)
+				return
+			}
 		}
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return
-		}
+
 		productImg := &model.ProductImg{
 			ProductID: product.ID,
 			ImgPath:   path,
@@ -187,10 +181,8 @@ func (s *ProductSrv) ProductList(ctx context.Context, req *types.ProductListReq)
 			BossName:      p.BossName,
 			BossAvatar:    p.BossAvatar,
 		}
-		if conf.Config.System.UploadModel == consts.UploadModelLocal {
-			pResp.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + pResp.BossAvatar
-			pResp.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + pResp.ImgPath
-		}
+		pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
+		pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
 		pRespList = append(pRespList, pResp)
 	}
 
@@ -250,10 +242,8 @@ func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearch
 	req.BasePage = normalizeProductPage(req.BasePage)
 	if products, count, searchErr := GetProductIndexSrv().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
 		for _, p := range products {
-			if conf.Config.System.UploadModel == consts.UploadModelLocal {
-				p.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + p.BossAvatar
-				p.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + p.ImgPath
-			}
+			p.BossAvatar = util.AvatarURL(p.BossAvatar)
+			p.ImgPath = util.ProductImageURL(p.ImgPath)
 		}
 		resp = &types.DataListResp{
 			Item:  products,
@@ -289,10 +279,8 @@ func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearch
 			BossName:      p.BossName,
 			BossAvatar:    p.BossAvatar,
 		}
-		if conf.Config.System.UploadModel == consts.UploadModelLocal {
-			pResp.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + pResp.BossAvatar
-			pResp.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + pResp.ImgPath
-		}
+		pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
+		pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
 		pRespList = append(pRespList, pResp)
 	}
 
@@ -348,10 +336,8 @@ func (s *ProductSrv) BossProductList(ctx context.Context, req *types.BossProduct
 			BossAvatar:    product.BossAvatar,
 			AuditStatus:   product.AuditStatus,
 		}
-		if conf.Config.System.UploadModel == consts.UploadModelLocal {
-			item.BossAvatar = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.AvatarPath + product.BossAvatar
-			item.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + product.ImgPath
-		}
+		item.BossAvatar = util.AvatarURL(item.BossAvatar)
+		item.ImgPath = util.ProductImageURL(item.ImgPath)
 		list = append(list, item)
 	}
 	resp = &types.DataListResp{Item: list, Total: total}
@@ -422,9 +408,7 @@ func ensureSellerCanEnableTrading(user *model.User, onSale bool) error {
 func (s *ProductSrv) ProductImgList(ctx context.Context, req *types.ListProductImgReq) (resp interface{}, err error) {
 	productImgs, _ := dao.NewProductImgDao(ctx).ListProductImgByProductId(req.ID)
 	for i := range productImgs {
-		if conf.Config.System.UploadModel == consts.UploadModelLocal {
-			productImgs[i].ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + productImgs[i].ImgPath
-		}
+		productImgs[i].ImgPath = util.ProductImageURL(productImgs[i].ImgPath)
 	}
 
 	resp = &types.DataListResp{

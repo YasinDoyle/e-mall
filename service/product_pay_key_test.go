@@ -62,6 +62,20 @@ func TestEnsureSellerCanEnableTradingAllowsDisableWithoutPayKey(t *testing.T) {
 	}
 }
 
+func TestEnsureNotBuyingOwnProductRejectsSelfPurchase(t *testing.T) {
+	err := ensureNotBuyingOwnProduct(1, 1)
+	if err == nil {
+		t.Fatal("expected self purchase to be rejected")
+	}
+	assertServiceBusinessCode(t, err, e.ErrorOrderSelfPurchaseForbidden)
+}
+
+func TestEnsureNotBuyingOwnProductAllowsDifferentBuyerAndSeller(t *testing.T) {
+	if err := ensureNotBuyingOwnProduct(1, 2); err != nil {
+		t.Fatalf("expected different buyer and seller to pass, got %v", err)
+	}
+}
+
 func assertServiceBusinessCode(t *testing.T, err error, want int) {
 	t.Helper()
 	code, ok := e.CodeFromError(err)

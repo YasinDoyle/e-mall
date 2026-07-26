@@ -34,22 +34,36 @@ func (dao *OrderDao) CreateOrder(order *model.Order) error {
 // ListOrderByCondition 获取订单List
 
 func (dao *OrderDao) ListOrderByCondition(uid uint, req *types.OrderListReq) (r []*types.OrderListResp, count int64, err error) {
-
-	d := dao.DB.Model(&model.Order{}).Where("user_id = ?", uid)
+	d := dao.DB.Table("`order` AS o").
+		Where("o.user_id = ?", uid).
+		Where("o.deleted_at IS NULL").
+		Where("o.buyer_deleted = ?", false)
 	if req.Type != 0 {
-		d = d.Where("type = ?", req.Type)
+		d = d.Where("o.type = ?", req.Type)
 	}
-	d.Count(&count)
-	db := dao.DB.Model(&model.Order{}).
-		Joins("As o LEFT JOIN product as p ON p.id = o.product_id").
+	if err = d.Count(&count).Error; err != nil {
+		return
+	}
+
+	err = buildListOrderByConditionQuery(dao.DB, uid, req).
+		Find(&r).Error
+
+	return
+}
+
+func buildListOrderByConditionQuery(db *gorm.DB, uid uint, req *types.OrderListReq) *gorm.DB {
+	query := db.Table("`order` AS o").
+		Joins("LEFT JOIN product as p ON p.id = o.product_id").
 		Joins("LEFT JOIN address as a ON a.id = o.address_id").
-		Where("o.user_id = ?", uid)
+		Where("o.user_id = ?", uid).
+		Where("o.deleted_at IS NULL").
+		Where("o.buyer_deleted = ?", false)
 	if req.Type != 0 {
-		db = db.Where("o.type = ?", req.Type)
+		query = query.Where("o.type = ?", req.Type)
 	}
 
-	db.Offset((req.PageNum - 1) * req.PageSize).
-		Limit(req.PageSize).Order("created_at DESC").
+	return query.Offset((req.PageNum - 1) * req.PageSize).
+		Limit(req.PageSize).Order("o.created_at DESC").
 		Select("o.id AS id," +
 			"o.order_num AS order_num," +
 			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
@@ -68,10 +82,62 @@ func (dao *OrderDao) ListOrderByCondition(uid uint, req *types.OrderListReq) (r 
 			"p.img_path AS img_path," +
 			"a.name AS address_name," +
 			"a.phone AS address_phone," +
-			"a.address AS address").
-		Find(&r)
+			"a.address AS address")
+}
+
+func (dao *OrderDao) ListOrderByBoss(bossID uint, req *types.SellerOrderListReq) (r []*types.OrderListResp, count int64, err error) {
+	d := dao.DB.Table("`order` AS o").
+		Where("o.boss_id = ?", bossID).
+		Where("o.deleted_at IS NULL")
+	if req.Type != 0 {
+		d = d.Where("o.type = ?", req.Type)
+	}
+	if err = d.Count(&count).Error; err != nil {
+		return
+	}
+
+	err = buildListOrderByBossQuery(dao.DB, bossID, req).
+		Find(&r).Error
 
 	return
+}
+
+func buildListOrderByBossQuery(db *gorm.DB, bossID uint, req *types.SellerOrderListReq) *gorm.DB {
+	query := db.Table("`order` AS o").
+		Joins("LEFT JOIN product as p ON p.id = o.product_id").
+		Joins("LEFT JOIN address as a ON a.id = o.address_id").
+		Joins("LEFT JOIN settlement as s ON s.order_id = o.id").
+		Where("o.boss_id = ?", bossID).
+		Where("o.deleted_at IS NULL")
+	if req.Type != 0 {
+		query = query.Where("o.type = ?", req.Type)
+	}
+
+	return query.Offset((req.PageNum - 1) * req.PageSize).
+		Limit(req.PageSize).Order("o.created_at DESC").
+		Select("o.id AS id," +
+			"o.order_num AS order_num," +
+			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
+			"UNIX_TIMESTAMP(o.updated_at) AS updated_at," +
+			"o.user_id AS user_id," +
+			"o.product_id AS product_id," +
+			"o.boss_id AS boss_id," +
+			"o.num AS num," +
+			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.tracking_no AS tracking_no," +
+			"p.name AS name," +
+			"p.discount_price AS discount_price," +
+			"p.img_path AS img_path," +
+			"a.name AS address_name," +
+			"a.phone AS address_phone," +
+			"a.address AS address," +
+			"s.gross_amount AS gross_amount," +
+			"s.commission_amount AS commission_amount," +
+			"s.settlement_amount AS settlement_amount," +
+			"s.status AS settlement_status")
 }
 
 func (dao *OrderDao) ListOrdersAdmin(req *types.AdminOrderListReq) (r []*types.OrderListResp, count int64, err error) {
@@ -144,10 +210,13 @@ func (dao *OrderDao) GetOrderByIdForUpdate(id uint) (r *model.Order, err error) 
 
 // ShowOrderById 获取订单详情
 func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err error) {
-	err = dao.DB.Model(&model.Order{}).
-		Joins("AS o LEFT JOIN product AS p ON p.id = o.product_id").
+	r = &types.OrderListResp{}
+	err = dao.DB.Table("`order` AS o").
+		Joins("LEFT JOIN product AS p ON p.id = o.product_id").
 		Joins("LEFT JOIN address AS a ON a.id = o.address_id").
 		Where("o.id = ? AND o.user_id = ?", id, uId).
+		Where("o.deleted_at IS NULL").
+		Where("o.buyer_deleted = ?", false).
 		Select("o.id AS id," +
 			"o.order_num AS order_num," +
 			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
@@ -167,16 +236,23 @@ func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err er
 			"a.name AS address_name," +
 			"a.phone AS address_phone," +
 			"a.address AS address").
-		Find(&r).Error
+		Take(r).Error
 
 	return
 }
 
 // DeleteOrderById 获取订单详情
 func (dao *OrderDao) DeleteOrderById(id, uId uint) error {
-	return dao.DB.Model(&model.Order{}).
+	result := dao.DB.Model(&model.Order{}).
 		Where("id=? AND user_id = ?", id, uId).
-		Delete(&model.Order{}).Error
+		Update("buyer_deleted", true)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateOrderById 更新订单详情

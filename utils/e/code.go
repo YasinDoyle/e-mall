@@ -77,4 +77,5 @@ const (
 	ErrorRefundStatusInvalid        = 60026
 	ErrorRefundAmountInvalid        = 60027
 	ErrorRefundNotFound             = 60028
+	ErrorOrderSelfPurchaseForbidden = 60029
 )

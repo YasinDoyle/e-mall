@@ -46,7 +46,12 @@
 
         <div class="num-row">
           <span>购买数量：</span>
-          <el-input-number v-model="buyNum" :min="1" :max="product.num" />
+          <el-input-number
+            v-model="buyNum"
+            :min="1"
+            :max="product.num"
+            :disabled="isOwnProduct"
+          />
         </div>
 
         <div class="action-row">
@@ -54,9 +59,10 @@
             type="primary"
             size="large"
             :loading="addingCart"
+            :disabled="isOwnProduct"
             @click="handleAddCart"
           >
-            加入购物车
+            {{ isOwnProduct ? "自己的商品" : "加入购物车" }}
           </el-button>
           <el-button
             size="large"
@@ -172,6 +178,13 @@ const allImgs = computed(() => {
   return [...cover, ...extraImgs.value];
 });
 
+const isOwnProduct = computed(
+  () =>
+    userStore.isLoggedIn &&
+    product.value?.boss_id &&
+    product.value.boss_id === userStore.userInfo?.id,
+);
+
 async function loadProduct() {
   const id = Number(route.params.id);
   try {
@@ -237,6 +250,7 @@ async function checkFavorite(productId: number) {
 
 async function handleAddCart() {
   if (!userStore.isLoggedIn) return router.push("/login");
+  if (isOwnProduct.value) return ElMessage.warning("不能购买自己发布的商品");
   addingCart.value = true;
   try {
     await createCart({

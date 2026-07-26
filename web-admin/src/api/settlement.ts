@@ -10,6 +10,9 @@ export const getAdminSettlementList = (params: {
 export const generateAdminSettlement = (data: { seller_id: number }) =>
   request.post("/admin/settlement/generate", data);
 
+export const generateOneAdminSettlement = (data: { id: number }) =>
+  request.post("/admin/settlement/generate_one", data);
+
 export const markAdminSettlementPaid = (data: { id: number }) =>
   request.post("/admin/settlement/paid", data);
 

@@ -47,6 +47,7 @@ func TestPaymentAndRefundBusinessErrorsHaveStableCodes(t *testing.T) {
 		{"refund status invalid", ErrorRefundStatusInvalid, "订单状态不允许退款审批"},
 		{"refund amount invalid", ErrorRefundAmountInvalid, "退款金额不合法"},
 		{"refund not found", ErrorRefundNotFound, "退款申请不存在"},
+		{"self purchase forbidden", ErrorOrderSelfPurchaseForbidden, "不能购买自己发布的商品"},
 	}
 
 	for _, tc := range cases {

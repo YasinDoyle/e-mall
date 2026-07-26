@@ -35,7 +35,9 @@
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
               <el-dropdown-item command="orders">我的订单</el-dropdown-item>
+              <el-dropdown-item command="addresses">收货地址</el-dropdown-item>
               <el-dropdown-item command="favorites">我的收藏</el-dropdown-item>
+              <el-dropdown-item command="coupons">我的优惠券</el-dropdown-item>
               <el-dropdown-item command="wallet">我的钱包</el-dropdown-item>
               <el-dropdown-item command="seller">卖家中心</el-dropdown-item>
               <el-dropdown-item divided command="logout"

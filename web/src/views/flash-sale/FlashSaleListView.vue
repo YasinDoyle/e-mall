@@ -111,7 +111,7 @@ async function loadList() {
   loading.value = true;
   try {
     const res: any = await getFlashSaleList();
-    list.value = Array.isArray(res.data) ? res.data : (res.data?.item ?? []);
+    list.value = res.data?.item ?? [];
   } catch {
     list.value = [];
   } finally {

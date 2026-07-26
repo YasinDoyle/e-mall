@@ -11,12 +11,24 @@ type AdminSettlementGenerateReq struct {
 	SellerID uint `json:"seller_id" binding:"required"`
 }
 
+type AdminSettlementGenerateOneReq struct {
+	ID uint `json:"id" binding:"required"`
+}
+
 type AdminSettlementPayReq struct {
 	ID uint `json:"id" binding:"required"`
 }
 
 type AdminSettlementDetailReq struct {
 	ID uint `json:"id" form:"id" binding:"required"`
+}
+
+type SellerSettlementSummaryResp struct {
+	AvailableAmount float64 `json:"available_amount"`
+	PendingAmount   float64 `json:"pending_amount"`
+	GeneratedAmount float64 `json:"generated_amount"`
+	PaidAmount      float64 `json:"paid_amount"`
+	RefundedAmount  float64 `json:"refunded_amount"`
 }
 
 type AdminSettlementResp struct {

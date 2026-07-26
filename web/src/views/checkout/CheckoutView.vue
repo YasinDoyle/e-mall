@@ -225,6 +225,10 @@ function unitPrice(item: any) {
   return unitPriceValue(item).toFixed(2);
 }
 
+function orderMoneyValue(item: any) {
+  return Number(unitPriceValue(item).toFixed(2));
+}
+
 function discountedUnitPrice(unitPrice: number, coupon: any) {
   if (!coupon || unitPrice < Number(coupon.min_amount || 0)) return unitPrice;
   if (coupon.coupon_type === 2) {
@@ -266,7 +270,12 @@ async function loadAddresses() {
   try {
     const res: any = await getAddressList();
     addresses.value = res.data?.item ?? [];
-    if (addresses.value.length) selectedAddress.value = addresses.value[0];
+    if (
+      addresses.value.length &&
+      !addresses.value.some((addr) => addr.id === selectedAddress.value?.id)
+    ) {
+      selectedAddress.value = addresses.value[0];
+    }
   } catch {}
 }
 
@@ -311,7 +320,7 @@ async function handleSubmit() {
         num: item.num,
         address_id: selectedAddress.value.id,
         boss_id: item.boss_id,
-        money: Math.round(unitPriceValue(item)),
+        money: orderMoneyValue(item),
         coupon_id: useCoupon ? selectedCoupon.value.coupon_id : undefined,
       } as any);
       pendingOrders.push({

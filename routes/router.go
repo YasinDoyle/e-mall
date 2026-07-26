@@ -67,6 +67,8 @@ func NewRouter() *gin.Engine {
 			// 卖家中心：查看自己的商品、上架/下架
 			authed.GET("boss/product/list", api.BossProductListHandler())
 			authed.POST("boss/product/on_sale", api.BossProductOnSaleHandler())
+			authed.GET("boss/order/list", api.SellerListOrdersHandler())
+			authed.GET("boss/settlement/summary", api.SellerSettlementSummaryHandler())
 
 			// 商品评价（需登录）
 			authed.POST("reviews/create", api.CreateReviewHandler())
@@ -184,6 +186,7 @@ func NewRouter() *gin.Engine {
 			// 结算管理
 			admin.GET("settlement/list", api.AdminSettlementListHandler())
 			admin.POST("settlement/generate", api.AdminSettlementGenerateHandler())
+			admin.POST("settlement/generate_one", api.AdminSettlementGenerateOneHandler())
 			admin.POST("settlement/paid", api.AdminSettlementPaidHandler())
 			admin.GET("settlement/detail", api.AdminSettlementDetailHandler())
 

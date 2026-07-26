@@ -71,12 +71,19 @@ func (s *AddressSrv) AddressShow(ctx context.Context, req *types.AddressGetReq) 
 }
 
 func (s *AddressSrv) AddressList(ctx context.Context, req *types.AddressListReq) (resp interface{}, err error) {
-	u, _ := ctl.GetUserInfo(ctx)
-	resp, err = dao.NewAddressDao(ctx).
-		ListAddressByUid(u.Id)
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	addresses, err := dao.NewAddressDao(ctx).ListAddressByUid(u.Id)
 	if err != nil {
 		util.LogrusObj.Error(err)
 		return
+	}
+	resp = &types.DataListResp{
+		Item:  addresses,
+		Total: int64(len(addresses)),
 	}
 	return
 }

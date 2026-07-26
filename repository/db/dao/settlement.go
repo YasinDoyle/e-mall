@@ -74,6 +74,72 @@ func (dao *SettlementDao) GenerateCompletedForSeller(sellerID uint) (int64, erro
 	return result.RowsAffected, result.Error
 }
 
+func (dao *SettlementDao) GenerateCompletedByID(id uint) (*model.Settlement, error) {
+	var settlement model.Settlement
+	err := dao.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ?", id).First(&settlement).Error; err != nil {
+			return err
+		}
+		if settlement.Status != model.SettlementStatusPending {
+			return gorm.ErrRecordNotFound
+		}
+		var order model.Order
+		if err := tx.Where("id = ? AND boss_id = ? AND type = ? AND refund_status = ?",
+			settlement.OrderID,
+			settlement.SellerID,
+			consts.OrderTypeReceipt,
+			consts.OrderRefundStatusNone,
+		).First(&order).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.Settlement{}).
+			Where("id = ? AND status = ?", id, model.SettlementStatusPending).
+			Update("status", model.SettlementStatusGenerated).Error; err != nil {
+			return err
+		}
+		settlement.Status = model.SettlementStatusGenerated
+		return nil
+	})
+	return &settlement, err
+}
+
+func (dao *SettlementDao) GenerateCompletedForOrder(orderID uint) error {
+	return dao.DB.Model(&model.Settlement{}).
+		Where("order_id = ? AND status = ?", orderID, model.SettlementStatusPending).
+		Update("status", model.SettlementStatusGenerated).Error
+}
+
+func (dao *SettlementDao) SellerSummary(sellerID uint) (*types.SellerSettlementSummaryResp, error) {
+	var rows []struct {
+		Status string
+		Amount float64
+	}
+	err := dao.DB.Model(&model.Settlement{}).
+		Select("status, COALESCE(SUM(settlement_amount), 0) AS amount").
+		Where("seller_id = ?", sellerID).
+		Group("status").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &types.SellerSettlementSummaryResp{}
+	for _, row := range rows {
+		switch row.Status {
+		case model.SettlementStatusPending:
+			resp.PendingAmount = row.Amount
+		case model.SettlementStatusGenerated:
+			resp.GeneratedAmount = row.Amount
+		case model.SettlementStatusPaid:
+			resp.PaidAmount = row.Amount
+			resp.AvailableAmount = row.Amount
+		case model.SettlementStatusRefunded:
+			resp.RefundedAmount = row.Amount
+		}
+	}
+	return resp, nil
+}
+
 func (dao *SettlementDao) MarkPaid(id uint) (*model.Settlement, error) {
 	var settlement model.Settlement
 	err := dao.DB.Transaction(func(tx *gorm.DB) error {

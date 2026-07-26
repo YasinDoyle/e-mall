@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
@@ -76,20 +75,12 @@ func (s *AdminSrv) CarouselCreate(ctx context.Context, req *types.AdminCarouselR
 
 func (s *AdminSrv) CarouselUpload(ctx context.Context, file multipart.File, fileSize int64) (resp interface{}, err error) {
 	fileName := fmt.Sprintf("carousel_%d", time.Now().UnixNano())
-	var path string
-	if conf.Config.System.UploadModel == consts.UploadModelLocal {
-		path, err = util.CarouselUploadToLocalStatic(file, fileName)
-		if err == nil {
-			path = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + path
-		}
-	} else {
-		path, err = util.UploadToQiNiu(file, fileSize)
-	}
+	path, err := util.UploadCarouselImage(file, fileSize, fileName)
 	if err != nil {
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
-	resp = &types.AdminUploadResp{URL: path}
+	resp = &types.AdminUploadResp{URL: util.ProductImageURL(path)}
 	return
 }
 
@@ -264,7 +255,7 @@ func (s *AdminSrv) ProductList(ctx context.Context, req *types.AdminProductListR
 	}
 	list := make([]*types.AdminProductResp, 0, len(products))
 	for _, product := range products {
-		list = append(list, &types.AdminProductResp{
+		item := &types.AdminProductResp{
 			ID:            product.ID,
 			Name:          product.Name,
 			CategoryID:    product.CategoryID,
@@ -281,7 +272,9 @@ func (s *AdminSrv) ProductList(ctx context.Context, req *types.AdminProductListR
 			AuditStatus:   product.AuditStatus,
 			Status:        product.AuditStatus,
 			CreatedAt:     product.CreatedAt.Unix(),
-		})
+		}
+		item.ImgPath = util.ProductImageURL(item.ImgPath)
+		list = append(list, item)
 	}
 	resp = &types.DataListResp{Item: list, Total: total}
 	return

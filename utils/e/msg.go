@@ -72,6 +72,7 @@ var MsgFlags = map[int]string{
 	ErrorRefundStatusInvalid:        "订单状态不允许退款审批",
 	ErrorRefundAmountInvalid:        "退款金额不合法",
 	ErrorRefundNotFound:             "退款申请不存在",
+	ErrorOrderSelfPurchaseForbidden: "不能购买自己发布的商品",
 }
 
 // GetMsg 获取状态码对应信息

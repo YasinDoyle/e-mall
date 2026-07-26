@@ -21,4 +21,5 @@ type Order struct {
 	RefundStatus int    `gorm:"default:0;index"` // 0 无退款 1 申请中 2 已退款
 	RefundReason string `gorm:"size:255"`
 	TrackingNo   string `gorm:"size:64"`
+	BuyerDeleted bool   `gorm:"default:false;index"`
 }

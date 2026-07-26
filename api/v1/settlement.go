@@ -45,6 +45,23 @@ func AdminSettlementGenerateHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminSettlementGenerateOneHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.AdminSettlementGenerateOneReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetSettlementSrv().AdminGenerateOne(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
 func AdminSettlementPaidHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req types.AdminSettlementPayReq
@@ -70,6 +87,18 @@ func AdminSettlementDetailHandler() gin.HandlerFunc {
 			return
 		}
 		resp, err := service.GetSettlementSrv().AdminDetail(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func SellerSettlementSummaryHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp, err := service.GetSettlementSrv().SellerSummary(c.Request.Context())
 		if err != nil {
 			log.LogrusObj.Error(err)
 			c.JSON(http.StatusOK, ErrorResponse(c, err))

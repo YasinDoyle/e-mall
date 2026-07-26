@@ -18,7 +18,7 @@
             <el-option label="已退款" value="refunded" />
           </el-select>
           <el-button :loading="loading" @click="loadList">刷新</el-button>
-          <el-button type="primary" @click="generate">生成结算</el-button>
+          <el-button type="primary" @click="generate">按商家批量生成</el-button>
         </div>
       </div>
     </template>
@@ -47,6 +47,14 @@
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openDetail(row)">流水</el-button>
+          <el-button
+            v-if="row.status === 'pending'"
+            size="small"
+            type="primary"
+            @click="generateOne(row)"
+          >
+            生成结算
+          </el-button>
           <el-button
             v-if="row.status === 'generated'"
             size="small"
@@ -87,6 +95,7 @@ import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   generateAdminSettlement,
+  generateOneAdminSettlement,
   getAdminSettlementDetail,
   getAdminSettlementList,
   markAdminSettlementPaid,
@@ -160,6 +169,17 @@ async function generate() {
   const res: any = await generateAdminSettlement({ seller_id: sellerID.value });
   ElMessage.success(`已生成 ${res.data?.count ?? 0} 条结算单`);
   reload();
+}
+
+async function generateOne(row: any) {
+  await ElMessageBox.confirm(
+    `确认生成订单 ${row.order_num} 的单笔结算？`,
+    "提示",
+    { type: "warning" },
+  );
+  await generateOneAdminSettlement({ id: row.id });
+  ElMessage.success("已生成单笔结算");
+  loadList();
 }
 
 async function markPaid(row: any) {

@@ -8,6 +8,15 @@ export const getOrderList = (params: {
 }) =>
   request.get("/orders/list", { params });
 
+export const getSellerOrderList = (params: {
+  page_num: number;
+  page_size: number;
+  type?: number;
+}) => request.get("/boss/order/list", { params });
+
+export const getSellerSettlementSummary = () =>
+  request.get("/boss/settlement/summary");
+
 export const getOrderDetail = (params: { order_id: number }) =>
   request.get("/orders/show", { params });
 

@@ -14,6 +14,7 @@ import (
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
+	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
 )
@@ -135,6 +136,18 @@ func (s *SettlementSrv) AdminGenerate(ctx context.Context, req *types.AdminSettl
 	return &types.AdminSettlementGenerateResp{SellerID: req.SellerID, Count: count}, nil
 }
 
+func (s *SettlementSrv) AdminGenerateOne(ctx context.Context, req *types.AdminSettlementGenerateOneReq) (interface{}, error) {
+	settlement, err := dao.NewSettlementDao(ctx).GenerateCompletedByID(req.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorSettlementStatusInvalid)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return buildSettlementResp(settlement), nil
+}
+
 func (s *SettlementSrv) AdminMarkPaid(ctx context.Context, req *types.AdminSettlementPayReq) (interface{}, error) {
 	var settlement *model.Settlement
 	err := dao.NewSettlementDao(ctx).Transaction(func(tx *gorm.DB) error {
@@ -144,7 +157,7 @@ func (s *SettlementSrv) AdminMarkPaid(ctx context.Context, req *types.AdminSettl
 			return txErr
 		}
 		return dao.NewAccountFlowDaoByDB(tx).Create(
-			newAccountFlowFromSettlement(settlement, model.AccountFlowTypeSettlementPaid, "out", settlement.SettlementAmount, "结算打款"),
+			newAccountFlowFromSettlement(settlement, model.AccountFlowTypeSettlementPaid, "in", settlement.SettlementAmount, "卖家结算入账"),
 		)
 	})
 	if err != nil {
@@ -167,6 +180,28 @@ func (s *SettlementSrv) AdminDetail(ctx context.Context, req *types.AdminSettlem
 		return nil, err
 	}
 	return &types.DataListResp{Item: flows, Total: int64(len(flows))}, nil
+}
+
+func (s *SettlementSrv) SellerSummary(ctx context.Context) (interface{}, error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	profile, err := dao.NewSellerDao(ctx).GetSellerProfileByUserID(u.Id)
+	if err != nil || profile == nil || !profile.IsApproved() {
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.LogrusObj.Error(err)
+			return nil, err
+		}
+		return nil, e.NewBusinessError(e.ErrorSellerNotApproved)
+	}
+	resp, err := dao.NewSettlementDao(ctx).SellerSummary(u.Id)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return resp, nil
 }
 
 func normalizeSettlementPage(req *types.AdminSettlementListReq) {

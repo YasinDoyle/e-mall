@@ -120,6 +120,11 @@ const router = createRouter({
                 import("@/views/seller/SellerProductListView.vue"),
             },
             {
+              path: "orders",
+              component: () => import("@/views/seller/SellerOrderListView.vue"),
+              meta: { sellerApproved: true },
+            },
+            {
               path: "products/new",
               component: () =>
                 import("@/views/seller/SellerProductFormView.vue"),

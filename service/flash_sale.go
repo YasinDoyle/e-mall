@@ -218,6 +218,7 @@ func (s *FlashSaleSrv) ListFlashSales(ctx context.Context) (resp interface{}, er
 		return
 	}
 
+	var flashSales []*model.FlashSale
 	if len(flashSaleList) == 0 {
 		flashSales, errx := dao.NewFlashSaleDao(ctx).ListFlashSales()
 		if errx != nil {
@@ -228,9 +229,8 @@ func (s *FlashSaleSrv) ListFlashSales(ctx context.Context) (resp interface{}, er
 			log.LogrusObj.Infoln(err)
 			return nil, err
 		}
-		resp = flashSales
 	} else {
-		flashSales := make([]*model.FlashSale, 0, len(flashSaleList))
+		flashSales = make([]*model.FlashSale, 0, len(flashSaleList))
 		for _, item := range flashSaleList {
 			var flashSale model.FlashSale
 			if err = json.Unmarshal([]byte(item), &flashSale); err != nil {
@@ -239,9 +239,9 @@ func (s *FlashSaleSrv) ListFlashSales(ctx context.Context) (resp interface{}, er
 			}
 			flashSales = append(flashSales, &flashSale)
 		}
-		resp = flashSales
 	}
 
+	resp = &types.DataListResp{Item: flashSales, Total: int64(len(flashSales))}
 	return
 }
 
@@ -380,6 +380,9 @@ func (s *FlashSaleSrv) FlashSale(ctx context.Context, req *types.FlashSaleReq) (
 	flashSale, ok := flashSaleResp.(*model.FlashSale)
 	if !ok {
 		return nil, errors.New("秒杀商品信息错误")
+	}
+	if err = ensureNotBuyingOwnProduct(u.Id, flashSale.BossId); err != nil {
+		return nil, err
 	}
 
 	remainingStock, err := s.reserveFlashSaleStock(ctx, u.Id, req.ProductId)

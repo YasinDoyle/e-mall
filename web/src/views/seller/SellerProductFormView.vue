@@ -137,7 +137,7 @@ const form = ref({
 
 async function loadCategories() {
   const res: any = await getCategoryList();
-  categories.value = res.data?.item ?? res.data ?? [];
+  categories.value = res.data?.item ?? [];
 }
 
 function validate() {

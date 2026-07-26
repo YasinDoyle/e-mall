@@ -11,6 +11,9 @@
       >
         <el-menu-item index="/seller/apply">入驻状态</el-menu-item>
         <el-menu-item index="/seller/products">商品管理</el-menu-item>
+        <el-menu-item index="/seller/orders" :disabled="!sellerStore.isApproved">
+          订单管理
+        </el-menu-item>
         <el-menu-item index="/seller/products/new" :disabled="!sellerStore.isApproved">
           发布商品
         </el-menu-item>
@@ -33,6 +36,7 @@ const activeMenu = computed(() => {
   if (route.path.startsWith("/seller/products/new")) {
     return "/seller/products/new";
   }
+  if (route.path.startsWith("/seller/orders")) return "/seller/orders";
   if (route.path.startsWith("/seller/products")) return "/seller/products";
   return "/seller/apply";
 });

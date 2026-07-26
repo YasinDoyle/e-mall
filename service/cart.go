@@ -40,6 +40,9 @@ func (s *CartSrv) CartCreate(ctx context.Context, req *types.CartCreateReq) (res
 		util.LogrusObj.Error(err)
 		return
 	}
+	if err = ensureNotBuyingOwnProduct(u.Id, product.BossID); err != nil {
+		return nil, err
+	}
 	if req.Num == 0 {
 		req.Num = 1
 	}
@@ -55,7 +58,7 @@ func (s *CartSrv) CartCreate(ctx context.Context, req *types.CartCreateReq) (res
 
 	// 创建购物车
 	cartDao := dao.NewCartDao(ctx)
-	_, status, err := cartDao.CreateCart(req.ProductId, u.Id, req.BossID, req.Num, productStock)
+	_, status, err := cartDao.CreateCart(req.ProductId, u.Id, product.BossID, req.Num, productStock)
 	if err != nil {
 		util.LogrusObj.Error(err)
 		return

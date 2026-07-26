@@ -46,7 +46,16 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		return nil, err
 	}
 
-	originalMoney := float64(req.Money)
+	product, err := dao.NewProductDao(ctx).GetProductById(req.ProductID)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if err = ensureNotBuyingOwnProduct(u.Id, product.BossID); err != nil {
+		return nil, err
+	}
+
+	originalMoney := req.Money
 	addressDao := dao.NewAddressDao(ctx)
 	address, err := addressDao.GetAddressByAid(req.AddressID, u.Id)
 	if err != nil {
@@ -75,7 +84,7 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		order = &model.Order{
 			UserID:    u.Id,
 			ProductID: req.ProductID,
-			BossID:    req.BossID,
+			BossID:    product.BossID,
 			AddressID: address.ID,
 			Num:       int(req.Num),
 			Money:     finalMoney,
@@ -117,6 +126,13 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 	}
 
 	return
+}
+
+func ensureNotBuyingOwnProduct(userID, bossID uint) error {
+	if userID != 0 && userID == bossID {
+		return e.NewBusinessError(e.ErrorOrderSelfPurchaseForbidden)
+	}
+	return nil
 }
 
 func StartOrderTimeoutWorker(ctx context.Context) {
@@ -208,6 +224,49 @@ func (s *OrderSrv) AdminOrderList(ctx context.Context, req *types.AdminOrderList
 	}
 	for i := range orders {
 		if conf.Config.System.UploadModel == consts.UploadModelLocal && orders[i].ImgPath != "" {
+			orders[i].ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + orders[i].ImgPath
+		}
+	}
+
+	resp = types.DataListResp{
+		Item:  orders,
+		Total: total,
+	}
+	return
+}
+
+func (s *OrderSrv) SellerOrderList(ctx context.Context, req *types.SellerOrderListReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if req.PageSize == 0 {
+		req.PageSize = consts.BasePageSize
+	}
+	if req.PageNum == 0 {
+		req.PageNum = 1
+	}
+
+	sellerProfile, err := dao.NewSellerDao(ctx).GetSellerProfileByUserID(u.Id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorSellerNotApproved)
+		}
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if err = ensureSellerProfileApproved(sellerProfile); err != nil {
+		return nil, err
+	}
+
+	orders, total, err := dao.NewOrderDao(ctx).ListOrderByBoss(u.Id, req)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	for i := range orders {
+		if conf.Config.System.UploadModel == consts.UploadModelLocal {
 			orders[i].ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + orders[i].ImgPath
 		}
 	}
@@ -378,7 +437,20 @@ func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq)
 		return nil, err
 	}
 
-	err = dao.NewOrderDao(ctx).UpdateOrderTypeByUser(req.OrderId, u.Id, consts.OrderTypeShipping, consts.OrderTypeReceipt)
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.UserID != u.Id || order.Type != consts.OrderTypeShipping {
+			return gorm.ErrRecordNotFound
+		}
+		if txErr = orderDao.UpdateOrderTypeByUser(req.OrderId, u.Id, consts.OrderTypeShipping, consts.OrderTypeReceipt); txErr != nil {
+			return txErr
+		}
+		return dao.NewSettlementDaoByDB(tx).GenerateCompletedForOrder(req.OrderId)
+	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("订单状态不允许收货")
