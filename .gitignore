@@ -1,4 +1,5 @@
 config/locales/config.yaml
 cmd/logs
+cmd/static/imgs
 data/redis
 .DS_Store
