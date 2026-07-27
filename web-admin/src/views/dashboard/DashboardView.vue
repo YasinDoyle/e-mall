@@ -66,6 +66,7 @@ const pendingProducts = ref<any[]>([]);
 const overview = ref({
   today_orders: 0,
   total_sales: 0,
+  platform_revenue: 0,
   registered_users: 0,
 });
 const trend = ref({
@@ -128,6 +129,12 @@ const statCards = computed(() => [
     value: `¥${Number(overview.value.total_sales || 0).toFixed(2)}`,
     icon: "Money",
     color: "#67c23a",
+  },
+  {
+    label: "平台收益",
+    value: `¥${Number(overview.value.platform_revenue || 0).toFixed(2)}`,
+    icon: "Coin",
+    color: "#f56c6c",
   },
   {
     label: "注册用户",

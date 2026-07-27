@@ -144,6 +144,12 @@ func (d *AdminDao) SumTotalSales() (float64, error) {
 	return total, err
 }
 
+func (d *AdminDao) SumPlatformRevenue() (float64, error) {
+	var total float64
+	err := buildPlatformRevenueQuery(d.DB).Scan(&total).Error
+	return total, err
+}
+
 func (d *AdminDao) CountRegisteredUsers() (int64, error) {
 	var total int64
 	err := d.DB.Model(&model.User{}).Count(&total).Error
@@ -162,4 +168,10 @@ func buildAdminOrderTrendQuery(db *gorm.DB, start, end time.Time) *gorm.DB {
 		Select("DATE_FORMAT(paid_at, '%Y-%m-%d') AS date, COUNT(*) AS order_count, COALESCE(SUM(money * num), 0) AS sales_amount").
 		Group("DATE_FORMAT(paid_at, '%Y-%m-%d')").
 		Order("date ASC")
+}
+
+func buildPlatformRevenueQuery(db *gorm.DB) *gorm.DB {
+	return db.Model(&model.AccountFlow{}).
+		Where("flow_type = ? AND direction = ?", model.AccountFlowTypePlatformCommission, "in").
+		Select("COALESCE(SUM(amount), 0)")
 }

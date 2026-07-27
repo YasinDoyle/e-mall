@@ -6,6 +6,8 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"github.com/YasinDoyle/e-mall/repository/db/model"
 )
 
 func TestBuildSellerAccountSummaryQueryUsesSellerAccountTable(t *testing.T) {
@@ -21,7 +23,7 @@ func TestBuildSellerAccountSummaryQueryUsesSellerAccountTable(t *testing.T) {
 	}
 
 	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		var account struct{}
+		var account model.SellerAccount
 		return buildSellerAccountSummaryQuery(tx, 42).First(&account)
 	})
 

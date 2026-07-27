@@ -139,6 +139,7 @@ type AdminStatsOrdersReq struct {
 type AdminStatsOverviewResp struct {
 	TodayOrders     int64   `json:"today_orders"`
 	TotalSales      float64 `json:"total_sales"`
+	PlatformRevenue float64 `json:"platform_revenue"`
 	RegisteredUsers int64   `json:"registered_users"`
 }
 

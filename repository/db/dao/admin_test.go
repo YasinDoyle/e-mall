@@ -33,3 +33,31 @@ func TestBuildAdminOrderTrendQueryDoesNotFilterByOrderStatus(t *testing.T) {
 		t.Fatalf("trend query should aggregate by formatted paid_at date, got %s", sql)
 	}
 }
+
+func TestBuildPlatformRevenueQueryUsesPlatformCommissionFlows(t *testing.T) {
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN:                       "gorm:gorm@tcp(localhost:9910)/gorm?charset=utf8&parseTime=True",
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{
+		DryRun:               true,
+		DisableAutomaticPing: true,
+	})
+	if err != nil {
+		t.Fatalf("open dry run db: %v", err)
+	}
+
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		var total float64
+		return buildPlatformRevenueQuery(tx).Scan(&total)
+	})
+
+	if !strings.Contains(sql, "FROM `account_flows`") {
+		t.Fatalf("platform revenue query should read account_flows table, got %s", sql)
+	}
+	if !strings.Contains(sql, "flow_type = 'platform_commission'") {
+		t.Fatalf("platform revenue query should filter platform commission flow, got %s", sql)
+	}
+	if !strings.Contains(sql, "direction = 'in'") {
+		t.Fatalf("platform revenue query should filter inflows, got %s", sql)
+	}
+}

@@ -348,6 +348,11 @@ func (s *AdminSrv) StatsOverview(ctx context.Context) (resp interface{}, err err
 		log.LogrusObj.Error(err)
 		return
 	}
+	platformRevenue, err := adminDao.SumPlatformRevenue()
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
 	registeredUsers, err := adminDao.CountRegisteredUsers()
 	if err != nil {
 		log.LogrusObj.Error(err)
@@ -357,6 +362,7 @@ func (s *AdminSrv) StatsOverview(ctx context.Context) (resp interface{}, err err
 	resp = &types.AdminStatsOverviewResp{
 		TodayOrders:     todayOrders,
 		TotalSales:      totalSales,
+		PlatformRevenue: platformRevenue,
 		RegisteredUsers: registeredUsers,
 	}
 	return

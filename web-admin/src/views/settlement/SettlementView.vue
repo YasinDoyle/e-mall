@@ -17,12 +17,19 @@
             <el-option label="已打款" value="paid" />
             <el-option label="已退款" value="refunded" />
           </el-select>
-          <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="loading" @click="reloadAll">刷新</el-button>
           <el-button :loading="backfilling" @click="backfillAccount">回填账户</el-button>
           <el-button type="primary" @click="generate">按商家批量生成</el-button>
         </div>
       </div>
     </template>
+
+    <div class="summary-grid">
+      <div class="summary-item">
+        <span class="summary-label">平台收益</span>
+        <b>¥{{ money(overview.platform_revenue) }}</b>
+      </div>
+    </div>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
@@ -102,6 +109,7 @@ import {
   getAdminSettlementList,
   markAdminSettlementPaid,
 } from "@/api/settlement";
+import { getStatsOverview } from "@/api";
 
 const list = ref<any[]>([]);
 const flows = ref<any[]>([]);
@@ -113,6 +121,9 @@ const backfilling = ref(false);
 const sellerID = ref<number | undefined>();
 const statusFilter = ref<string | undefined>();
 const detailVisible = ref(false);
+const overview = ref({
+  platform_revenue: 0,
+});
 
 function money(value: number) {
   return Number(value || 0).toFixed(2);
@@ -149,8 +160,17 @@ function reload() {
   loadList();
 }
 
-async function loadList() {
-  loading.value = true;
+async function loadOverview() {
+  const res: any = await getStatsOverview();
+  overview.value = {
+    platform_revenue: Number(res.data?.platform_revenue || 0),
+  };
+}
+
+async function loadList(withLoading = true) {
+  if (withLoading) {
+    loading.value = true;
+  }
   try {
     const res: any = await getAdminSettlementList({
       page_num: page.value,
@@ -160,6 +180,17 @@ async function loadList() {
     });
     list.value = res.data?.item ?? [];
     total.value = res.data?.total ?? 0;
+  } finally {
+    if (withLoading) {
+      loading.value = false;
+    }
+  }
+}
+
+async function reloadAll() {
+  loading.value = true;
+  try {
+    await Promise.all([loadOverview(), loadList(false)]);
   } finally {
     loading.value = false;
   }
@@ -221,7 +252,7 @@ async function openDetail(row: any) {
   detailVisible.value = true;
 }
 
-onMounted(loadList);
+onMounted(reloadAll);
 </script>
 
 <style scoped>
@@ -241,5 +272,23 @@ onMounted(loadList);
 .pager {
   margin-top: 16px;
   justify-content: flex-end;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.summary-item {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.summary-label {
+  color: #909399;
+  font-size: 13px;
 }
 </style>
