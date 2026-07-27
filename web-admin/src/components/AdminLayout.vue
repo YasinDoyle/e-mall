@@ -24,6 +24,9 @@
         <el-menu-item index="/settlement">
           <el-icon><Money /></el-icon>结算管理
         </el-menu-item>
+        <el-menu-item index="/withdraw">
+          <el-icon><Wallet /></el-icon>提现审核
+        </el-menu-item>
         <el-menu-item index="/category">
           <el-icon><Grid /></el-icon>分类管理
         </el-menu-item>
@@ -78,7 +81,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { useAdminStore } from "@/stores/admin";
-import { Money, Shop } from "@element-plus/icons-vue";
+import { Money, Shop, Wallet } from "@element-plus/icons-vue";
 
 const router = useRouter();
 const store = useAdminStore();

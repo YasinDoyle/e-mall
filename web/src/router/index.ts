@@ -115,6 +115,11 @@ const router = createRouter({
               component: () => import("@/views/seller/SellerApplyView.vue"),
             },
             {
+              path: "account",
+              component: () => import("@/views/seller/SellerAccountView.vue"),
+              meta: { sellerApproved: true },
+            },
+            {
               path: "products",
               component: () =>
                 import("@/views/seller/SellerProductListView.vue"),

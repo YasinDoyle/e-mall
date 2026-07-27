@@ -156,9 +156,7 @@ func (s *SettlementSrv) AdminMarkPaid(ctx context.Context, req *types.AdminSettl
 		if txErr != nil {
 			return txErr
 		}
-		return dao.NewAccountFlowDaoByDB(tx).Create(
-			newAccountFlowFromSettlement(settlement, model.AccountFlowTypeSettlementPaid, "in", settlement.SettlementAmount, "卖家结算入账"),
-		)
+		return GetSellerAccountSrv().CreditSettlement(tx, settlement)
 	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -215,29 +213,33 @@ func normalizeSettlementPage(req *types.AdminSettlementListReq) {
 
 func newAccountFlow(order *model.Order, userID, sellerID uint, flowType, direction string, amount float64, remark string) *model.AccountFlow {
 	return &model.AccountFlow{
-		FlowNo:    fmt.Sprintf("%s-%d-%d", flowType, order.ID, time.Now().UnixNano()),
-		OrderID:   order.ID,
-		OrderNum:  order.OrderNum,
-		UserID:    userID,
-		SellerID:  sellerID,
-		FlowType:  flowType,
-		Direction: direction,
-		Amount:    amount,
-		Remark:    remark,
+		FlowNo:      fmt.Sprintf("%s-%d-%d", flowType, order.ID, time.Now().UnixNano()),
+		OrderID:     order.ID,
+		OrderNum:    order.OrderNum,
+		UserID:      userID,
+		SellerID:    sellerID,
+		RelatedType: "order",
+		RelatedID:   order.ID,
+		FlowType:    flowType,
+		Direction:   direction,
+		Amount:      amount,
+		Remark:      remark,
 	}
 }
 
 func newAccountFlowFromSettlement(settlement *model.Settlement, flowType, direction string, amount float64, remark string) *model.AccountFlow {
 	return &model.AccountFlow{
-		FlowNo:    fmt.Sprintf("%s-%d-%d", flowType, settlement.ID, time.Now().UnixNano()),
-		OrderID:   settlement.OrderID,
-		OrderNum:  settlement.OrderNum,
-		UserID:    settlement.SellerID,
-		SellerID:  settlement.SellerID,
-		FlowType:  flowType,
-		Direction: direction,
-		Amount:    amount,
-		Remark:    remark,
+		FlowNo:      fmt.Sprintf("%s-%d-%d", flowType, settlement.ID, time.Now().UnixNano()),
+		OrderID:     settlement.OrderID,
+		OrderNum:    settlement.OrderNum,
+		UserID:      settlement.SellerID,
+		SellerID:    settlement.SellerID,
+		RelatedType: "settlement",
+		RelatedID:   settlement.ID,
+		FlowType:    flowType,
+		Direction:   direction,
+		Amount:      amount,
+		Remark:      remark,
 	}
 }
 

@@ -91,6 +91,9 @@
       </el-form>
 
       <div v-else-if="profile?.status === 1" class="actions">
+        <el-button type="success" @click="$router.push('/seller/account')">
+          资金账户
+        </el-button>
         <el-button type="primary" @click="$router.push('/seller/products/new')">
           发布商品
         </el-button>

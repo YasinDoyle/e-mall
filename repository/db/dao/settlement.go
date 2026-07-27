@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -109,6 +110,15 @@ func (dao *SettlementDao) GenerateCompletedForOrder(orderID uint) error {
 		Update("status", model.SettlementStatusGenerated).Error
 }
 
+func (dao *SettlementDao) ListPaidSettlements() ([]*model.Settlement, error) {
+	settlements := make([]*model.Settlement, 0)
+	err := dao.DB.
+		Where("status = ?", model.SettlementStatusPaid).
+		Order("id ASC").
+		Find(&settlements).Error
+	return settlements, err
+}
+
 func (dao *SettlementDao) SellerSummary(sellerID uint) (*types.SellerSettlementSummaryResp, error) {
 	var rows []struct {
 		Status string
@@ -124,6 +134,11 @@ func (dao *SettlementDao) SellerSummary(sellerID uint) (*types.SellerSettlementS
 	}
 
 	resp := &types.SellerSettlementSummaryResp{}
+	account, accountErr := dao.getSellerAccountSummary(sellerID)
+	if accountErr != nil && !errors.Is(accountErr, gorm.ErrRecordNotFound) {
+		return nil, accountErr
+	}
+	resp.AvailableAmount = account.AvailableBalance
 	for _, row := range rows {
 		switch row.Status {
 		case model.SettlementStatusPending:
@@ -132,12 +147,21 @@ func (dao *SettlementDao) SellerSummary(sellerID uint) (*types.SellerSettlementS
 			resp.GeneratedAmount = row.Amount
 		case model.SettlementStatusPaid:
 			resp.PaidAmount = row.Amount
-			resp.AvailableAmount = row.Amount
 		case model.SettlementStatusRefunded:
 			resp.RefundedAmount = row.Amount
 		}
 	}
 	return resp, nil
+}
+
+func (dao *SettlementDao) getSellerAccountSummary(sellerID uint) (model.SellerAccount, error) {
+	var account model.SellerAccount
+	err := buildSellerAccountSummaryQuery(dao.DB, sellerID).First(&account).Error
+	return account, err
+}
+
+func buildSellerAccountSummaryQuery(db *gorm.DB, sellerID uint) *gorm.DB {
+	return db.Table("seller_account").Where("seller_id = ?", sellerID)
 }
 
 func (dao *SettlementDao) MarkPaid(id uint) (*model.Settlement, error) {

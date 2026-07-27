@@ -126,7 +126,7 @@ func (d *AdminDao) DeleteProduct(id uint) error {
 func (d *AdminDao) CountTodayOrders(start, end time.Time) (int64, error) {
 	var total int64
 	err := d.DB.Model(&model.Order{}).
-		Where("created_at >= ? AND created_at < ?", start, end).
+		Where("paid_at >= ? AND paid_at < ?", start, end).
 		Count(&total).Error
 	return total, err
 }
@@ -152,16 +152,14 @@ func (d *AdminDao) CountRegisteredUsers() (int64, error) {
 
 func (d *AdminDao) OrderTrend(start, end time.Time) ([]AdminOrderTrendRow, error) {
 	rows := make([]AdminOrderTrendRow, 0)
-	err := d.DB.Model(&model.Order{}).
-		Where("created_at >= ? AND created_at < ?", start, end).
-		Where("type IN ?", []uint{
-			consts.OrderTypePendingShipping,
-			consts.OrderTypeShipping,
-			consts.OrderTypeReceipt,
-		}).
-		Select("DATE(created_at) AS date, COUNT(*) AS order_count, COALESCE(SUM(money * num), 0) AS sales_amount").
-		Group("DATE(created_at)").
-		Order("date ASC").
-		Scan(&rows).Error
+	err := buildAdminOrderTrendQuery(d.DB, start, end).Scan(&rows).Error
 	return rows, err
+}
+
+func buildAdminOrderTrendQuery(db *gorm.DB, start, end time.Time) *gorm.DB {
+	return db.Model(&model.Order{}).
+		Where("paid_at >= ? AND paid_at < ?", start, end).
+		Select("DATE_FORMAT(paid_at, '%Y-%m-%d') AS date, COUNT(*) AS order_count, COALESCE(SUM(money * num), 0) AS sales_amount").
+		Group("DATE_FORMAT(paid_at, '%Y-%m-%d')").
+		Order("date ASC")
 }

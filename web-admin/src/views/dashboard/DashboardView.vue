@@ -74,6 +74,48 @@ const trend = ref({
   sales_amounts: [] as number[],
 });
 
+function buildDefaultTrend() {
+  const dates: string[] = [];
+  const orderCounts: number[] = [];
+  const salesAmounts: number[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const label = [
+      day.getFullYear(),
+      String(day.getMonth() + 1).padStart(2, "0"),
+      String(day.getDate()).padStart(2, "0"),
+    ].join("-");
+    dates.push(label);
+    orderCounts.push(0);
+    salesAmounts.push(0);
+  }
+  return {
+    dates,
+    order_counts: orderCounts,
+    sales_amounts: salesAmounts,
+  };
+}
+
+function normalizeTrendData(raw: any) {
+  if (
+    !raw ||
+    !Array.isArray(raw.dates) ||
+    raw.dates.length === 0 ||
+    !Array.isArray(raw.order_counts) ||
+    !Array.isArray(raw.sales_amounts)
+  ) {
+    return buildDefaultTrend();
+  }
+  return {
+    dates: raw.dates,
+    order_counts: raw.order_counts,
+    sales_amounts: raw.sales_amounts,
+  };
+}
+
 const statCards = computed(() => [
   {
     label: "今日订单",
@@ -141,7 +183,7 @@ async function loadData() {
       getAdminProductList({ page_num: 1, page_size: 100, audit_status: 0 }),
     ]);
     overview.value = overviewRes.data ?? overview.value;
-    trend.value = trendRes.data ?? trend.value;
+    trend.value = normalizeTrendData(trendRes.data);
     pendingProducts.value = productRes.data?.item ?? [];
   } finally {
     loading.value = false;

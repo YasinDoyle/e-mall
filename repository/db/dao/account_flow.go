@@ -29,3 +29,20 @@ func (dao *AccountFlowDao) ListByOrderID(orderID uint) ([]*model.AccountFlow, er
 	err := dao.DB.Where("order_id = ?", orderID).Order("created_at ASC").Find(&flows).Error
 	return flows, err
 }
+
+func (dao *AccountFlowDao) ListByRelatedTypeAndID(relatedType string, relatedID uint) ([]*model.AccountFlow, error) {
+	flows := make([]*model.AccountFlow, 0)
+	err := dao.DB.Where("related_type = ? AND related_id = ?", relatedType, relatedID).
+		Order("created_at ASC").
+		Find(&flows).Error
+	return flows, err
+}
+
+func (dao *AccountFlowDao) ListRelatedIDsByTypeAndFlowType(relatedType, flowType string) ([]uint, error) {
+	relatedIDs := make([]uint, 0)
+	err := dao.DB.Model(&model.AccountFlow{}).
+		Distinct().
+		Where("related_type = ? AND flow_type = ?", relatedType, flowType).
+		Pluck("related_id", &relatedIDs).Error
+	return relatedIDs, err
+}

@@ -18,3 +18,6 @@ export const markAdminSettlementPaid = (data: { id: number }) =>
 
 export const getAdminSettlementDetail = (params: { id: number }) =>
   request.get("/admin/settlement/detail", { params });
+
+export const backfillAdminSellerAccount = () =>
+  request.post("/admin/settlement/backfill");

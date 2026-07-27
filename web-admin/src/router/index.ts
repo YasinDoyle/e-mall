@@ -44,6 +44,10 @@ const router = createRouter({
           component: () => import("@/views/settlement/SettlementView.vue"),
         },
         {
+          path: "withdraw",
+          component: () => import("@/views/withdraw/WithdrawView.vue"),
+        },
+        {
           path: "coupon",
           component: () => import("@/views/coupon/CouponView.vue"),
         },

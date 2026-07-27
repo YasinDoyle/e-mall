@@ -96,6 +96,18 @@ func AdminSettlementDetailHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminSettlementBackfillHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp, err := service.GetSellerAccountSrv().AdminBackfillPaidSettlementCredits(c.Request.Context())
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
 func SellerSettlementSummaryHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		resp, err := service.GetSettlementSrv().SellerSummary(c.Request.Context())

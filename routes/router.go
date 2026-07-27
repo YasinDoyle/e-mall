@@ -69,6 +69,9 @@ func NewRouter() *gin.Engine {
 			authed.POST("boss/product/on_sale", api.BossProductOnSaleHandler())
 			authed.GET("boss/order/list", api.SellerListOrdersHandler())
 			authed.GET("boss/settlement/summary", api.SellerSettlementSummaryHandler())
+			authed.GET("seller/account/summary", api.SellerAccountSummaryHandler())
+			authed.GET("seller/withdraw/list", api.SellerWithdrawListHandler())
+			authed.POST("seller/withdraw/apply", api.SellerWithdrawApplyHandler())
 
 			// 商品评价（需登录）
 			authed.POST("reviews/create", api.CreateReviewHandler())
@@ -161,6 +164,10 @@ func NewRouter() *gin.Engine {
 			// 商家管理
 			admin.GET("seller/list", api.AdminSellerListHandler())
 			admin.POST("seller/audit", api.AdminSellerAuditHandler())
+			admin.GET("seller/withdraw/list", api.AdminSellerWithdrawListHandler())
+			admin.POST("seller/withdraw/audit", api.AdminSellerWithdrawAuditHandler())
+			admin.POST("seller/withdraw/paid", api.AdminSellerWithdrawPaidHandler())
+			admin.GET("seller/withdraw/detail", api.AdminSellerWithdrawDetailHandler())
 
 			// 商品审核
 			admin.GET("product/list", api.AdminProductListHandler())
@@ -189,6 +196,7 @@ func NewRouter() *gin.Engine {
 			admin.POST("settlement/generate_one", api.AdminSettlementGenerateOneHandler())
 			admin.POST("settlement/paid", api.AdminSettlementPaidHandler())
 			admin.GET("settlement/detail", api.AdminSettlementDetailHandler())
+			admin.POST("settlement/backfill", api.AdminSettlementBackfillHandler())
 
 			// 秒杀管理
 			admin.GET("flash-sale/list", api.AdminListFlashSaleHandler())

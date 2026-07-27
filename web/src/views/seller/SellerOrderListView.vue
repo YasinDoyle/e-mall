@@ -9,24 +9,24 @@
 
     <div class="summary-grid">
       <div class="summary-item account">
-        <span class="summary-label">商家账户余额</span>
-        <b>¥{{ money(summary.available_amount) }}</b>
+        <span class="summary-label">可提现余额</span>
+        <b>¥{{ money(accountSummary.available_balance) }}</b>
       </div>
       <div class="summary-item">
         <span class="summary-label">待结算</span>
-        <b>¥{{ money(summary.pending_amount) }}</b>
+        <b>¥{{ money(settlementSummary.pending_amount) }}</b>
       </div>
       <div class="summary-item">
         <span class="summary-label">可结算</span>
-        <b>¥{{ money(summary.generated_amount) }}</b>
+        <b>¥{{ money(settlementSummary.generated_amount) }}</b>
       </div>
       <div class="summary-item">
         <span class="summary-label">已打款</span>
-        <b>¥{{ money(summary.paid_amount) }}</b>
+        <b>¥{{ money(settlementSummary.paid_amount) }}</b>
       </div>
       <div class="summary-item">
         <span class="summary-label">已退款</span>
-        <b>¥{{ money(summary.refunded_amount) }}</b>
+        <b>¥{{ money(settlementSummary.refunded_amount) }}</b>
       </div>
     </div>
 
@@ -130,10 +130,17 @@ import {
   getSellerSettlementSummary,
   shipOrder,
 } from "@/api/order";
+import { getSellerAccountSummary } from "@/api/seller";
 import { useSellerStore } from "@/stores/seller";
 
 const sellerStore = useSellerStore();
-const summary = ref({
+const accountSummary = ref({
+  available_balance: 0,
+  frozen_balance: 0,
+  total_income: 0,
+  total_withdrawn: 0,
+});
+const settlementSummary = ref({
   available_amount: 0,
   pending_amount: 0,
   generated_amount: 0,
@@ -202,13 +209,22 @@ function settlementTag(status?: string) {
 }
 
 async function loadSummary() {
-  const res: any = await getSellerSettlementSummary();
-  summary.value = {
-    available_amount: Number(res.data?.available_amount || 0),
-    pending_amount: Number(res.data?.pending_amount || 0),
-    generated_amount: Number(res.data?.generated_amount || 0),
-    paid_amount: Number(res.data?.paid_amount || 0),
-    refunded_amount: Number(res.data?.refunded_amount || 0),
+  const [accountRes, settlementRes]: any[] = await Promise.all([
+    getSellerAccountSummary(),
+    getSellerSettlementSummary(),
+  ]);
+  accountSummary.value = {
+    available_balance: Number(accountRes.data?.available_balance || 0),
+    frozen_balance: Number(accountRes.data?.frozen_balance || 0),
+    total_income: Number(accountRes.data?.total_income || 0),
+    total_withdrawn: Number(accountRes.data?.total_withdrawn || 0),
+  };
+  settlementSummary.value = {
+    available_amount: Number(accountRes.data?.available_balance || 0),
+    pending_amount: Number(settlementRes.data?.pending_amount || 0),
+    generated_amount: Number(settlementRes.data?.generated_amount || 0),
+    paid_amount: Number(settlementRes.data?.paid_amount || 0),
+    refunded_amount: Number(settlementRes.data?.refunded_amount || 0),
   };
 }
 

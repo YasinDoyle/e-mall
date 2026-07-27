@@ -373,12 +373,12 @@ func (s *AdminSrv) StatsOrders(ctx context.Context, req *types.AdminStatsOrdersR
 		log.LogrusObj.Error(err)
 		return
 	}
-
 	countByDate := make(map[string]int64, len(rows))
 	salesByDate := make(map[string]float64, len(rows))
 	for _, row := range rows {
-		countByDate[row.Date] = row.OrderCount
-		salesByDate[row.Date] = row.SalesAmount
+		dateKey := normalizeAdminStatsDateKey(row.Date)
+		countByDate[dateKey] = row.OrderCount
+		salesByDate[dateKey] = row.SalesAmount
 	}
 
 	dates := make([]string, 0)
@@ -423,4 +423,24 @@ func parseAdminStatsRange(req *types.AdminStatsOrdersReq) (time.Time, time.Time,
 	}
 
 	return start, end.AddDate(0, 0, 1), nil
+}
+
+func normalizeAdminStatsDateKey(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return value
+	}
+	if len(value) == len(adminStatsDateLayout) {
+		return value
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed.Format(adminStatsDateLayout)
+	}
+	if parsed, err := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local); err == nil {
+		return parsed.Format(adminStatsDateLayout)
+	}
+	if len(value) >= len(adminStatsDateLayout) {
+		return value[:len(adminStatsDateLayout)]
+	}
+	return value
 }

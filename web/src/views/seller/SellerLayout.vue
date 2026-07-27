@@ -10,6 +10,9 @@
         style="border: none; height: 100%"
       >
         <el-menu-item index="/seller/apply">入驻状态</el-menu-item>
+        <el-menu-item index="/seller/account" :disabled="!sellerStore.isApproved">
+          资金账户
+        </el-menu-item>
         <el-menu-item index="/seller/products">商品管理</el-menu-item>
         <el-menu-item index="/seller/orders" :disabled="!sellerStore.isApproved">
           订单管理
@@ -33,6 +36,7 @@ import { useSellerStore } from "@/stores/seller";
 const route = useRoute();
 const sellerStore = useSellerStore();
 const activeMenu = computed(() => {
+  if (route.path.startsWith("/seller/account")) return "/seller/account";
   if (route.path.startsWith("/seller/products/new")) {
     return "/seller/products/new";
   }

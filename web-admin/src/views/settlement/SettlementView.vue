@@ -18,6 +18,7 @@
             <el-option label="已退款" value="refunded" />
           </el-select>
           <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="backfilling" @click="backfillAccount">回填账户</el-button>
           <el-button type="primary" @click="generate">按商家批量生成</el-button>
         </div>
       </div>
@@ -94,6 +95,7 @@
 import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
+  backfillAdminSellerAccount,
   generateAdminSettlement,
   generateOneAdminSettlement,
   getAdminSettlementDetail,
@@ -107,6 +109,7 @@ const page = ref(1);
 const pageSize = 15;
 const total = ref(0);
 const loading = ref(false);
+const backfilling = ref(false);
 const sellerID = ref<number | undefined>();
 const statusFilter = ref<string | undefined>();
 const detailVisible = ref(false);
@@ -169,6 +172,25 @@ async function generate() {
   const res: any = await generateAdminSettlement({ seller_id: sellerID.value });
   ElMessage.success(`已生成 ${res.data?.count ?? 0} 条结算单`);
   reload();
+}
+
+async function backfillAccount() {
+  await ElMessageBox.confirm("确认回填所有已打款但未入账的商家账户吗？", "提示", {
+    type: "warning",
+  });
+  backfilling.value = true;
+  try {
+    const res: any = await backfillAdminSellerAccount();
+    const data = res.data || {};
+    ElMessage.success(
+      `回填完成：${data.settlement_count ?? 0} 笔结算，${data.seller_count ?? 0} 个商家，¥${money(
+        data.amount ?? 0,
+      )}`,
+    );
+    loadList();
+  } finally {
+    backfilling.value = false;
+  }
 }
 
 async function generateOne(row: any) {
