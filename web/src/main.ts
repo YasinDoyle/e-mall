@@ -6,15 +6,25 @@ import "element-plus/dist/index.css";
 import "./style.css";
 import App from "./App.vue";
 import router from "./router";
+import { useAppConfigStore } from "@/stores/appConfig";
 
 const app = createApp(App);
+const pinia = createPinia();
 
 // 注册 Element Plus 图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component);
 }
 
-app.use(createPinia());
+app.use(pinia);
 app.use(router);
 app.use(ElementPlus);
-app.mount("#app");
+
+async function bootstrap() {
+  const appConfigStore = useAppConfigStore(pinia);
+  await appConfigStore.load();
+  document.title = appConfigStore.config.site_name;
+  app.mount("#app");
+}
+
+bootstrap();

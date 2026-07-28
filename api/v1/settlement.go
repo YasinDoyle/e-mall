@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/service"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
@@ -69,7 +70,7 @@ func AdminSettlementPaidHandler() gin.HandlerFunc {
 			c.JSON(http.StatusOK, ErrorResponse(c, err))
 			return
 		}
-		resp, err := service.GetSettlementSrv().AdminMarkPaid(c.Request.Context(), &req)
+		resp, err := application.NewSettlementUsecase().AdminMarkPaid(c.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Error(err)
 			c.JSON(http.StatusOK, ErrorResponse(c, err))

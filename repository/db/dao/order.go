@@ -208,6 +208,13 @@ func (dao *OrderDao) GetOrderByIdForUpdate(id uint) (r *model.Order, err error) 
 	return
 }
 
+func (dao *OrderDao) GetOrderByID(id uint) (r *model.Order, err error) {
+	err = dao.DB.Model(&model.Order{}).
+		Where("id = ?", id).
+		First(&r).Error
+	return
+}
+
 // ShowOrderById 获取订单详情
 func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err error) {
 	r = &types.OrderListResp{}

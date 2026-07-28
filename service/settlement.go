@@ -10,7 +10,9 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
@@ -133,6 +135,12 @@ func (s *SettlementSrv) AdminGenerate(ctx context.Context, req *types.AdminSettl
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	if count > 0 {
+		domainevent.Publish(ctx, domainevent.SettlementGenerated{
+			SellerID: req.SellerID,
+			Count:    count,
+		})
+	}
 	return &types.AdminSettlementGenerateResp{SellerID: req.SellerID, Count: count}, nil
 }
 
@@ -145,27 +153,17 @@ func (s *SettlementSrv) AdminGenerateOne(ctx context.Context, req *types.AdminSe
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.SettlementGenerated{
+		SellerID:     settlement.SellerID,
+		SettlementID: settlement.ID,
+		OrderID:      settlement.OrderID,
+		Amount:       settlement.SettlementAmount,
+	})
 	return buildSettlementResp(settlement), nil
 }
 
 func (s *SettlementSrv) AdminMarkPaid(ctx context.Context, req *types.AdminSettlementPayReq) (interface{}, error) {
-	var settlement *model.Settlement
-	err := dao.NewSettlementDao(ctx).Transaction(func(tx *gorm.DB) error {
-		var txErr error
-		settlement, txErr = dao.NewSettlementDaoByDB(tx).MarkPaid(req.ID)
-		if txErr != nil {
-			return txErr
-		}
-		return GetSellerAccountSrv().CreditSettlement(tx, settlement)
-	})
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, e.NewBusinessError(e.ErrorSettlementStatusInvalid)
-		}
-		log.LogrusObj.Error(err)
-		return nil, err
-	}
-	return buildSettlementResp(settlement), nil
+	return application.NewSettlementUsecase().AdminMarkPaid(ctx, req)
 }
 
 func (s *SettlementSrv) AdminDetail(ctx context.Context, req *types.AdminSettlementDetailReq) (interface{}, error) {

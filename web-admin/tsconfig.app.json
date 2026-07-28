@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] },
+    "types": ["vite/client"],
     "ignoreDeprecations": "5.0",
     "skipLibCheck": true
   },

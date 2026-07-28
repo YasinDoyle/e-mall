@@ -10,8 +10,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
+	esrepo "github.com/YasinDoyle/e-mall/repository/es"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/e"
@@ -113,10 +115,6 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
-
 	wg := new(sync.WaitGroup)
 	wg.Add(len(files))
 	for index, file := range files {
@@ -145,7 +143,7 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	}
 
 	wg.Wait()
-
+	domainevent.Publish(ctx, domainevent.ProductSubmitted{Product: product})
 	return
 }
 
@@ -202,9 +200,7 @@ func (s *ProductSrv) ProductDelete(ctx context.Context, req *types.ProductDelete
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().DeleteProduct(ctx, req.ID); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
+	domainevent.Publish(ctx, domainevent.ProductDeleted{ProductID: req.ID})
 	return
 }
 
@@ -230,9 +226,7 @@ func (s *ProductSrv) ProductUpdate(ctx context.Context, req *types.ProductUpdate
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
+	domainevent.Publish(ctx, domainevent.ProductChanged{Product: product})
 
 	return
 }
@@ -240,7 +234,7 @@ func (s *ProductSrv) ProductUpdate(ctx context.Context, req *types.ProductUpdate
 // 搜索商品 TODO 后续用脚本同步数据MySQL到ES，用ES进行搜索
 func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearchReq) (resp interface{}, err error) {
 	req.BasePage = normalizeProductPage(req.BasePage)
-	if products, count, searchErr := GetProductIndexSrv().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
+	if products, count, searchErr := esrepo.NewProductIndexRepo().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
 		for _, p := range products {
 			p.BossAvatar = util.AvatarURL(p.BossAvatar)
 			p.ImgPath = util.ProductImageURL(p.ImgPath)

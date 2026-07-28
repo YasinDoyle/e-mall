@@ -200,12 +200,15 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task A: Realtime Notification MVP and Subscription Boundary
 
+**Status:** Completed. Implemented persistent notification records, user/admin notification APIs, unread count, mark-read operations, SSE unread stream, polling fallback, and user/admin notification views.
+
 **Goal:** Replace refresh-only status discovery with a usable notification inbox and browser subscription boundary, without taking on A4 reliable messaging infrastructure yet.
 
 - Add a `notification` model/table with recipient, scene, title/content, payload, read status, and timestamps.
 - Create notifications from P1/P2-visible business state changes: seller audit approved/rejected, product audit result, order paid/shipped/refunded, settlement generated/paid.
 - Add user/admin notification APIs: list, unread count, mark read, mark all read.
 - Add SSE or WebSocket browser subscription endpoint for logged-in users and admins.
+- In this MVP, notification creation stores durable rows and signals active SSE connections through an in-process notification hub; browser clients receive unread-count updates and then load notification list/detail through the notification APIs.
 - User web subscribes to own notifications and refreshes seller/product/order state when relevant notifications arrive.
 - Admin web subscribes to pending-work notifications and shows badges/toasts for seller/product/refund/settlement queues.
 - Provide polling fallback for environments where persistent connections are unavailable.
@@ -213,13 +216,15 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task B: Runtime Configuration for Frontend and Fixed Parameters
 
+**Status:** Completed. Added frontend-local config stores, boot-time config loading, configurable app/admin title text, default notification page size, notification polling interval, upload limit, and feature flags. Removed the backend public config API to keep frontend display defaults out of the Go service boundary.
+
 **Goal:** Move site name, app title, brand text, static defaults, polling intervals, and feature flags out of hardcoded frontend constants.
 
-- Add frontend runtime config loading, for example `/config/app-config.json` or `/api/v1/config/public`.
+- Add frontend runtime config loading from local defaults and Vite environment variables.
 - Include site name, admin site name, logo text, default page size, notification polling interval, upload limits, and enabled feature flags.
 - Load config before app mount and expose it through a Pinia app config store.
 - Keep environment-specific values out of component code.
-- Add backend public config DTO if serving config from Go.
+- Add a backend `/api/v1/capabilities/public` style endpoint later only when frontend state must reflect real backend capabilities, such as P2 payment methods or upload constraints.
 
 ### Post-P1 Task C: Internationalization Architecture
 
@@ -256,6 +261,8 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task F: Seller Account and Withdrawal MVP
 
+**Status:** Completed.
+
 **Goal:** Separate seller operating funds from user coin wallet and support auditable withdrawal applications, without taking on third-party payout/risk-control hardening yet.
 
 - Add a `seller_account` model/table for seller funds: available balance, frozen balance, total income, total withdrawn, and timestamps.
@@ -269,3 +276,33 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 - Keep user coin wallet and seller account independent; do not require seller payment password to change seller operating funds.
 - Leave third-party payout channel integration, payout risk scoring, high-risk audit hardening, and reconciliation automation to A1/A4.
 - Add tests for insufficient balance, duplicate payout prevention, reject unfreeze, paid state transition, and account flow consistency.
+
+### Post-P1 Task G: Backend Application Layer and Domain Event Boundary
+
+**Status:** Completed.
+
+**Goal:** Stop direct service-to-service orchestration by introducing an `application` layer for complete use cases and a lightweight domain-event boundary for side effects, while keeping reliable MQ/outbox work in A4.
+
+**Architecture decision:**
+
+- Use方案 B for strong-consistency flows: `api/v1` calls an application/usecase object, and that usecase opens the transaction and coordinates DAOs/domain helpers.
+- Use方案 C for side effects: core business code publishes domain events, and event handlers create notifications or sync product indexes.
+- Keep domain services pure where possible: validation, amount calculation, and state transitions should not call other services or HTTP handlers.
+- Keep `service` methods as endpoint-facing compatibility wrappers during migration, but forbid new direct `GetXxxSrv()` calls from one service to another.
+- Keep A4 reliable messaging out of Post-P1: the event publisher is in-process and synchronous for now, with an interface that can later be backed by outbox/RabbitMQ.
+
+**Migration plan:**
+
+- Add `application` package for cross-module use cases that currently require service orchestration.
+- Add `domain/event` package with event names, payloads, a `Publisher` interface, and an in-process publisher implementation.
+- Move notification writes behind event handlers instead of calling `NotificationSrv` from seller/order/payment/product/admin/settlement services.
+- Move product index sync/delete behind product domain events instead of calling `ProductIndexSrv` from product/admin services.
+- Move settlement/seller-account coordination for payment, refund, and settlement-paid flows into application usecases; the usecase controls the GORM transaction.
+- Add architecture regression tests that fail if `service/*.go` adds direct `GetXxxSrv()` calls, except for the service's own constructor or explicitly grandfathered migration shims.
+- Document the new backend layering rule in `AGENTS.md` after the first migration lands.
+
+**Initial target scope:**
+
+- Notification and product-index side effects must use domain events in this task.
+- Payment success, refund approval, and settlement paid must stop calling other services directly and instead go through application/usecase orchestration.
+- Existing HTTP routes and frontend API contracts must remain stable.

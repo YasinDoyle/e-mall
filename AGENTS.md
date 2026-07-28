@@ -29,6 +29,11 @@
 ## 后端规范
 
 - 后端使用 Go + Gin + GORM + MySQL。
+- 后端按 `api/v1 -> application/usecase -> domain/event + repository/dao` 的方向组织跨模块业务。`api/v1` 可以调用 `application` 或单一模块的 `service`；涉及支付、退款、结算、资金、通知、索引等跨模块流程时，优先放到 `application` 编排。
+- `service` 和 `service` 之间不能直接互相调用。禁止在 `service/*.go` 的业务方法里调用其他 `GetXxxSrv()`；需要跨模块强一致协作时放到 `application`，需要通知、搜索索引、邮件等副作用时发布 `domain/event` 事件。
+- `application` 和 `domain/event` 不允许 import `service` 包。`application` 负责事务边界和用例编排，可直接调用 DAO、纯领域 helper、事件发布器；`domain/event` handler 只能调用 DAO、repository adapter 或基础设施客户端。
+- 当前轻量事件总线是进程内同步发布，只用于 Post-P1 解耦通知/索引等副作用；可靠 outbox、RabbitMQ 重试、死信队列和补偿平台仍属于 A4，不要在 Post-P1 中提前扩大范围。
+- 支付成功、退款审核、结算打款这类资金强一致流程必须由 `application` 统一控制 GORM 事务；通知、ES 索引、RabbitMQ 发布等副作用应在事务成功后触发。
 - GORM 全局配置启用了 `SingularTable: true`，表名通常是单数，如 `user`、`order`、`cart`、`favorite`。
 - `NewDBClient(ctx)` 必须返回带 `NewDB: true` 的 session，避免查询状态串到下一次查询。
 - 如果 GORM 查询使用表别名，不要写 `Model(&model.X{}).Joins("AS x ...")` 后依赖自动软删除条件；GORM 可能生成原表名的 `deleted_at` 条件，导致 `Unknown column '<table>.deleted_at'`。

@@ -24,7 +24,6 @@ func NewRouter() *gin.Engine {
 				"message": "OK",
 			})
 		})
-
 		//用户操作
 		v1.POST("user/register/email/code", api.RegisterEmailCodeHandler())
 		v1.POST("user/register", api.UserRegisterHandler())
@@ -118,6 +117,13 @@ func NewRouter() *gin.Engine {
 			authed.POST("seller/apply", api.SellerApplyHandler())
 			authed.GET("seller/profile", api.SellerProfileHandler())
 
+			// 消息通知
+			authed.GET("notifications/list", api.NotificationListHandler())
+			authed.GET("notifications/unread_count", api.NotificationUnreadCountHandler())
+			authed.POST("notifications/read", api.NotificationMarkReadHandler())
+			authed.POST("notifications/read_all", api.NotificationMarkAllReadHandler())
+			authed.GET("notifications/stream", api.NotificationStreamHandler())
+
 			// 秒杀专场
 			authed.POST("flash_sale/init", api.InitFlashSaleHandler())
 			authed.GET("flash_sale/list", api.ListFlashSaleHandler())
@@ -177,6 +183,13 @@ func NewRouter() *gin.Engine {
 			// 统计
 			admin.GET("stats/overview", api.AdminStatsOverviewHandler())
 			admin.GET("stats/orders", api.AdminStatsOrdersHandler())
+
+			// 消息通知
+			admin.GET("notifications/list", api.AdminNotificationListHandler())
+			admin.GET("notifications/unread_count", api.AdminNotificationUnreadCountHandler())
+			admin.POST("notifications/read", api.AdminNotificationMarkReadHandler())
+			admin.POST("notifications/read_all", api.AdminNotificationMarkAllReadHandler())
+			admin.GET("notifications/stream", api.AdminNotificationStreamHandler())
 
 			// 评价管理
 			admin.POST("review/delete", api.AdminDeleteReviewHandler())

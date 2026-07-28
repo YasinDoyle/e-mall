@@ -125,3 +125,10 @@ func (dao *UserDao) ExistOrNotByEmail(email string) (user *model.User, exist boo
 func (dao *UserDao) CreateUser(user *model.User) error {
 	return dao.DB.Model(&model.User{}).Create(&user).Error
 }
+
+func (dao *UserDao) ListAdminUsers() (users []*model.User, err error) {
+	err = dao.DB.Model(&model.User{}).
+		Where("is_admin = ?", true).
+		Find(&users).Error
+	return
+}

@@ -18,7 +18,7 @@ func migrate() (err error) {
 			&model.RechargeOrder{}, &model.SellerProfile{},
 			&model.CommissionConfig{}, &model.AccountFlow{},
 			&model.Settlement{}, &model.SellerAccount{},
-			&model.SellerWithdraw{},
+			&model.SellerWithdraw{}, &model.Notification{},
 		)
 	if err != nil {
 		return

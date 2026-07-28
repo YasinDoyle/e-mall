@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/YasinDoyle/e-mall/service"
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/log"
@@ -21,8 +21,7 @@ func OrderPaymentHandler() gin.HandlerFunc {
 			return
 		}
 
-		l := service.GetPaymentSrv()
-		resp, err := l.PayDown(ctx.Request.Context(), &req)
+		resp, err := application.NewPaymentUsecase().PayDown(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

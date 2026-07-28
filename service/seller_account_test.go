@@ -25,8 +25,8 @@ func TestValidateSellerWithdrawApplyReqRejectsInvalidAmount(t *testing.T) {
 
 func TestValidateSellerWithdrawApplyReqRejectsMissingPayeeAccount(t *testing.T) {
 	req := &types.SellerWithdrawApplyReq{
-		Amount:    100,
-		PayeeName:  "程小红",
+		Amount:       100,
+		PayeeName:    "程小红",
 		PayeeAccount: "  ",
 	}
 	err := validateSellerWithdrawApplyReq(req)
@@ -39,9 +39,9 @@ func TestValidateSellerWithdrawApplyReqRejectsMissingPayeeAccount(t *testing.T) 
 func TestApplySellerWithdrawFreezeMovesAvailableToFrozen(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 100,
-		FrozenBalance:     5,
-		TotalIncome:       100,
-		TotalWithdrawn:    0,
+		FrozenBalance:    5,
+		TotalIncome:      100,
+		TotalWithdrawn:   0,
 	}
 	if err := applySellerWithdrawFreeze(account, 30); err != nil {
 		t.Fatalf("expected freeze to pass, got %v", err)
@@ -57,9 +57,9 @@ func TestApplySellerWithdrawFreezeMovesAvailableToFrozen(t *testing.T) {
 func TestApplySellerWithdrawFreezeRejectsInsufficientBalance(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 20,
-		FrozenBalance:     0,
-		TotalIncome:       20,
-		TotalWithdrawn:    0,
+		FrozenBalance:    0,
+		TotalIncome:      20,
+		TotalWithdrawn:   0,
 	}
 	err := applySellerWithdrawFreeze(account, 30)
 	if err == nil {
@@ -71,9 +71,9 @@ func TestApplySellerWithdrawFreezeRejectsInsufficientBalance(t *testing.T) {
 func TestApplySellerWithdrawPaidConsumesFrozenBalance(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 70,
-		FrozenBalance:     30,
-		TotalIncome:       100,
-		TotalWithdrawn:    0,
+		FrozenBalance:    30,
+		TotalIncome:      100,
+		TotalWithdrawn:   0,
 	}
 	if err := applySellerWithdrawPaid(account, 30); err != nil {
 		t.Fatalf("expected paid transition to pass, got %v", err)
@@ -92,9 +92,9 @@ func TestApplySellerWithdrawPaidConsumesFrozenBalance(t *testing.T) {
 func TestApplySellerWithdrawPaidRejectsMissingFrozenBalance(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 70,
-		FrozenBalance:     0,
-		TotalIncome:       100,
-		TotalWithdrawn:    0,
+		FrozenBalance:    0,
+		TotalIncome:      100,
+		TotalWithdrawn:   0,
 	}
 	err := applySellerWithdrawPaid(account, 30)
 	if err == nil {
@@ -106,9 +106,9 @@ func TestApplySellerWithdrawPaidRejectsMissingFrozenBalance(t *testing.T) {
 func TestApplySellerWithdrawRejectedRestoresAvailableBalance(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 70,
-		FrozenBalance:     30,
-		TotalIncome:       100,
-		TotalWithdrawn:    0,
+		FrozenBalance:    30,
+		TotalIncome:      100,
+		TotalWithdrawn:   0,
 	}
 	if err := applySellerWithdrawRejected(account, 30); err != nil {
 		t.Fatalf("expected reject transition to pass, got %v", err)
@@ -124,9 +124,9 @@ func TestApplySellerWithdrawRejectedRestoresAvailableBalance(t *testing.T) {
 func TestCreditSellerSettlementAmountCreatesSellerIncome(t *testing.T) {
 	account := &model.SellerAccount{
 		AvailableBalance: 10,
-		FrozenBalance:     0,
-		TotalIncome:       10,
-		TotalWithdrawn:    0,
+		FrozenBalance:    0,
+		TotalIncome:      10,
+		TotalWithdrawn:   0,
 	}
 	if err := applySellerSettlementCredit(account, 80); err != nil {
 		t.Fatalf("expected settlement credit to pass, got %v", err)

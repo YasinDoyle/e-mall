@@ -2,6 +2,12 @@ import axios from "axios";
 import { ElMessage } from "element-plus";
 import { ApiErrorCode, resolveApiErrorMessage } from "@/utils/api-error";
 
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    silentError?: boolean;
+  }
+}
+
 const request = axios.create({
   baseURL: "/api/v1",
   timeout: 10000,
@@ -20,7 +26,9 @@ request.interceptors.response.use(
     const data = response.data;
     if (data?.status !== undefined && data.status !== ApiErrorCode.SUCCESS) {
       const message = resolveApiErrorMessage(data);
-      ElMessage.error(message);
+      if (!response.config.silentError) {
+        ElMessage.error(message);
+      }
       if (data.status === ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL) {
         localStorage.removeItem("admin_token");
         import("@/router").then(({ default: router }) => {

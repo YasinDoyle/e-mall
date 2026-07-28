@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
+	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
@@ -85,7 +87,12 @@ func (s *AdminSrv) CarouselUpload(ctx context.Context, file multipart.File, file
 }
 
 func (s *AdminSrv) CarouselList(ctx context.Context) (resp interface{}, err error) {
-	return GetCarouselSrv().ListCarousel(ctx, &types.ListCarouselReq{})
+	carousels, err := dao.NewCarouselDao(ctx).ListCarousel()
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return &types.DataListResp{Item: carousels, Total: int64(len(carousels))}, nil
 }
 
 func (s *AdminSrv) CarouselUpdate(ctx context.Context, req *types.AdminCarouselUpdateReq) (resp interface{}, err error) {
@@ -228,10 +235,20 @@ func (s *AdminSrv) SellerAudit(ctx context.Context, req *types.AdminSellerAuditR
 	if err = validateAdminSellerAuditReq(req); err != nil {
 		return nil, err
 	}
+	profile, err := dao.NewSellerDao(ctx).GetSellerProfileByID(req.ID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
 	if err = dao.NewSellerDao(ctx).AuditSellerProfile(req.ID, req.Status, strings.TrimSpace(req.RejectReason)); err != nil {
 		log.LogrusObj.Error(err)
 		return
 	}
+	domainevent.Publish(ctx, domainevent.SellerAuditChanged{
+		SellerID:     profile.UserID,
+		Status:       req.Status,
+		RejectReason: strings.TrimSpace(req.RejectReason),
+	})
 	resp = "审核完成"
 	return
 }
@@ -284,12 +301,12 @@ func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAudi
 	if req.AuditStatus == 0 && req.Status != 0 {
 		req.AuditStatus = req.Status
 	}
+	product, err := dao.NewProductDao(ctx).ShowProductById(req.ID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
 	if req.AuditStatus == consts.ProductAuditApproved {
-		product, loadErr := dao.NewProductDao(ctx).ShowProductById(req.ID)
-		if loadErr != nil {
-			log.LogrusObj.Error(loadErr)
-			return nil, loadErr
-		}
 		boss, loadErr := dao.NewUserDao(ctx).GetUserById(product.BossID)
 		if loadErr != nil {
 			log.LogrusObj.Error(loadErr)
@@ -314,8 +331,60 @@ func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAudi
 		log.LogrusObj.Error(err)
 		return
 	}
+	product.AuditStatus = req.AuditStatus
+	product.OnSale = req.AuditStatus == consts.ProductAuditApproved
+	domainevent.Publish(ctx, domainevent.ProductChanged{Product: product})
+	domainevent.Publish(ctx, domainevent.ProductAuditChanged{
+		ProductID:   product.ID,
+		SellerID:    product.BossID,
+		ProductName: product.Name,
+		AuditStatus: req.AuditStatus,
+	})
 	resp = "审核完成"
 	return
+}
+
+func notifySellerAuditResult(ctx context.Context, userID uint, status uint, rejectReason string) {
+	switch status {
+	case consts.SellerStatusApproved:
+		domainevent.Publish(ctx, domainevent.SellerAuditChanged{
+			SellerID: userID,
+			Status:   status,
+		})
+	case consts.SellerStatusRejected:
+		domainevent.Publish(ctx, domainevent.SellerAuditChanged{
+			SellerID:     userID,
+			Status:       status,
+			RejectReason: rejectReason,
+		})
+	case consts.SellerStatusBanned:
+		domainevent.Publish(ctx, domainevent.SellerAuditChanged{
+			SellerID: userID,
+			Status:   status,
+		})
+	}
+}
+
+func notifyProductAuditResult(ctx context.Context, product *model.Product, auditStatus uint) {
+	if product == nil {
+		return
+	}
+	switch auditStatus {
+	case consts.ProductAuditApproved:
+		domainevent.Publish(ctx, domainevent.ProductAuditChanged{
+			ProductID:   product.ID,
+			SellerID:    product.BossID,
+			ProductName: product.Name,
+			AuditStatus: auditStatus,
+		})
+	case consts.ProductAuditRejected:
+		domainevent.Publish(ctx, domainevent.ProductAuditChanged{
+			ProductID:   product.ID,
+			SellerID:    product.BossID,
+			ProductName: product.Name,
+			AuditStatus: auditStatus,
+		})
+	}
 }
 
 func (s *AdminSrv) ProductDelete(ctx context.Context, req *types.AdminIDReq) (resp interface{}, err error) {
@@ -323,9 +392,7 @@ func (s *AdminSrv) ProductDelete(ctx context.Context, req *types.AdminIDReq) (re
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().DeleteProduct(ctx, req.ID); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
+	domainevent.Publish(ctx, domainevent.ProductDeleted{ProductID: req.ID})
 	resp = "删除成功"
 	return
 }

@@ -100,6 +100,10 @@ const router = createRouter({
               path: "wallet",
               component: () => import("@/views/user/WalletView.vue"),
             },
+            {
+              path: "notifications",
+              component: () => import("@/views/user/NotificationView.vue"),
+            },
           ],
         },
 
