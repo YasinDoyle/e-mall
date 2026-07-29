@@ -76,8 +76,43 @@
         </div>
 
         <el-divider />
+        <el-descriptions :column="2" border size="small" style="margin-bottom: 16px">
+          <el-descriptions-item label="品牌">
+            {{ product.brand || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="产地">
+            {{ product.origin || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="规格">
+            {{ product.specification || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="生产日期">
+            {{ product.production_date || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="保质期">
+            {{ product.shelf_life || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="服务保障">
+            {{ product.service_guarantees || "-" }}
+          </el-descriptions-item>
+        </el-descriptions>
         <div class="product-info">
           <p style="white-space: pre-wrap">{{ product.info }}</p>
+        </div>
+        <div v-if="product.certificates?.length" class="certificate-preview">
+          <div class="section-subtitle">资质材料</div>
+          <el-image
+            v-for="certificate in product.certificates"
+            :key="certificate.id"
+            :src="certificate.file_path"
+            :preview-src-list="certificateImages"
+            fit="cover"
+            class="certificate-img"
+          >
+            <template #error>
+              <div class="certificate-error">{{ certificate.name }}</div>
+            </template>
+          </el-image>
         </div>
       </el-col>
     </el-row>
@@ -177,6 +212,12 @@ const allImgs = computed(() => {
   const cover = product.value?.img_path ? [product.value.img_path] : [];
   return [...cover, ...extraImgs.value];
 });
+
+const certificateImages = computed(() =>
+  (product.value?.certificates ?? [])
+    .map((item: any) => item.file_path)
+    .filter(Boolean),
+);
 
 const isOwnProduct = computed(
   () =>
@@ -366,6 +407,33 @@ onMounted(loadProduct);
   color: #555;
   font-size: 14px;
   line-height: 1.8;
+}
+.section-subtitle {
+  flex: 0 0 100%;
+  margin: 16px 0 0;
+  color: #303133;
+  font-weight: 600;
+}
+.certificate-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.certificate-img,
+.certificate-error {
+  width: 92px;
+  height: 92px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+.certificate-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #909399;
+  font-size: 12px;
+  text-align: center;
 }
 .review-header,
 .review-line {

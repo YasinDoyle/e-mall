@@ -238,6 +238,8 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task D: Product Detail and Audit Information Enrichment
 
+**Status:** Completed. Added product audit enrichment fields, product certificate attachments, seller publish/edit form support, product detail display, and admin audit detail review.
+
 **Goal:** Add the product information needed for seller publishing and admin audit detail pages, while leaving search indexing and category-specific commerce modeling to later phases.
 
 - Extend product model/DTOs for review-facing fields such as brand, origin, specification, production date, shelf life, service guarantees, and certificate metadata.

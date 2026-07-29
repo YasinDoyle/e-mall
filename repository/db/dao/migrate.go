@@ -12,7 +12,7 @@ func migrate() (err error) {
 			&model.Order{}, &model.Admin{}, &model.Address{},
 			&model.Cart{}, &model.Category{}, &model.Carousel{},
 			&model.Notice{}, &model.Product{},
-			&model.ProductImg{}, &model.FlashSale{},
+			&model.ProductImg{}, &model.ProductCertificate{}, &model.FlashSale{},
 			&model.FlashSale2MQ{}, &model.Review{},
 			&model.Coupon{}, &model.UserCoupon{},
 			&model.RechargeOrder{}, &model.SellerProfile{},

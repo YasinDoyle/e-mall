@@ -2,6 +2,7 @@ package v1
 
 import (
 	"errors"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,9 +24,16 @@ func CreateProductHandler() gin.HandlerFunc {
 			return
 		}
 		form, _ := ctx.MultipartForm()
-		files := form.File["image"]
+		files := []*multipart.FileHeader{}
+		certificateFiles := []*multipart.FileHeader{}
+		if form != nil {
+			files = form.File["image"]
+			certificateFiles = form.File["certificate"]
+		}
+		req.CertificateTypes = ctx.PostFormArray("certificate_type")
+		req.CertificateNames = ctx.PostFormArray("certificate_name")
 		l := service.GetProductSrv()
-		resp, err := l.ProductCreate(ctx.Request.Context(), files, &req)
+		resp, err := l.ProductCreate(ctx.Request.Context(), files, certificateFiles, &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
@@ -109,9 +117,17 @@ func UpdateProductHandler() gin.HandlerFunc {
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
 			return
 		}
+		form, _ := ctx.MultipartForm()
+		certificateFiles := []*multipart.FileHeader{}
+		if form != nil {
+			certificateFiles = form.File["certificate"]
+		}
+		req.ReplaceCertificates = ctx.PostForm("replace_certificates") == "true"
+		req.CertificateTypes = ctx.PostFormArray("certificate_type")
+		req.CertificateNames = ctx.PostFormArray("certificate_name")
 
 		l := service.GetProductSrv()
-		resp, err := l.ProductUpdate(ctx.Request.Context(), &req)
+		resp, err := l.ProductUpdate(ctx.Request.Context(), certificateFiles, &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

@@ -24,6 +24,14 @@ type Product struct {
 	BossName      string
 	BossAvatar    string
 	AuditStatus   uint `gorm:"default:0"` // 0:待审核 1:已上架 2:已拒绝
+
+	Brand             string `gorm:"size:100"`
+	Origin            string `gorm:"size:120"`
+	Specification     string `gorm:"size:120"`
+	ProductionDate    string `gorm:"size:40"`
+	ShelfLife         string `gorm:"size:80"`
+	ServiceGuarantees string `gorm:"size:255"`
+	CertificateMeta   string `gorm:"size:500"`
 }
 
 // View 获取点击数

@@ -100,6 +100,27 @@
           <el-descriptions-item label="详情">
             {{ currentProduct.info || "-" }}
           </el-descriptions-item>
+          <el-descriptions-item label="品牌">
+            {{ currentProduct.brand || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="产地">
+            {{ currentProduct.origin || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="规格">
+            {{ currentProduct.specification || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="生产日期">
+            {{ currentProduct.production_date || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="保质期">
+            {{ currentProduct.shelf_life || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="服务保障">
+            {{ currentProduct.service_guarantees || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item label="证书说明">
+            {{ currentProduct.certificate_meta || "-" }}
+          </el-descriptions-item>
           <el-descriptions-item label="价格">
             ¥{{ currentProduct.price }}
           </el-descriptions-item>
@@ -123,13 +144,38 @@
             </el-tag>
           </el-descriptions-item>
         </el-descriptions>
+        <div class="certificate-section">
+          <div class="section-title">资质证书</div>
+          <el-empty
+            v-if="!currentProduct.certificates?.length"
+            description="暂无资质材料"
+          />
+          <div v-else class="certificate-grid">
+            <div
+              v-for="certificate in currentProduct.certificates"
+              :key="certificate.id"
+              class="certificate-card"
+            >
+              <el-image
+                :src="certificate.file_path"
+                :preview-src-list="certificateImages"
+                fit="cover"
+                class="certificate-img"
+              />
+              <div class="certificate-name">{{ certificate.name || "-" }}</div>
+              <div class="muted">
+                {{ certificateTypeText(certificate.certificate_type) }}
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
     </el-drawer>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getAdminProductList, auditProduct, deleteProduct } from "@/api";
 
@@ -140,11 +186,23 @@ const total = ref(0);
 const auditFilter = ref<number | undefined>(undefined);
 const detailVisible = ref(false);
 const currentProduct = ref<any | null>(null);
+const certificateImages = computed(() =>
+  (currentProduct.value?.certificates ?? [])
+    .map((item: any) => item.file_path)
+    .filter(Boolean),
+);
 
 const statusText = (s: number) =>
   ({ 0: "待审核", 1: "已上架", 2: "已拒绝" })[s] ?? "未知";
 const statusType = (s: number) =>
   (({ 0: "warning", 1: "success", 2: "danger" })[s] ?? "info") as any;
+const certificateTypeText = (type: string) =>
+  ({
+    qualification: "资质证书",
+    quality_inspection: "质检报告",
+    authorization: "授权证书",
+    other: "其他材料",
+  })[type] ?? "其他材料";
 
 async function loadList() {
   const res: any = await getAdminProductList({
@@ -187,5 +245,35 @@ onMounted(loadList);
   border: 1px solid #ebeef5;
   border-radius: 6px;
   margin-bottom: 16px;
+}
+.section-title {
+  margin: 18px 0 10px;
+  font-weight: 600;
+}
+.certificate-section {
+  margin-top: 4px;
+}
+.certificate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.certificate-card {
+  min-width: 0;
+}
+.certificate-img {
+  width: 100%;
+  height: 140px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+.certificate-name {
+  margin-top: 6px;
+  color: #303133;
+  font-weight: 500;
+}
+.muted {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

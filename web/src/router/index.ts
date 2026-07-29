@@ -139,6 +139,12 @@ const router = createRouter({
                 import("@/views/seller/SellerProductFormView.vue"),
               meta: { sellerApproved: true },
             },
+            {
+              path: "products/:id/edit",
+              component: () =>
+                import("@/views/seller/SellerProductFormView.vue"),
+              meta: { sellerApproved: true },
+            },
           ],
         },
       ],

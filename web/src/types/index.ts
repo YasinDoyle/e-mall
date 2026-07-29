@@ -63,6 +63,24 @@ export interface Product {
   boss_id: number;
   boss_name: string;
   boss_avatar: string;
+  audit_status?: number;
+  brand?: string;
+  origin?: string;
+  specification?: string;
+  production_date?: string;
+  shelf_life?: string;
+  service_guarantees?: string;
+  certificate_meta?: string;
+  certificates?: ProductCertificate[];
+}
+
+export interface ProductCertificate {
+  id: number;
+  product_id: number;
+  certificate_type: string;
+  name: string;
+  file_path: string;
+  created_at: number;
 }
 
 export interface ProductListReq extends PageReq {

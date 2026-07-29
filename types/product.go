@@ -34,6 +34,16 @@ type ProductCreateReq struct {
 	DiscountPrice string `form:"discount_price" json:"discount_price"`
 	OnSale        bool   `form:"on_sale" json:"on_sale"`
 	Num           int    `form:"num" json:"num"`
+
+	Brand             string   `form:"brand" json:"brand"`
+	Origin            string   `form:"origin" json:"origin"`
+	Specification     string   `form:"specification" json:"specification"`
+	ProductionDate    string   `form:"production_date" json:"production_date"`
+	ShelfLife         string   `form:"shelf_life" json:"shelf_life"`
+	ServiceGuarantees string   `form:"service_guarantees" json:"service_guarantees"`
+	CertificateMeta   string   `form:"certificate_meta" json:"certificate_meta"`
+	CertificateTypes  []string `form:"certificate_type" json:"certificate_type"`
+	CertificateNames  []string `form:"certificate_name" json:"certificate_name"`
 }
 
 type ProductListReq struct {
@@ -61,6 +71,17 @@ type ProductUpdateReq struct {
 	DiscountPrice string `form:"discount_price" json:"discount_price"`
 	OnSale        bool   `form:"on_sale" json:"on_sale"`
 	Num           int    `form:"num" json:"num"`
+
+	Brand               string   `form:"brand" json:"brand"`
+	Origin              string   `form:"origin" json:"origin"`
+	Specification       string   `form:"specification" json:"specification"`
+	ProductionDate      string   `form:"production_date" json:"production_date"`
+	ShelfLife           string   `form:"shelf_life" json:"shelf_life"`
+	ServiceGuarantees   string   `form:"service_guarantees" json:"service_guarantees"`
+	CertificateMeta     string   `form:"certificate_meta" json:"certificate_meta"`
+	ReplaceCertificates bool     `form:"replace_certificates" json:"replace_certificates"`
+	CertificateTypes    []string `form:"certificate_type" json:"certificate_type"`
+	CertificateNames    []string `form:"certificate_name" json:"certificate_name"`
 }
 
 type ListProductImgReq struct {
@@ -84,4 +105,22 @@ type ProductResp struct {
 	BossName      string `json:"boss_name"`
 	BossAvatar    string `json:"boss_avatar"`
 	AuditStatus   uint   `json:"audit_status"`
+
+	Brand             string                   `json:"brand"`
+	Origin            string                   `json:"origin"`
+	Specification     string                   `json:"specification"`
+	ProductionDate    string                   `json:"production_date"`
+	ShelfLife         string                   `json:"shelf_life"`
+	ServiceGuarantees string                   `json:"service_guarantees"`
+	CertificateMeta   string                   `json:"certificate_meta"`
+	Certificates      []ProductCertificateResp `json:"certificates"`
+}
+
+type ProductCertificateResp struct {
+	ID              uint   `json:"id"`
+	ProductID       uint   `json:"product_id"`
+	CertificateType string `json:"certificate_type"`
+	Name            string `json:"name"`
+	FilePath        string `json:"file_path"`
+	CreatedAt       int64  `json:"created_at"`
 }

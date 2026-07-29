@@ -272,29 +272,52 @@ func (s *AdminSrv) ProductList(ctx context.Context, req *types.AdminProductListR
 	}
 	list := make([]*types.AdminProductResp, 0, len(products))
 	for _, product := range products {
-		item := &types.AdminProductResp{
-			ID:            product.ID,
-			Name:          product.Name,
-			CategoryID:    product.CategoryID,
-			Title:         product.Title,
-			Info:          product.Info,
-			ImgPath:       product.ImgPath,
-			Price:         product.Price,
-			DiscountPrice: product.DiscountPrice,
-			OnSale:        product.OnSale,
-			Num:           product.Num,
-			BossID:        product.BossID,
-			BossName:      product.BossName,
-			BossAvatar:    product.BossAvatar,
-			AuditStatus:   product.AuditStatus,
-			Status:        product.AuditStatus,
-			CreatedAt:     product.CreatedAt.Unix(),
-		}
-		item.ImgPath = util.ProductImageURL(item.ImgPath)
-		list = append(list, item)
+		list = append(list, buildAdminProductRespWithCertificates(ctx, product))
 	}
 	resp = &types.DataListResp{Item: list, Total: total}
 	return
+}
+
+func buildAdminProductRespWithCertificates(ctx context.Context, product *model.Product) *types.AdminProductResp {
+	resp := buildAdminProductResp(product)
+	certificates, err := dao.NewProductCertificateDao(ctx).ListByProductID(product.ID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return resp
+	}
+	resp.Certificates = buildProductCertificateRespList(certificates)
+	return resp
+}
+
+func buildAdminProductResp(product *model.Product) *types.AdminProductResp {
+	if product == nil {
+		return &types.AdminProductResp{}
+	}
+	return &types.AdminProductResp{
+		ID:                product.ID,
+		Name:              product.Name,
+		CategoryID:        product.CategoryID,
+		Title:             product.Title,
+		Info:              product.Info,
+		ImgPath:           productImageURL(product.ImgPath),
+		Price:             product.Price,
+		DiscountPrice:     product.DiscountPrice,
+		OnSale:            product.OnSale,
+		Num:               product.Num,
+		BossID:            product.BossID,
+		BossName:          product.BossName,
+		BossAvatar:        avatarURL(product.BossAvatar),
+		AuditStatus:       product.AuditStatus,
+		Status:            product.AuditStatus,
+		CreatedAt:         product.CreatedAt.Unix(),
+		Brand:             product.Brand,
+		Origin:            product.Origin,
+		Specification:     product.Specification,
+		ProductionDate:    product.ProductionDate,
+		ShelfLife:         product.ShelfLife,
+		ServiceGuarantees: product.ServiceGuarantees,
+		CertificateMeta:   product.CertificateMeta,
+	}
 }
 
 func (s *AdminSrv) ProductAudit(ctx context.Context, req *types.AdminProductAuditReq) (resp interface{}, err error) {

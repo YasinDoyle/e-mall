@@ -72,6 +72,19 @@ func (dao *ProductDao) UpdateProduct(pId uint, product *model.Product) error {
 		Where("id=?", pId).Updates(&product).Error
 }
 
+func (dao *ProductDao) UpdateProductByBoss(pId, bossID uint, updates map[string]interface{}) error {
+	result := dao.DB.Model(&model.Product{}).
+		Where("id = ? AND boss_id = ?", pId, bossID).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (dao *ProductDao) DecreaseStock(pId uint, count int) error {
 	result := dao.DB.Model(&model.Product{}).
 		Where("id = ? AND num >= ?", pId, count).
