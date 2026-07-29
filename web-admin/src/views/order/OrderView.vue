@@ -8,9 +8,7 @@
             <el-option v-for="item in orderTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
           <el-select v-model="refundFilter" placeholder="退款状态" clearable style="width: 140px" @change="reload">
-            <el-option label="无退款" :value="0" />
-            <el-option label="申请中" :value="1" />
-            <el-option label="已退款" :value="2" />
+            <el-option v-for="item in refundTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
           <el-button :loading="loading" @click="loadList">刷新</el-button>
         </div>
@@ -74,9 +72,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { approveOrderRefund, getAdminOrderList } from "@/api";
+import { orderStatusText, refundStatusText } from "@/utils/status-labels";
 
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -86,17 +85,15 @@ const loading = ref(false);
 const typeFilter = ref<number | undefined>();
 const refundFilter = ref<number | undefined>();
 
-const orderTypes = [
-  { value: 1, label: "未支付" },
-  { value: 2, label: "待发货" },
-  { value: 3, label: "待收货" },
-  { value: 4, label: "已完成" },
-  { value: 5, label: "退款申请中" },
-  { value: 6, label: "已退款" },
-];
+const orderTypes = computed(() =>
+  [1, 2, 3, 4, 5, 6].map((value) => ({ value, label: orderStatusText(value) })),
+);
+const refundTypes = computed(() =>
+  [0, 1, 2].map((value) => ({ value, label: refundStatusText(value) })),
+);
 
 function orderTypeText(type: number) {
-  return orderTypes.find((item) => item.value === type)?.label ?? "未知";
+  return orderStatusText(type);
 }
 
 function orderTypeTag(type: number) {
@@ -104,7 +101,7 @@ function orderTypeTag(type: number) {
 }
 
 function refundText(status: number) {
-  return ({ 0: "无退款", 1: "申请中", 2: "已退款" } as any)[status] ?? "未知";
+  return refundStatusText(status);
 }
 
 function refundTag(status: number) {

@@ -140,6 +140,8 @@ import { ElMessage } from "element-plus";
 import { Loading } from "@element-plus/icons-vue";
 import { getOrderDetail, receiveOrder } from "@/api/order";
 import { createReview, uploadReviewImage } from "@/api/review";
+import { orderStatusText, refundStatusText } from "@/utils/status-labels";
+import { t } from "@/locales";
 
 const route = useRoute();
 const order = ref<any>(null);
@@ -153,33 +155,24 @@ const reviewForm = ref({
   images: [] as string[],
 });
 
-const statusText = (type: number) =>
-  ({
-    1: "待支付",
-    2: "待发货",
-    3: "已发货",
-    4: "已完成",
-    5: "退款中",
-    6: "已退款",
-  })[type] ?? "未知";
+const statusText = orderStatusText;
 const statusTagType = (type: number) =>
   (({ 1: "warning", 2: "primary", 3: "warning", 4: "success", 5: "danger", 6: "info" })[
     type
   ] ?? "info") as any;
-const refundText = (status: number) =>
-  ({ 1: "退款申请中", 2: "已退款" })[status] ?? "退款处理中";
+const refundText = refundStatusText;
 
 const timeline = computed(() => {
   const type = order.value?.type ?? 0;
   return [
-    { label: "提交订单", done: type >= 1 },
-    { label: "支付成功", done: type >= 2 },
+    { label: t("orderTimeline.submitted", "提交订单"), done: type >= 1 },
+    { label: t("orderTimeline.paid", "支付成功"), done: type >= 2 },
     {
-      label: "商家发货",
+      label: t("orderTimeline.shipped", "商家发货"),
       done: type >= 3,
       desc: order.value?.tracking_no ? `物流单号：${order.value.tracking_no}` : "",
     },
-    { label: "确认收货", done: type >= 4 },
+    { label: t("orderTimeline.received", "确认收货"), done: type >= 4 },
   ];
 });
 

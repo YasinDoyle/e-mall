@@ -10,43 +10,43 @@
         active-text-color="#409eff"
       >
         <el-menu-item index="/dashboard">
-          <el-icon><DataLine /></el-icon>数据概览
+          <el-icon><DataLine /></el-icon>{{ $t("admin.menu.dashboard") }}
         </el-menu-item>
         <el-menu-item index="/product">
-          <el-icon><Goods /></el-icon>商品管理
+          <el-icon><Goods /></el-icon>{{ $t("admin.menu.product") }}
         </el-menu-item>
         <el-menu-item index="/seller">
-          <el-icon><Shop /></el-icon>商家审核
+          <el-icon><Shop /></el-icon>{{ $t("admin.menu.seller") }}
         </el-menu-item>
         <el-menu-item index="/order">
-          <el-icon><Tickets /></el-icon>订单管理
+          <el-icon><Tickets /></el-icon>{{ $t("admin.menu.order") }}
         </el-menu-item>
         <el-menu-item index="/settlement">
-          <el-icon><Money /></el-icon>结算管理
+          <el-icon><Money /></el-icon>{{ $t("admin.menu.settlement") }}
         </el-menu-item>
         <el-menu-item index="/withdraw">
-          <el-icon><Wallet /></el-icon>提现审核
+          <el-icon><Wallet /></el-icon>{{ $t("admin.menu.withdraw") }}
         </el-menu-item>
         <el-menu-item index="/category">
-          <el-icon><Grid /></el-icon>分类管理
+          <el-icon><Grid /></el-icon>{{ $t("admin.menu.category") }}
         </el-menu-item>
         <el-menu-item index="/coupon">
-          <el-icon><Discount /></el-icon>优惠券
+          <el-icon><Discount /></el-icon>{{ $t("admin.menu.coupon") }}
         </el-menu-item>
         <el-menu-item index="/flash-sale">
-          <el-icon><Timer /></el-icon>秒杀管理
+          <el-icon><Timer /></el-icon>{{ $t("admin.menu.flashSale") }}
         </el-menu-item>
         <el-menu-item index="/carousel">
-          <el-icon><Picture /></el-icon>轮播图
+          <el-icon><Picture /></el-icon>{{ $t("admin.menu.carousel") }}
         </el-menu-item>
         <el-menu-item index="/user">
-          <el-icon><User /></el-icon>用户管理
+          <el-icon><User /></el-icon>{{ $t("admin.menu.user") }}
         </el-menu-item>
         <el-menu-item index="/notice">
-          <el-icon><Bell /></el-icon>公告管理
+          <el-icon><Bell /></el-icon>{{ $t("admin.menu.notice") }}
         </el-menu-item>
         <el-menu-item index="/notification">
-          <el-icon><Message /></el-icon>消息通知
+          <el-icon><Message /></el-icon>{{ $t("admin.menu.notification") }}
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -78,7 +78,7 @@
             ></span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="logout">{{ $t("common.logout") }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -101,6 +101,7 @@ import {
   getActiveAdminRefreshToken,
   getActiveAdminToken,
 } from "@/utils/session";
+import { defaultLocale } from "@/locales";
 import { Bell, Message, Money, Shop, Wallet } from "@element-plus/icons-vue";
 
 const router = useRouter();
@@ -163,6 +164,8 @@ async function startNotificationStream() {
       headers: {
         access_token: token,
         refresh_token: getActiveAdminRefreshToken(),
+        "X-Locale": defaultLocale,
+        "Accept-Language": defaultLocale,
       },
       signal: controller.signal,
     });

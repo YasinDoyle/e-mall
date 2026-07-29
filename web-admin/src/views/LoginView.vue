@@ -1,16 +1,16 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
-      <div class="login-title">🛒 E-Mall 管理后台</div>
+      <div class="login-title">🛒 {{ t("admin.title") }}</div>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="用户名" prop="user_name">
-          <el-input v-model="form.user_name" placeholder="请输入管理员账号" />
+        <el-form-item :label="t('auth.username')" prop="user_name">
+          <el-input v-model="form.user_name" :placeholder="t('auth.adminUsernamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="t('auth.password')" prop="password">
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('auth.passwordPlaceholder')"
             show-password
           />
         </el-form-item>
@@ -21,7 +21,7 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登录
+            {{ t("common.login") }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -34,18 +34,20 @@ import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { adminLogin, getStatsOverview } from "@/api";
 import { useAdminStore } from "@/stores/admin";
 import { ApiErrorCode } from "@/utils/api-error";
 
 const router = useRouter();
 const store = useAdminStore();
+const { t } = useI18n();
 const formRef = ref<FormInstance>();
 const loading = ref(false);
 const form = reactive({ user_name: "", password: "" });
 const rules = {
-  user_name: [{ required: true, message: "请输入用户名", trigger: "blur" }],
-  password: [{ required: true, message: "请输入密码", trigger: "blur" }],
+  user_name: [{ required: true, message: t("auth.usernamePlaceholder"), trigger: "blur" }],
+  password: [{ required: true, message: t("auth.passwordPlaceholder"), trigger: "blur" }],
 };
 
 async function handleLogin() {
@@ -54,7 +56,7 @@ async function handleLogin() {
   try {
     const res: any = await adminLogin(form);
     if (!res.data?.user) {
-      ElMessage.error("账号或密码错误");
+      ElMessage.error(t("auth.accountInvalid"));
       return;
     }
     store.setToken(res.data.access_token);

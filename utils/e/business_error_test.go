@@ -66,3 +66,33 @@ func TestPaymentAndRefundBusinessErrorsHaveStableCodes(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMsgByLocaleFallsBackToZhCNAndKeepsCodeStable(t *testing.T) {
+	code := ErrorSellerNotApproved
+
+	if got := GetMsgByLocale(code, "zh-CN"); got != GetMsg(code) {
+		t.Fatalf("expected zh-CN message %q, got %q", GetMsg(code), got)
+	}
+	if got := GetMsgByLocale(code, "en-US"); got != GetMsg(code) {
+		t.Fatalf("expected unsupported locale to fall back to %q, got %q", GetMsg(code), got)
+	}
+
+	err := NewBusinessError(code)
+	discoveredCode, ok := CodeFromError(err)
+	if !ok {
+		t.Fatal("expected business error code to remain discoverable")
+	}
+	if discoveredCode != code {
+		t.Fatalf("expected code %d, got %d", code, discoveredCode)
+	}
+}
+
+func TestGetMsgKeyReturnsStableBusinessErrorKey(t *testing.T) {
+	key := GetMsgKey(ErrorSellerNotApproved)
+	if key != "seller.not_approved" {
+		t.Fatalf("expected seller.not_approved key, got %q", key)
+	}
+	if fallback := GetMsgKey(0); fallback != "common.error" {
+		t.Fatalf("expected common.error fallback key, got %q", fallback)
+	}
+}

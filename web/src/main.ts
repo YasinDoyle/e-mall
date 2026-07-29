@@ -1,12 +1,14 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import ElementPlus from "element-plus";
+import zhCn from "element-plus/es/locale/lang/zh-cn";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 import "element-plus/dist/index.css";
 import "./style.css";
 import App from "./App.vue";
 import router from "./router";
 import { useAppConfigStore } from "@/stores/appConfig";
+import { i18n } from "@/locales";
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -18,7 +20,8 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 app.use(pinia);
 app.use(router);
-app.use(ElementPlus);
+app.use(i18n);
+app.use(ElementPlus, { locale: zhCn });
 
 async function bootstrap() {
   const appConfigStore = useAppConfigStore(pinia);

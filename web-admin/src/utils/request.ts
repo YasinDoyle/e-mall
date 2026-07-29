@@ -7,6 +7,7 @@ import {
   getActiveAdminToken,
   setActiveAdminTokens,
 } from "@/utils/session";
+import { defaultLocale, t } from "@/locales";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
@@ -24,6 +25,8 @@ request.interceptors.request.use((config) => {
   const refreshToken = getActiveAdminRefreshToken();
   if (token) config.headers["access_token"] = token;
   if (refreshToken) config.headers["refresh_token"] = refreshToken;
+  config.headers["X-Locale"] = defaultLocale;
+  config.headers["Accept-Language"] = defaultLocale;
   return config;
 });
 
@@ -62,7 +65,7 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       clearActiveAdminSession();
       import("@/router").then(({ default: router }) => router.push("/login"));
-      ElMessage.error("登录已过期");
+      ElMessage.error(t("common.loginExpired", "登录已过期"));
     } else {
       const message = resolveApiErrorMessage(
         error.response?.data,

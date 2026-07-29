@@ -14,6 +14,7 @@ type Response struct {
 	Status  int    `json:"status"`
 	Data    any    `json:"data"`
 	Msg     string `json:"msg"`
+	MsgKey  string `json:"msg_key,omitempty"`
 	Error   string `json:"error"`
 	TrackId string `json:"track_id"`
 }
@@ -33,6 +34,7 @@ func RespSuccess(c *gin.Context, data any, code ...int) *Response {
 		Status:  status,
 		Data:    data,
 		Msg:     e.GetMsg(status),
+		MsgKey:  e.GetMsgKey(status),
 		TrackId: trackId,
 	}
 
@@ -49,6 +51,7 @@ func RespError(c *gin.Context, err error, data string, code ...int) *Response {
 	r := &Response{
 		Status:  status,
 		Msg:     e.GetMsg(status),
+		MsgKey:  e.GetMsgKey(status),
 		Data:    data,
 		Error:   err.Error(),
 		TrackId: trackId,

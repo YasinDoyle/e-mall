@@ -4,7 +4,7 @@
       <RouterLink to="/" class="logo">🛒 {{ appConfig.config.logo_text }}</RouterLink>
       <el-input
         v-model="searchKeyword"
-        placeholder="搜索商品..."
+        :placeholder="$t('nav.searchPlaceholder')"
         style="width: 300px; margin-left: 20px"
         @keyup.enter="handleSearch"
       >
@@ -15,7 +15,7 @@
     </div>
 
     <div class="navbar-right">
-      <RouterLink to="/flash-sale" class="nav-link">秒杀专场</RouterLink>
+      <RouterLink to="/flash-sale" class="nav-link">{{ $t("nav.flashSale") }}</RouterLink>
 
       <template v-if="userStore.isLoggedIn">
         <RouterLink to="/cart" class="nav-link">
@@ -41,16 +41,16 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-              <el-dropdown-item command="orders">我的订单</el-dropdown-item>
-              <el-dropdown-item command="addresses">收货地址</el-dropdown-item>
-              <el-dropdown-item command="favorites">我的收藏</el-dropdown-item>
-              <el-dropdown-item command="coupons">我的优惠券</el-dropdown-item>
-              <el-dropdown-item command="wallet">我的钱包</el-dropdown-item>
-              <el-dropdown-item command="notifications">消息通知</el-dropdown-item>
-              <el-dropdown-item command="seller">卖家中心</el-dropdown-item>
+              <el-dropdown-item command="profile">{{ $t("nav.profile") }}</el-dropdown-item>
+              <el-dropdown-item command="orders">{{ $t("nav.orders") }}</el-dropdown-item>
+              <el-dropdown-item command="addresses">{{ $t("nav.addresses") }}</el-dropdown-item>
+              <el-dropdown-item command="favorites">{{ $t("nav.favorites") }}</el-dropdown-item>
+              <el-dropdown-item command="coupons">{{ $t("nav.coupons") }}</el-dropdown-item>
+              <el-dropdown-item command="wallet">{{ $t("nav.wallet") }}</el-dropdown-item>
+              <el-dropdown-item command="notifications">{{ $t("nav.notifications") }}</el-dropdown-item>
+              <el-dropdown-item command="seller">{{ $t("nav.sellerCenter") }}</el-dropdown-item>
               <el-dropdown-item divided command="logout"
-                >退出登录</el-dropdown-item
+                >{{ $t("common.logout") }}</el-dropdown-item
               >
             </el-dropdown-menu>
           </template>
@@ -59,10 +59,10 @@
 
       <template v-else>
         <RouterLink to="/login">
-          <el-button type="primary" size="small">登录</el-button>
+          <el-button type="primary" size="small">{{ $t("common.login") }}</el-button>
         </RouterLink>
         <RouterLink to="/register" style="margin-left: 8px">
-          <el-button size="small">注册</el-button>
+          <el-button size="small">{{ $t("common.register") }}</el-button>
         </RouterLink>
       </template>
     </div>
@@ -80,6 +80,7 @@ import { useNotificationStore } from "@/stores/notification";
 import { getCartList } from "@/api/cart";
 import { getUserInfo } from "@/api/user";
 import { getActiveUserRefreshToken, getActiveUserToken } from "@/utils/session";
+import { defaultLocale } from "@/locales";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -170,6 +171,8 @@ async function startNotificationStream() {
       headers: {
         access_token: token,
         refresh_token: getActiveUserRefreshToken(),
+        "X-Locale": defaultLocale,
+        "Accept-Language": defaultLocale,
       },
       signal: controller.signal,
     });

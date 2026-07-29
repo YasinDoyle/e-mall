@@ -8,6 +8,7 @@ import {
   getActiveUserToken,
   setActiveUserTokens,
 } from "@/utils/session";
+import { defaultLocale, t } from "@/locales";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
@@ -31,6 +32,8 @@ request.interceptors.request.use(
     if (refreshToken) {
       config.headers["refresh_token"] = refreshToken;
     }
+    config.headers["X-Locale"] = defaultLocale;
+    config.headers["Accept-Language"] = defaultLocale;
     return config;
   },
   (error) => Promise.reject(error),
@@ -62,7 +65,7 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       clearActiveUserSession();
       router.push("/login");
-      ElMessage.error("登录已过期，请重新登录");
+      ElMessage.error(t("common.loginExpired", "登录已过期，请重新登录"));
     } else {
       const message = resolveApiErrorMessage(
         error.response?.data,

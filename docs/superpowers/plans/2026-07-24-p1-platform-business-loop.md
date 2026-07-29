@@ -228,6 +228,8 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task C: Internationalization Architecture
 
+**Status:** Completed. Added Vue I18n and explicit Element Plus zh-CN locale setup for user web and admin web, introduced locale resource files, moved entry navigation/login/API error/status label boundaries into locale-driven helpers, added backend message keys plus locale-aware business error responses, and propagated locale through axios and SSE headers. First version keeps zh-CN as the only shipped locale and leaves full page-by-page copy migration for later incremental cleanup.
+
 **Goal:** Introduce a real i18n boundary instead of scattering fixed Chinese strings through frontend and backend.
 
 - Add frontend i18n using Vue I18n with `zh-CN` as the initial locale.

@@ -132,6 +132,7 @@ import {
 } from "@/api/order";
 import { getSellerAccountSummary } from "@/api/seller";
 import { useSellerStore } from "@/stores/seller";
+import { orderStatusText } from "@/utils/status-labels";
 
 const sellerStore = useSellerStore();
 const accountSummary = ref({
@@ -158,15 +159,7 @@ const shipping = ref(false);
 const currentOrder = ref<any>(null);
 const trackingNo = ref("");
 
-const statusText = (type: number) =>
-  ({
-    1: "待支付",
-    2: "待发货",
-    3: "已发货",
-    4: "已完成",
-    5: "退款中",
-    6: "已退款",
-  })[type] ?? "未知";
+const statusText = orderStatusText;
 
 const statusTagType = (type: number) =>
   (({
