@@ -61,7 +61,7 @@ async function handleLogin() {
     const res: any = await userLogin(form);
     // 后端返回字段为 access_token / refresh_token
     userStore.setToken(res.data.access_token);
-    localStorage.setItem("refreshToken", res.data.refresh_token);
+    userStore.setRefreshToken(res.data.refresh_token);
     const infoRes: any = await getUserInfo();
     userStore.setUserInfo(infoRes.data);
     ElMessage.success("登录成功");

@@ -1,19 +1,28 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import type { UserInfo } from "@/types";
+import {
+  clearActiveUserSession,
+  getActiveUserInfo,
+  getActiveUserToken,
+  setActiveUserInfo,
+  setActiveUserTokens,
+} from "@/utils/session";
 
 export const useUserStore = defineStore("user", () => {
-  const token = ref<string>(localStorage.getItem("token") ?? "");
-  const userInfo = ref<UserInfo | null>(
-    JSON.parse(localStorage.getItem("userInfo") ?? "null"),
-  );
+  const token = ref<string>(getActiveUserToken());
+  const userInfo = ref<UserInfo | null>(getActiveUserInfo());
 
   const isLoggedIn = computed(() => !!token.value);
   const cartCount = ref<number>(0);
 
   function setToken(t: string) {
     token.value = t;
-    localStorage.setItem("token", t);
+    setActiveUserTokens(t);
+  }
+
+  function setRefreshToken(t: string) {
+    setActiveUserTokens(token.value, t);
   }
 
   function setUserInfo(info: UserInfo) {
@@ -22,17 +31,14 @@ export const useUserStore = defineStore("user", () => {
       nick_name: info.nick_name || info.nickname || info.user_name,
     };
     userInfo.value = normalized;
-    localStorage.setItem("userInfo", JSON.stringify(normalized));
+    setActiveUserInfo(normalized);
   }
 
   function logout() {
     token.value = "";
     userInfo.value = null;
     cartCount.value = 0;
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("sellerProfile");
+    clearActiveUserSession();
   }
 
   function setCartCount(n: number) {
@@ -45,6 +51,7 @@ export const useUserStore = defineStore("user", () => {
     isLoggedIn,
     cartCount,
     setToken,
+    setRefreshToken,
     setUserInfo,
     logout,
     setCartCount,

@@ -251,6 +251,8 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task E: Multi-Account Frontend Session Architecture
 
+**Status:** Completed. Added account-scoped frontend session namespaces for user web and admin web, with active-session pointers, legacy storage migration, active-token request/SSE handling, seller profile cache scoping, and user checkout/payment temporary data scoping. First version keeps the current active-account UX and leaves visible account switching controls for a later dedicated UI task.
+
 **Goal:** Support multiple accounts in the same browser without later logins overwriting earlier sessions.
 
 - Audit current token, user info, cart count, seller profile, and app cache storage keys in user web and admin web.

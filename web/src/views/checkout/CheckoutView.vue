@@ -170,11 +170,15 @@ import { getAddressList, createAddress } from "@/api/address";
 import { createOrder } from "@/api/order";
 import { deleteCart } from "@/api/cart";
 import { getUserCouponList } from "@/api/coupon";
+import { activeUserSessionStorageKey } from "@/utils/session";
 
 const router = useRouter();
 
 const checkoutItems = ref<any[]>(
-  JSON.parse(sessionStorage.getItem("checkout_items") ?? "[]"),
+  JSON.parse(
+    sessionStorage.getItem(activeUserSessionStorageKey("checkout_items")) ??
+      "[]",
+  ),
 );
 const addresses = ref<any[]>([]);
 const selectedAddress = ref<any>(null);
@@ -333,8 +337,11 @@ async function handleSubmit() {
     }
     await Promise.all(checkoutItems.value.map((item) => deleteCart({ id: item.id })));
     // 将订单信息传给支付页
-    sessionStorage.setItem("pending_orders", JSON.stringify(pendingOrders));
-    sessionStorage.removeItem("checkout_items");
+    sessionStorage.setItem(
+      activeUserSessionStorageKey("pending_orders"),
+      JSON.stringify(pendingOrders),
+    );
+    sessionStorage.removeItem(activeUserSessionStorageKey("checkout_items"));
     router.push("/payment");
   } catch (err) {
     ElMessage.error("下单失败，请重试");

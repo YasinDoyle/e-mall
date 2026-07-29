@@ -2,6 +2,12 @@ import axios from "axios";
 import { ElMessage } from "element-plus";
 import router from "@/router";
 import { ApiErrorCode, resolveApiErrorMessage } from "@/utils/api-error";
+import {
+  clearActiveUserSession,
+  getActiveUserRefreshToken,
+  getActiveUserToken,
+  setActiveUserTokens,
+} from "@/utils/session";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
@@ -17,8 +23,8 @@ const request = axios.create({
 // 请求拦截器：自动注入 JWT token
 request.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-    const refreshToken = localStorage.getItem("refreshToken");
+    const token = getActiveUserToken();
+    const refreshToken = getActiveUserRefreshToken();
     if (token) {
       config.headers["access_token"] = token;
     }
@@ -42,18 +48,19 @@ request.interceptors.response.use(
       return Promise.reject(new Error(message));
     }
     if (response.headers["access_token"]) {
-      localStorage.setItem("token", response.headers["access_token"]);
+      setActiveUserTokens(
+        response.headers["access_token"],
+        getActiveUserRefreshToken(),
+      );
     }
     if (response.headers["refresh_token"]) {
-      localStorage.setItem("refreshToken", response.headers["refresh_token"]);
+      setActiveUserTokens(getActiveUserToken(), response.headers["refresh_token"]);
     }
     return data;
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userInfo");
+      clearActiveUserSession();
       router.push("/login");
       ElMessage.error("登录已过期，请重新登录");
     } else {

@@ -97,6 +97,7 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getCartList, updateCart, deleteCart } from "@/api/cart";
 import { useUserStore } from "@/stores/user";
+import { activeUserSessionStorageKey } from "@/utils/session";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -176,7 +177,10 @@ async function handleBatchDelete() {
 function goCheckout() {
   if (!selected.value.length) return;
   // 将选中商品存入 sessionStorage，结算页读取
-  sessionStorage.setItem("checkout_items", JSON.stringify(selected.value));
+  sessionStorage.setItem(
+    activeUserSessionStorageKey("checkout_items"),
+    JSON.stringify(selected.value),
+  );
   router.push("/checkout");
 }
 

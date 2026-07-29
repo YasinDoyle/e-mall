@@ -1,6 +1,12 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 import { ApiErrorCode, resolveApiErrorMessage } from "@/utils/api-error";
+import {
+  clearActiveAdminSession,
+  getActiveAdminRefreshToken,
+  getActiveAdminToken,
+  setActiveAdminTokens,
+} from "@/utils/session";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
@@ -14,8 +20,8 @@ const request = axios.create({
 });
 
 request.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-  const refreshToken = localStorage.getItem("admin_refresh_token");
+  const token = getActiveAdminToken();
+  const refreshToken = getActiveAdminRefreshToken();
   if (token) config.headers["access_token"] = token;
   if (refreshToken) config.headers["refresh_token"] = refreshToken;
   return config;
@@ -30,7 +36,7 @@ request.interceptors.response.use(
         ElMessage.error(message);
       }
       if (data.status === ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL) {
-        localStorage.removeItem("admin_token");
+        clearActiveAdminSession();
         import("@/router").then(({ default: router }) => {
           router.push("/login");
         });
@@ -39,11 +45,14 @@ request.interceptors.response.use(
     }
     // 自动刷新 token
     if (response.headers["access_token"]) {
-      localStorage.setItem("admin_token", response.headers["access_token"]);
+      setActiveAdminTokens(
+        response.headers["access_token"],
+        getActiveAdminRefreshToken(),
+      );
     }
     if (response.headers["refresh_token"]) {
-      localStorage.setItem(
-        "admin_refresh_token",
+      setActiveAdminTokens(
+        getActiveAdminToken(),
         response.headers["refresh_token"],
       );
     }
@@ -51,7 +60,7 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("admin_token");
+      clearActiveAdminSession();
       import("@/router").then(({ default: router }) => router.push("/login"));
       ElMessage.error("登录已过期");
     } else {

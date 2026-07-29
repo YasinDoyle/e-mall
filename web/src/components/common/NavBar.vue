@@ -79,6 +79,7 @@ import { useAppConfigStore } from "@/stores/appConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { getCartList } from "@/api/cart";
 import { getUserInfo } from "@/api/user";
+import { getActiveUserRefreshToken, getActiveUserToken } from "@/utils/session";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -159,7 +160,7 @@ function stopNotificationStream() {
 async function startNotificationStream() {
   stopNotificationStream();
   if (!userStore.isLoggedIn || !appConfig.config.feature_flags.notification_sse) return;
-  const token = localStorage.getItem("token");
+  const token = getActiveUserToken();
   if (!token) return;
 
   const controller = new AbortController();
@@ -168,7 +169,7 @@ async function startNotificationStream() {
     const response = await fetch("/api/v1/notifications/stream", {
       headers: {
         access_token: token,
-        refresh_token: localStorage.getItem("refreshToken") ?? "",
+        refresh_token: getActiveUserRefreshToken(),
       },
       signal: controller.signal,
     });

@@ -1,12 +1,17 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getSellerProfile, type SellerProfile } from "@/api/seller";
+import {
+  getActiveUserScopedItem,
+  removeActiveUserScopedItem,
+  setActiveUserScopedItem,
+} from "@/utils/session";
 
 const SELLER_PROFILE_CACHE_KEY = "sellerProfile";
 
 export const useSellerStore = defineStore("seller", () => {
   const profile = ref<SellerProfile | null>(
-    JSON.parse(localStorage.getItem(SELLER_PROFILE_CACHE_KEY) ?? "null"),
+    JSON.parse(getActiveUserScopedItem(SELLER_PROFILE_CACHE_KEY) ?? "null"),
   );
   const loaded = ref(!!profile.value);
   const loading = ref(false);
@@ -18,12 +23,12 @@ export const useSellerStore = defineStore("seller", () => {
     profile.value = nextProfile;
     loaded.value = true;
     if (nextProfile) {
-      localStorage.setItem(
+      setActiveUserScopedItem(
         SELLER_PROFILE_CACHE_KEY,
         JSON.stringify(nextProfile),
       );
     } else {
-      localStorage.removeItem(SELLER_PROFILE_CACHE_KEY);
+      removeActiveUserScopedItem(SELLER_PROFILE_CACHE_KEY);
     }
   }
 

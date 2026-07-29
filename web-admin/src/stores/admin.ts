@@ -1,31 +1,47 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import {
+  clearActiveAdminSession,
+  getActiveAdminInfo,
+  getActiveAdminToken,
+  setActiveAdminInfo,
+  setActiveAdminTokens,
+  type AdminInfo,
+} from "@/utils/session";
 
 export const useAdminStore = defineStore("admin", () => {
-  const token = ref<string>(localStorage.getItem("admin_token") ?? "");
-  const adminInfo = ref<{ user_name: string; nick_name: string } | null>(
-    JSON.parse(localStorage.getItem("admin_info") ?? "null"),
-  );
+  const token = ref<string>(getActiveAdminToken());
+  const adminInfo = ref<AdminInfo | null>(getActiveAdminInfo());
 
   const isLoggedIn = computed(() => !!token.value);
 
   function setToken(t: string) {
     token.value = t;
-    localStorage.setItem("admin_token", t);
+    setActiveAdminTokens(t);
   }
 
-  function setAdminInfo(info: { user_name: string; nick_name: string }) {
+  function setRefreshToken(t: string) {
+    setActiveAdminTokens(token.value, t);
+  }
+
+  function setAdminInfo(info: AdminInfo) {
     adminInfo.value = info;
-    localStorage.setItem("admin_info", JSON.stringify(info));
+    setActiveAdminInfo(info);
   }
 
   function logout() {
     token.value = "";
     adminInfo.value = null;
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_info");
-    localStorage.removeItem("admin_refresh_token");
+    clearActiveAdminSession();
   }
 
-  return { token, adminInfo, isLoggedIn, setToken, setAdminInfo, logout };
+  return {
+    token,
+    adminInfo,
+    isLoggedIn,
+    setToken,
+    setRefreshToken,
+    setAdminInfo,
+    logout,
+  };
 });

@@ -97,6 +97,10 @@ import { useRouter } from "vue-router";
 import { useAdminStore } from "@/stores/admin";
 import { useAppConfigStore } from "@/stores/appConfig";
 import { useNotificationStore } from "@/stores/notification";
+import {
+  getActiveAdminRefreshToken,
+  getActiveAdminToken,
+} from "@/utils/session";
 import { Bell, Message, Money, Shop, Wallet } from "@element-plus/icons-vue";
 
 const router = useRouter();
@@ -149,7 +153,7 @@ function stopNotificationStream() {
 async function startNotificationStream() {
   stopNotificationStream();
   if (!store.isLoggedIn || !appConfig.config.feature_flags.notification_sse) return;
-  const token = localStorage.getItem("admin_token");
+  const token = getActiveAdminToken();
   if (!token) return;
 
   const controller = new AbortController();
@@ -158,7 +162,7 @@ async function startNotificationStream() {
     const response = await fetch("/api/v1/admin/notifications/stream", {
       headers: {
         access_token: token,
-        refresh_token: localStorage.getItem("admin_refresh_token") ?? "",
+        refresh_token: getActiveAdminRefreshToken(),
       },
       signal: controller.signal,
     });

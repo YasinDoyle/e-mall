@@ -58,7 +58,7 @@ async function handleLogin() {
       return;
     }
     store.setToken(res.data.access_token);
-    localStorage.setItem("admin_refresh_token", res.data.refresh_token);
+    store.setRefreshToken(res.data.refresh_token);
     try {
       await getStatsOverview();
     } catch (error: any) {
@@ -70,6 +70,7 @@ async function handleLogin() {
       return;
     }
     store.setAdminInfo({
+      id: res.data.user.id,
       user_name: res.data.user.user_name,
       nick_name: res.data.user.nick_name,
     });

@@ -138,11 +138,15 @@ import {
   getRechargeStatus,
   wechatRecharge,
 } from "@/api/recharge";
+import { activeUserSessionStorageKey } from "@/utils/session";
 
 const router = useRouter();
 
 const pendingOrders = ref<any[]>(
-  JSON.parse(sessionStorage.getItem("pending_orders") ?? "[]"),
+  JSON.parse(
+    sessionStorage.getItem(activeUserSessionStorageKey("pending_orders")) ??
+      "[]",
+  ),
 );
 const payMethod = ref("balance");
 const payPassword = ref("");
@@ -313,8 +317,11 @@ async function handlePay() {
       });
       paidOrderIds.push(item.order_id);
     }
-    sessionStorage.removeItem("pending_orders");
-    sessionStorage.setItem("paid_order_ids", JSON.stringify(paidOrderIds));
+    sessionStorage.removeItem(activeUserSessionStorageKey("pending_orders"));
+    sessionStorage.setItem(
+      activeUserSessionStorageKey("paid_order_ids"),
+      JSON.stringify(paidOrderIds),
+    );
     ElMessage.success("支付成功！");
     router.push("/order/success");
   } catch (error: any) {
@@ -324,11 +331,11 @@ async function handlePay() {
       );
       if (pendingOrders.value.length) {
         sessionStorage.setItem(
-          "pending_orders",
+          activeUserSessionStorageKey("pending_orders"),
           JSON.stringify(pendingOrders.value),
         );
       } else {
-        sessionStorage.removeItem("pending_orders");
+        sessionStorage.removeItem(activeUserSessionStorageKey("pending_orders"));
       }
       ElMessage.error("部分订单支付成功，剩余订单支付失败，请重试");
       return;
