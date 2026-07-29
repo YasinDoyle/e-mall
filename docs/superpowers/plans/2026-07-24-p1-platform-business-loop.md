@@ -228,15 +228,20 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task C: Internationalization Architecture
 
-**Status:** Completed. Added Vue I18n and explicit Element Plus zh-CN locale setup for user web and admin web, introduced locale resource files, moved entry navigation/login/API error/status label boundaries into locale-driven helpers, added backend message keys plus locale-aware business error responses, and propagated locale through axios and SSE headers. First version keeps zh-CN as the only shipped locale and leaves full page-by-page copy migration for later incremental cleanup.
+**Status:** Completed. User web and admin web now ship `zh-CN` and `en-US` locale resources for migrated menus, login forms, validation messages, status labels, and API error messages. Both the user navbar/login page and admin layout/login page expose a language switcher with local persistence. Element Plus locale is provided through a reactive root `el-config-provider`, and axios/SSE requests send `X-Locale` / `Accept-Language` based on the selected locale. Backend business errors now include stable `msg_key` values and `zh-CN` / `en-US` messages while keeping `utils/e` codes stable.
 
 **Goal:** Introduce a real i18n boundary instead of scattering fixed Chinese strings through frontend and backend.
 
 - Add frontend i18n using Vue I18n with `zh-CN` as the initial locale.
+- Add `en-US` locale files for user web and admin web covering migrated menus, buttons, validation messages, status labels, and API error messages.
+- Add a language switcher in the user web navbar and admin layout, with selected locale persisted locally.
+- Make Element Plus locale switch dynamically with the selected frontend locale.
+- Send axios and SSE `X-Locale` / `Accept-Language` headers based on the selected locale, not a hardcoded default.
+- Add backend `en-US` business error messages while keeping `utils/e` error codes and `msg_key` stable.
 - Move Element Plus locale setup, menus, buttons, validation messages, and status labels into locale files.
 - Add backend message keys for business errors and API-facing labels; keep `utils/e` codes stable while allowing locale-specific messages.
 - Decide locale propagation strategy: request header, user preference, or query fallback.
-- Add tests for stable error codes independent of displayed language.
+- Add tests or manual QA cases proving stable error codes independent of displayed language, and proving user/admin language switching updates frontend labels plus backend business error display messages.
 
 ### Post-P1 Task D: Product Detail and Audit Information Enrichment
 
@@ -253,17 +258,19 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task E: Multi-Account Frontend Session Architecture
 
-**Status:** Completed. Added account-scoped frontend session namespaces for user web and admin web, with active-session pointers, legacy storage migration, active-token request/SSE handling, seller profile cache scoping, and user checkout/payment temporary data scoping. First version keeps the current active-account UX and leaves visible account switching controls for a later dedicated UI task.
+**Status:** Completed. User web and admin web keep the shared account session pool in `localStorage`, but the active account pointer is now tab-scoped in `sessionStorage`. A last-active pointer remains in `localStorage` only to initialize a new tab conveniently; after initialization, each tab keeps its own active account. Login flows start from a `pending` tab session before moving tokens into the resolved account ID, so logging into account B in tab B does not overwrite account A in tab A. Request interceptors, SSE subscriptions, seller profile cache, and checkout/payment temporary data all read the current tab's active account.
 
 **Goal:** Support multiple accounts in the same browser without later logins overwriting earlier sessions.
 
 - Audit current token, user info, cart count, seller profile, and app cache storage keys in user web and admin web.
 - Replace single global `localStorage` session keys with account-scoped session namespaces, for example by user ID, session ID, or selected workspace profile.
 - Decide supported UX: account switcher in one tab, isolated sessions per tab/window, or both.
+- Support multiple tabs operating different active accounts at the same time: keep the shared account session pool in `localStorage`, but move the active account pointer to per-tab `sessionStorage`.
+- When a new tab opens without a tab-scoped active account, initialize it from the last active account as a convenience, then keep future tab switching isolated.
 - Ensure request interceptors attach the token for the active account only.
 - Scope Pinia persistence, seller profile cache, cart state, and notification subscriptions to the active account.
 - Add logout behavior that clears only the current account session unless the user chooses to clear all sessions.
-- Add regression tests or manual QA cases for logging in as account A and account B in the same browser without state replacement.
+- Add regression tests or manual QA cases for logging in as account A and account B in the same browser without state replacement, and for tab A using account A while tab B uses account B without request-token crossover.
 
 ### Post-P1 Task F: Seller Account and Withdrawal MVP
 

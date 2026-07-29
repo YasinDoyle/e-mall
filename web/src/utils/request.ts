@@ -8,7 +8,7 @@ import {
   getActiveUserToken,
   setActiveUserTokens,
 } from "@/utils/session";
-import { defaultLocale, t } from "@/locales";
+import { getCurrentLocale, t } from "@/locales";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
@@ -32,8 +32,9 @@ request.interceptors.request.use(
     if (refreshToken) {
       config.headers["refresh_token"] = refreshToken;
     }
-    config.headers["X-Locale"] = defaultLocale;
-    config.headers["Accept-Language"] = defaultLocale;
+    const locale = getCurrentLocale();
+    config.headers["X-Locale"] = locale;
+    config.headers["Accept-Language"] = locale;
     return config;
   },
   (error) => Promise.reject(error),

@@ -44,8 +44,9 @@ func TestErrorResponseLocalizesBusinessErrorMessageFromHeader(t *testing.T) {
 	if resp.Status != e.ErrorSellerNotApproved {
 		t.Fatalf("expected status %d, got %d", e.ErrorSellerNotApproved, resp.Status)
 	}
-	if resp.Msg != e.GetMsgByLocale(e.ErrorSellerNotApproved, "en-US") {
-		t.Fatalf("expected localized msg %q, got %q", e.GetMsgByLocale(e.ErrorSellerNotApproved, "en-US"), resp.Msg)
+	expectedMsg := "Please complete seller onboarding and pass review first"
+	if resp.Msg != expectedMsg {
+		t.Fatalf("expected localized msg %q, got %q", expectedMsg, resp.Msg)
 	}
 	if resp.MsgKey != e.GetMsgKey(e.ErrorSellerNotApproved) {
 		t.Fatalf("expected msg key %q, got %q", e.GetMsgKey(e.ErrorSellerNotApproved), resp.MsgKey)

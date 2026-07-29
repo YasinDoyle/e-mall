@@ -1,4 +1,5 @@
 const ACTIVE_SESSION_KEY = "mall:admin:active_session";
+const LAST_ACTIVE_SESSION_KEY = "mall:admin:last_active_session";
 const SESSIONS_KEY = "mall:admin:sessions";
 const PENDING_SESSION_ID = "pending";
 
@@ -29,11 +30,19 @@ function writeSessions(sessions: Record<string, AdminSession>) {
 }
 
 function activeSessionID() {
-  return localStorage.getItem(ACTIVE_SESSION_KEY) || PENDING_SESSION_ID;
+  const activeID =
+    sessionStorage.getItem(ACTIVE_SESSION_KEY) ||
+    localStorage.getItem(ACTIVE_SESSION_KEY) ||
+    localStorage.getItem(LAST_ACTIVE_SESSION_KEY) ||
+    PENDING_SESSION_ID;
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, activeID);
+  return activeID;
 }
 
 function setActiveSessionID(id: string) {
-  localStorage.setItem(ACTIVE_SESSION_KEY, id);
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
+  localStorage.setItem(LAST_ACTIVE_SESSION_KEY, id);
+  localStorage.removeItem(ACTIVE_SESSION_KEY);
 }
 
 function emptySession(id: string): AdminSession {
@@ -54,6 +63,13 @@ export function getActiveAdminRefreshToken() {
 
 export function getActiveAdminInfo() {
   return getActiveAdminSession()?.adminInfo ?? null;
+}
+
+export function beginAdminLoginSession() {
+  const sessions = readSessions();
+  sessions[PENDING_SESSION_ID] = emptySession(PENDING_SESSION_ID);
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  writeSessions(sessions);
 }
 
 export function setActiveAdminTokens(token: string, refreshToken?: string) {
@@ -98,7 +114,9 @@ export function clearActiveAdminSession() {
   if (nextID) {
     setActiveSessionID(nextID);
   } else {
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
     localStorage.removeItem(ACTIVE_SESSION_KEY);
+    localStorage.removeItem(LAST_ACTIVE_SESSION_KEY);
   }
   writeSessions(sessions);
   clearLegacyAdminSession();

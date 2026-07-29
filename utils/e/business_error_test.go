@@ -73,7 +73,7 @@ func TestGetMsgByLocaleFallsBackToZhCNAndKeepsCodeStable(t *testing.T) {
 	if got := GetMsgByLocale(code, "zh-CN"); got != GetMsg(code) {
 		t.Fatalf("expected zh-CN message %q, got %q", GetMsg(code), got)
 	}
-	if got := GetMsgByLocale(code, "en-US"); got != GetMsg(code) {
+	if got := GetMsgByLocale(code, "fr-FR"); got != GetMsg(code) {
 		t.Fatalf("expected unsupported locale to fall back to %q, got %q", GetMsg(code), got)
 	}
 
@@ -94,5 +94,19 @@ func TestGetMsgKeyReturnsStableBusinessErrorKey(t *testing.T) {
 	}
 	if fallback := GetMsgKey(0); fallback != "common.error" {
 		t.Fatalf("expected common.error fallback key, got %q", fallback)
+	}
+}
+
+func TestGetMsgByLocaleReturnsEnglishMessageAndStableKey(t *testing.T) {
+	code := ErrorSellerNotApproved
+
+	if got := GetMsgByLocale(code, "en-US"); got != "Please complete seller onboarding and pass review first" {
+		t.Fatalf("expected english message, got %q", got)
+	}
+	if key := GetMsgKey(code); key != "seller.not_approved" {
+		t.Fatalf("expected stable msg key, got %q", key)
+	}
+	if fallback := GetMsgByLocale(0, "en-US"); fallback != "fail" {
+		t.Fatalf("expected english fallback message, got %q", fallback)
 	}
 }

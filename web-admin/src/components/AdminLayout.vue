@@ -65,6 +65,19 @@
           {{ appConfig.config.admin_site_name }}
         </span>
         <div class="header-actions">
+          <el-select
+            v-model="selectedLocale"
+            class="locale-select"
+            size="small"
+            :aria-label="$t('common.language')"
+          >
+            <el-option
+              v-for="locale in supportedLocales"
+              :key="locale.value"
+              :label="locale.label"
+              :value="locale.value"
+            />
+          </el-select>
           <el-badge
             :value="notificationStore.unreadCount"
             :hidden="!notificationStore.unreadCount"
@@ -92,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAdminStore } from "@/stores/admin";
 import { useAppConfigStore } from "@/stores/appConfig";
@@ -101,13 +114,22 @@ import {
   getActiveAdminRefreshToken,
   getActiveAdminToken,
 } from "@/utils/session";
-import { defaultLocale } from "@/locales";
+import {
+  currentLocale,
+  getCurrentLocale,
+  setLocale,
+  supportedLocales,
+} from "@/locales";
 import { Bell, Message, Money, Shop, Wallet } from "@element-plus/icons-vue";
 
 const router = useRouter();
 const store = useAdminStore();
 const appConfig = useAppConfigStore();
 const notificationStore = useNotificationStore();
+const selectedLocale = computed({
+  get: () => currentLocale.value,
+  set: (locale: string) => setLocale(locale),
+});
 let unreadTimer: number | undefined;
 let unreadStream: AbortController | undefined;
 
@@ -160,12 +182,13 @@ async function startNotificationStream() {
   const controller = new AbortController();
   unreadStream = controller;
   try {
+    const locale = getCurrentLocale();
     const response = await fetch("/api/v1/admin/notifications/stream", {
       headers: {
         access_token: token,
         refresh_token: getActiveAdminRefreshToken(),
-        "X-Locale": defaultLocale,
-        "Accept-Language": defaultLocale,
+        "X-Locale": locale,
+        "Accept-Language": locale,
       },
       signal: controller.signal,
     });
@@ -212,6 +235,10 @@ watch(
     startNotificationStream();
   },
 );
+
+watch(currentLocale, () => {
+  startNotificationStream();
+});
 </script>
 
 <style scoped>
@@ -228,5 +255,8 @@ watch(
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.locale-select {
+  width: 104px;
 }
 </style>

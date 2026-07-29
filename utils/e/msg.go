@@ -1,6 +1,7 @@
 package e
 
 const DefaultLocale = "zh-CN"
+const EnglishLocale = "en-US"
 
 var MsgFlags = map[int]string{
 	SUCCESS:               "ok",
@@ -85,6 +86,86 @@ var MsgFlags = map[int]string{
 
 var LocaleMsgFlags = map[string]map[int]string{
 	DefaultLocale: MsgFlags,
+	EnglishLocale: {
+		SUCCESS:               "ok",
+		UpdatePasswordSuccess: "Password updated successfully",
+		NotExistInentifier:    "This third-party account is not linked",
+		ERROR:                 "fail",
+		InvalidParams:         "Invalid request parameters",
+
+		ErrorExistNick:          "Nickname already exists",
+		ErrorExistUser:          "Username already exists",
+		ErrorNotExistUser:       "User does not exist",
+		ErrorNotCompare:         "Invalid account or password",
+		ErrorNotComparePassword: "The two passwords do not match",
+		ErrorFailEncryption:     "Encryption failed",
+		ErrorNotExistProduct:    "Product does not exist",
+		ErrorNotExistAddress:    "Address does not exist",
+		ErrorExistFavorite:      "Product already favorited",
+		ErrorUserNotFound:       "User not found",
+
+		ErrorBossCheckTokenFail:        "Seller token authentication failed",
+		ErrorBossCheckTokenTimeout:     "Seller token has expired",
+		ErrorBossToken:                 "Seller token generation failed",
+		ErrorBoss:                      "Invalid seller token",
+		ErrorBossInsufficientAuthority: "Insufficient seller permissions",
+		ErrorBossProduct:               "Seller file read failed",
+
+		ErrorProductExistCart: "Product is already in cart; quantity increased by 1",
+		ErrorProductMoreCart:  "Quantity exceeds the limit",
+
+		ErrorAuthCheckTokenFail:        "Token authentication failed",
+		ErrorAuthCheckTokenTimeout:     "Token has expired",
+		ErrorAuthToken:                 "Token generation failed",
+		ErrorAuth:                      "Invalid token",
+		ErrorAuthInsufficientAuthority: "Insufficient permissions",
+		ErrorReadFile:                  "Failed to read file",
+		ErrorCallApi:                   "API call failed",
+		ErrorUnmarshalJson:             "Failed to decode JSON",
+
+		ErrorUploadFile:    "Upload failed",
+		ErrorAdminFindUser: "Admin user query failed",
+
+		ErrorDatabase: "Database operation failed, please try again",
+
+		ErrorOss: "OSS configuration error",
+
+		ErrorSellerNotApplied:                  "Seller onboarding has not been submitted",
+		ErrorSellerAuditPending:                "Seller onboarding application is under review",
+		ErrorSellerAlreadyApproved:             "Seller onboarding has already been approved",
+		ErrorSellerBanned:                      "Seller account is banned and cannot reapply",
+		ErrorSellerNotApproved:                 "Please complete seller onboarding and pass review first",
+		ErrorSellerInvalidStatus:               "Invalid seller status",
+		ErrorSellerInvalidApplication:          "Invalid parameters",
+		ErrorSellerShopNameRequired:            "Shop name is required",
+		ErrorSellerShopNameTooLong:             "Shop name cannot exceed 80 characters",
+		ErrorSellerDescriptionTooLong:          "Shop description cannot exceed 500 characters",
+		ErrorSellerRejectReasonMissing:         "Rejection reason is required",
+		ErrorSellerAuditStatusInvalid:          "Invalid seller audit status",
+		ErrorSellerPayKeyRequired:              "Please set a payment password before listing products",
+		ErrorProductSellerNotApproved:          "Product seller has not passed seller onboarding review",
+		ErrorCarouselProductRequired:           "Please select a related product",
+		ErrorCarouselProductNotExist:           "Related product does not exist",
+		ErrorSettlementInvalidAmount:           "Invalid settlement amount",
+		ErrorSettlementInvalidRate:             "Invalid commission rate",
+		ErrorSettlementSellerInvalid:           "Seller does not exist or has not been approved",
+		ErrorSettlementStatusInvalid:           "Settlement status does not allow this operation",
+		ErrorOrderPayStatusInvalid:             "Order has been paid or cannot be paid in its current status",
+		ErrorPaymentPayKeyRequired:             "Please set a payment password first",
+		ErrorPaymentPayKeyInvalid:              "Invalid payment password",
+		ErrorPaymentBalanceInsufficient:        "Insufficient coin balance",
+		ErrorPaymentStockInsufficient:          "Insufficient stock",
+		ErrorRefundStatusInvalid:               "Order status does not allow refund approval",
+		ErrorRefundAmountInvalid:               "Invalid refund amount",
+		ErrorRefundNotFound:                    "Refund request does not exist",
+		ErrorOrderSelfPurchaseForbidden:        "You cannot buy your own product",
+		ErrorSellerWithdrawAmountInvalid:       "Invalid withdrawal amount",
+		ErrorSellerWithdrawPayeeRequired:       "Withdrawal payee information is required",
+		ErrorSellerWithdrawInsufficientBalance: "Insufficient withdrawable balance",
+		ErrorSellerWithdrawStatusInvalid:       "Withdrawal status does not allow this operation",
+		ErrorSellerWithdrawReasonMissing:       "Rejection reason is required",
+		ErrorSellerWithdrawNotFound:            "Withdrawal request does not exist",
+	},
 }
 
 var MsgKeys = map[int]string{
@@ -195,6 +276,8 @@ func NormalizeLocale(locale string) string {
 	switch locale {
 	case "zh", "zh-CN", "zh-Hans", "zh_CN":
 		return DefaultLocale
+	case "en", "en-US", "en_US":
+		return EnglishLocale
 	default:
 		return DefaultLocale
 	}

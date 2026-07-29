@@ -1,6 +1,7 @@
 import type { UserInfo } from "@/types";
 
 const ACTIVE_SESSION_KEY = "mall:user:active_session";
+const LAST_ACTIVE_SESSION_KEY = "mall:user:last_active_session";
 const SESSIONS_KEY = "mall:user:sessions";
 const PENDING_SESSION_ID = "pending";
 
@@ -25,11 +26,19 @@ function writeSessions(sessions: Record<string, UserSession>) {
 }
 
 function activeSessionID() {
-  return localStorage.getItem(ACTIVE_SESSION_KEY) || PENDING_SESSION_ID;
+  const activeID =
+    sessionStorage.getItem(ACTIVE_SESSION_KEY) ||
+    localStorage.getItem(ACTIVE_SESSION_KEY) ||
+    localStorage.getItem(LAST_ACTIVE_SESSION_KEY) ||
+    PENDING_SESSION_ID;
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, activeID);
+  return activeID;
 }
 
 function setActiveSessionID(id: string) {
-  localStorage.setItem(ACTIVE_SESSION_KEY, id);
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
+  localStorage.setItem(LAST_ACTIVE_SESSION_KEY, id);
+  localStorage.removeItem(ACTIVE_SESSION_KEY);
 }
 
 function emptySession(id: string): UserSession {
@@ -50,6 +59,13 @@ export function getActiveUserRefreshToken() {
 
 export function getActiveUserInfo() {
   return getActiveUserSession()?.userInfo ?? null;
+}
+
+export function beginUserLoginSession() {
+  const sessions = readSessions();
+  sessions[PENDING_SESSION_ID] = emptySession(PENDING_SESSION_ID);
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  writeSessions(sessions);
 }
 
 export function setActiveUserTokens(token: string, refreshToken?: string) {
@@ -94,7 +110,9 @@ export function clearActiveUserSession() {
   if (nextID) {
     setActiveSessionID(nextID);
   } else {
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
     localStorage.removeItem(ACTIVE_SESSION_KEY);
+    localStorage.removeItem(LAST_ACTIVE_SESSION_KEY);
   }
   writeSessions(sessions);
   clearLegacyUserSession();

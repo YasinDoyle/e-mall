@@ -1,6 +1,19 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
+      <el-select
+        v-model="selectedLocale"
+        class="locale-select"
+        size="small"
+        :aria-label="t('common.language')"
+      >
+        <el-option
+          v-for="locale in supportedLocales"
+          :key="locale.value"
+          :label="locale.label"
+          :value="locale.value"
+        />
+      </el-select>
       <div class="login-title">🛒 {{ t("admin.title") }}</div>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item :label="t('auth.username')" prop="user_name">
@@ -30,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { computed, ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
@@ -38,17 +51,27 @@ import { useI18n } from "vue-i18n";
 import { adminLogin, getStatsOverview } from "@/api";
 import { useAdminStore } from "@/stores/admin";
 import { ApiErrorCode } from "@/utils/api-error";
+import { beginAdminLoginSession } from "@/utils/session";
+import { currentLocale, setLocale, supportedLocales } from "@/locales";
 
 const router = useRouter();
 const store = useAdminStore();
 const { t } = useI18n();
+const selectedLocale = computed({
+  get: () => currentLocale.value,
+  set: (locale: string) => setLocale(locale),
+});
 const formRef = ref<FormInstance>();
 const loading = ref(false);
 const form = reactive({ user_name: "", password: "" });
-const rules = {
-  user_name: [{ required: true, message: t("auth.usernamePlaceholder"), trigger: "blur" }],
-  password: [{ required: true, message: t("auth.passwordPlaceholder"), trigger: "blur" }],
-};
+const rules = computed(() => ({
+  user_name: [
+    { required: true, message: t("auth.usernamePlaceholder"), trigger: "blur" },
+  ],
+  password: [
+    { required: true, message: t("auth.passwordPlaceholder"), trigger: "blur" },
+  ],
+}));
 
 async function handleLogin() {
   await formRef.value?.validate();
@@ -59,6 +82,7 @@ async function handleLogin() {
       ElMessage.error(t("auth.accountInvalid"));
       return;
     }
+    beginAdminLoginSession();
     store.setToken(res.data.access_token);
     store.setRefreshToken(res.data.refresh_token);
     try {
@@ -93,6 +117,13 @@ async function handleLogin() {
 }
 .login-card {
   width: 400px;
+  position: relative;
+}
+.locale-select {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 104px;
 }
 .login-title {
   text-align: center;

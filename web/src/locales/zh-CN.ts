@@ -6,6 +6,7 @@ export default {
     unknown: "未知",
     requestFailed: "请求失败",
     loginExpired: "登录已过期，请重新登录",
+    language: "语言",
   },
   nav: {
     searchPlaceholder: "搜索商品...",

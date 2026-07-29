@@ -15,6 +15,19 @@
     </div>
 
     <div class="navbar-right">
+      <el-select
+        v-model="selectedLocale"
+        class="locale-select"
+        size="small"
+        :aria-label="$t('common.language')"
+      >
+        <el-option
+          v-for="locale in supportedLocales"
+          :key="locale.value"
+          :label="locale.label"
+          :value="locale.value"
+        />
+      </el-select>
       <RouterLink to="/flash-sale" class="nav-link">{{ $t("nav.flashSale") }}</RouterLink>
 
       <template v-if="userStore.isLoggedIn">
@@ -70,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { Bell, Search, ShoppingCart } from "@element-plus/icons-vue";
 import { useUserStore } from "@/stores/user";
@@ -80,7 +93,12 @@ import { useNotificationStore } from "@/stores/notification";
 import { getCartList } from "@/api/cart";
 import { getUserInfo } from "@/api/user";
 import { getActiveUserRefreshToken, getActiveUserToken } from "@/utils/session";
-import { defaultLocale } from "@/locales";
+import {
+  currentLocale,
+  getCurrentLocale,
+  setLocale,
+  supportedLocales,
+} from "@/locales";
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -88,6 +106,10 @@ const sellerStore = useSellerStore();
 const appConfig = useAppConfigStore();
 const notificationStore = useNotificationStore();
 const searchKeyword = ref("");
+const selectedLocale = computed({
+  get: () => currentLocale.value,
+  set: (locale: string) => setLocale(locale),
+});
 let unreadTimer: number | undefined;
 let unreadStream: AbortController | undefined;
 
@@ -167,12 +189,13 @@ async function startNotificationStream() {
   const controller = new AbortController();
   unreadStream = controller;
   try {
+    const locale = getCurrentLocale();
     const response = await fetch("/api/v1/notifications/stream", {
       headers: {
         access_token: token,
         refresh_token: getActiveUserRefreshToken(),
-        "X-Locale": defaultLocale,
-        "Accept-Language": defaultLocale,
+        "X-Locale": locale,
+        "Accept-Language": locale,
       },
       signal: controller.signal,
     });
@@ -222,6 +245,10 @@ watch(
     startNotificationStream();
   },
 );
+
+watch(currentLocale, () => {
+  startNotificationStream();
+});
 </script>
 
 <style scoped>
@@ -238,6 +265,9 @@ watch(
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.locale-select {
+  width: 104px;
 }
 .logo {
   font-size: 20px;

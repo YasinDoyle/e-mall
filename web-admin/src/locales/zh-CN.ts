@@ -5,6 +5,7 @@ export default {
     unknown: "未知",
     requestFailed: "请求失败",
     loginExpired: "登录已过期",
+    language: "语言",
   },
   admin: {
     title: "E-Mall 管理后台",
@@ -27,6 +28,7 @@ export default {
   auth: {
     username: "用户名",
     password: "密码",
+    usernamePlaceholder: "请输入用户名",
     adminUsernamePlaceholder: "请输入管理员账号",
     passwordPlaceholder: "请输入密码",
     accountInvalid: "账号或密码错误",
