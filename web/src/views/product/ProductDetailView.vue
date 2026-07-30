@@ -1,7 +1,7 @@
 <template>
   <div v-if="product" class="detail-wrap">
     <el-row :gutter="32">
-      <!-- 左：图片区 -->
+      <!-- Left: image column -->
       <el-col :span="10">
         <el-image :src="mainImg" fit="contain" class="main-img" />
         <div class="thumb-list">
@@ -15,7 +15,7 @@
         </div>
       </el-col>
 
-      <!-- 右：信息区 -->
+      <!-- Right: details column -->
       <el-col :span="14">
         <h2 class="product-name">{{ product.name }}</h2>
         <p class="product-title">{{ product.title }}</p>
@@ -30,22 +30,22 @@
         </div>
 
         <el-descriptions :column="2" border size="small" style="margin: 16px 0">
-          <el-descriptions-item label="卖家">{{
+          <el-descriptions-item :label="t('productDetail.seller')">{{
             product.boss_name
           }}</el-descriptions-item>
-          <el-descriptions-item label="库存"
-            >{{ product.num }} 件</el-descriptions-item
+          <el-descriptions-item :label="t('productDetail.stock')"
+            >{{ t("productDetail.stockCount", { count: product.num }) }}</el-descriptions-item
           >
-          <el-descriptions-item label="浏览量">{{
+          <el-descriptions-item :label="t('productDetail.views')">{{
             product.view
           }}</el-descriptions-item>
-          <el-descriptions-item label="分类">{{
+          <el-descriptions-item :label="t('productDetail.category')">{{
             product.category_id
           }}</el-descriptions-item>
         </el-descriptions>
 
         <div class="num-row">
-          <span>购买数量：</span>
+          <span>{{ t("productDetail.quantity") }}</span>
           <el-input-number
             v-model="buyNum"
             :min="1"
@@ -62,7 +62,7 @@
             :disabled="isOwnProduct"
             @click="handleAddCart"
           >
-            {{ isOwnProduct ? "自己的商品" : "加入购物车" }}
+            {{ isOwnProduct ? t("productDetail.ownProduct") : t("productDetail.addToCart") }}
           </el-button>
           <el-button
             size="large"
@@ -71,13 +71,48 @@
             :loading="togglingFav"
             @click="handleToggleFavorite"
           >
-            {{ isFavorite ? "已收藏" : "收藏" }}
+            {{ isFavorite ? t("productDetail.favorited") : t("productDetail.favorite") }}
           </el-button>
         </div>
 
         <el-divider />
+        <el-descriptions :column="2" border size="small" style="margin-bottom: 16px">
+          <el-descriptions-item :label="t('productDetail.brand')">
+            {{ product.brand || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('productDetail.origin')">
+            {{ product.origin || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('productDetail.specification')">
+            {{ product.specification || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('productDetail.productionDate')">
+            {{ product.production_date || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('productDetail.shelfLife')">
+            {{ product.shelf_life || "-" }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('productDetail.guarantees')">
+            {{ product.service_guarantees || "-" }}
+          </el-descriptions-item>
+        </el-descriptions>
         <div class="product-info">
           <p style="white-space: pre-wrap">{{ product.info }}</p>
+        </div>
+        <div v-if="product.certificates?.length" class="certificate-preview">
+          <div class="section-subtitle">{{ t("productDetail.qualificationMaterials") }}</div>
+          <el-image
+            v-for="certificate in product.certificates"
+            :key="certificate.id"
+            :src="certificate.file_path"
+            :preview-src-list="certificateImages"
+            fit="cover"
+            class="certificate-img"
+          >
+            <template #error>
+              <div class="certificate-error">{{ certificate.name }}</div>
+            </template>
+          </el-image>
         </div>
       </el-col>
     </el-row>
@@ -85,21 +120,21 @@
     <el-card style="margin-top: 24px">
       <template #header>
         <div class="review-header">
-          <span>商品评价</span>
-          <span class="review-total">共 {{ reviewTotal }} 条</span>
+          <span>{{ t("productDetail.reviews") }}</span>
+          <span class="review-total">{{ t("productDetail.reviewCount", { count: reviewTotal }) }}</span>
         </div>
       </template>
       <el-skeleton v-if="reviewLoading" :rows="3" animated />
-      <el-empty v-else-if="!reviews.length" description="暂无评价" />
+      <el-empty v-else-if="!reviews.length" :description="t('productDetail.noReviews')" />
       <div v-else class="review-list">
         <div v-for="review in reviews" :key="review.id" class="review-item">
           <el-avatar :size="36" :src="review.user_avatar" />
           <div class="review-content">
             <div class="review-line">
-              <span class="review-user">{{ review.user_name || "匿名用户" }}</span>
+              <span class="review-user">{{ review.user_name || t("productDetail.anonymous") }}</span>
               <el-rate :model-value="review.rating" disabled size="small" />
             </div>
-            <p>{{ review.content || "用户未填写评价内容" }}</p>
+            <p>{{ review.content || t("productDetail.emptyReview") }}</p>
             <div v-if="reviewImageList(review).length" class="review-images">
               <el-image
                 v-for="img in reviewImageList(review)"
@@ -130,10 +165,10 @@
     <el-icon class="is-loading" size="48"><Loading /></el-icon>
   </div>
 
-  <el-result v-else icon="warning" title="商品不存在或已下架">
+  <el-result v-else icon="warning" :title="t('productDetail.notFound')">
     <template #extra>
       <el-button type="primary" @click="$router.push('/products')"
-        >返回商品列表</el-button
+        >{{ t("productDetail.backToProducts") }}</el-button
       >
     </template>
   </el-result>
@@ -153,6 +188,7 @@ import {
   getFavoriteList,
 } from "@/api/favorite";
 import { useUserStore } from "@/stores/user";
+import { t } from "@/locales";
 
 const route = useRoute();
 const router = useRouter();
@@ -177,6 +213,12 @@ const allImgs = computed(() => {
   const cover = product.value?.img_path ? [product.value.img_path] : [];
   return [...cover, ...extraImgs.value];
 });
+
+const certificateImages = computed(() =>
+  (product.value?.certificates ?? [])
+    .map((item: any) => item.file_path)
+    .filter(Boolean),
+);
 
 const isOwnProduct = computed(
   () =>
@@ -250,7 +292,7 @@ async function checkFavorite(productId: number) {
 
 async function handleAddCart() {
   if (!userStore.isLoggedIn) return router.push("/login");
-  if (isOwnProduct.value) return ElMessage.warning("不能购买自己发布的商品");
+  if (isOwnProduct.value) return ElMessage.warning(t("productDetail.cannotBuyOwn"));
   addingCart.value = true;
   try {
     await createCart({
@@ -261,7 +303,7 @@ async function handleAddCart() {
     });
     const cartRes: any = await getCartList();
     userStore.setCartCount((cartRes.data?.item ?? []).length);
-    ElMessage.success("已加入购物车");
+    ElMessage.success(t("productDetail.addedToCart"));
   } finally {
     addingCart.value = false;
   }
@@ -279,7 +321,7 @@ async function handleToggleFavorite() {
       await deleteFavorite({ id: favoriteId.value });
       isFavorite.value = false;
       favoriteId.value = null;
-      ElMessage.success("已取消收藏");
+      ElMessage.success(t("productDetail.removedFavorite"));
     } else {
       await createFavorite({
         product_id: product.value.id,
@@ -287,7 +329,7 @@ async function handleToggleFavorite() {
       });
       await checkFavorite(product.value.id);
       isFavorite.value = true;
-      ElMessage.success("收藏成功");
+      ElMessage.success(t("productDetail.favoriteSuccess"));
     }
   } finally {
     togglingFav.value = false;
@@ -366,6 +408,33 @@ onMounted(loadProduct);
   color: #555;
   font-size: 14px;
   line-height: 1.8;
+}
+.section-subtitle {
+  flex: 0 0 100%;
+  margin: 16px 0 0;
+  color: #303133;
+  font-weight: 600;
+}
+.certificate-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.certificate-img,
+.certificate-error {
+  width: 92px;
+  height: 92px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+.certificate-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #909399;
+  font-size: 12px;
+  text-align: center;
 }
 .review-header,
 .review-line {

@@ -2,7 +2,7 @@
   <el-card>
     <template #header>
       <div class="header">
-        <span>我的商品</span>
+        <span>{{ t("sellerCenter.productList.title") }}</span>
         <div class="header-actions">
           <el-button
             type="success"
@@ -10,15 +10,15 @@
             :loading="batchLoading"
             @click="batchOnSale"
           >
-            批量上架
+            {{ t("sellerCenter.productList.batchOnSale") }}
           </el-button>
-          <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="loading" @click="loadList">{{ t("common.refresh") }}</el-button>
           <el-button
             type="primary"
             :disabled="!sellerStore.isApproved"
             @click="$router.push('/seller/products/new')"
           >
-            发布商品
+            {{ t("sellerCenter.productList.publish") }}
           </el-button>
         </div>
       </div>
@@ -26,7 +26,7 @@
 
     <el-alert
       v-if="!sellerStore.isApproved"
-      title="商家入驻审核通过后才可以发布和上架商品"
+      :title="t('sellerCenter.productList.approvedOnly')"
       type="warning"
       :closable="false"
       show-icon
@@ -40,7 +40,7 @@
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="46" :selectable="canBatchSelect" />
-      <el-table-column label="商品" min-width="260">
+      <el-table-column :label="t('sellerCenter.productList.product')" min-width="260">
         <template #default="{ row }">
           <div class="product-cell">
             <img v-if="row.img_path" :src="row.img_path" class="product-img" />
@@ -51,36 +51,53 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="价格" width="140">
+      <el-table-column :label="t('sellerCenter.productList.price')" width="140">
         <template #default="{ row }">
           <div>¥{{ row.discount_price || row.price }}</div>
-          <div v-if="row.discount_price" class="muted">原价 ¥{{ row.price }}</div>
+          <div v-if="row.discount_price" class="muted">
+            {{ t("sellerCenter.productList.originalPrice", { price: row.price }) }}
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="num" label="库存" width="90" />
-      <el-table-column label="审核" width="110">
+      <el-table-column prop="num" :label="t('sellerCenter.productList.stock')" width="90" />
+      <el-table-column :label="t('sellerCenter.productList.audit')" width="110">
         <template #default="{ row }">
           <el-tag :type="auditTag(row.audit_status)">
             {{ auditText(row.audit_status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="销售状态" width="110">
+      <el-table-column :label="t('sellerCenter.productList.saleStatus')" width="110">
         <template #default="{ row }">
           <el-tag :type="row.on_sale ? 'success' : 'info'">
-            {{ row.on_sale ? "销售中" : "已下架" }}
+            {{
+              row.on_sale
+                ? t("sellerCenter.productList.onSale")
+                : t("sellerCenter.productList.offSale")
+            }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column :label="t('sellerCenter.productList.actions')" width="240" fixed="right">
         <template #default="{ row }">
+          <el-button
+            size="small"
+            :disabled="!sellerStore.isApproved"
+            @click="$router.push(`/seller/products/${row.id}/edit`)"
+          >
+            {{ t("sellerCenter.productList.edit") }}
+          </el-button>
           <el-button
             size="small"
             :type="row.on_sale ? 'warning' : 'success'"
             :disabled="!canToggle(row) || !sellerStore.isApproved"
             @click="toggleSale(row)"
           >
-            {{ row.on_sale ? "下架" : "上架" }}
+            {{
+              row.on_sale
+                ? t("sellerCenter.productList.offSaleAction")
+                : t("sellerCenter.productList.onSaleAction")
+            }}
           </el-button>
         </template>
       </el-table-column>
@@ -100,10 +117,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { getSellerProductList, setSellerProductOnSale } from "@/api/product";
 import { useSellerStore } from "@/stores/seller";
 
 const sellerStore = useSellerStore();
+const { t } = useI18n();
 const list = ref<any[]>([]);
 const selectedRows = ref<any[]>([]);
 const page = ref(1);
@@ -117,7 +136,13 @@ const batchOnSaleCandidates = computed(() =>
 );
 
 function auditText(status: number) {
-  return ({ 0: "待审核", 1: "已通过", 2: "已拒绝" } as any)[status] ?? "未知";
+  return (
+    {
+      0: t("sellerCenter.productList.auditPending"),
+      1: t("sellerCenter.productList.auditApproved"),
+      2: t("sellerCenter.productList.auditRejected"),
+    } as Record<number, string>
+  )[status] ?? t("common.unknown");
 }
 
 function auditTag(status: number) {
@@ -153,23 +178,28 @@ async function loadList() {
 
 async function toggleSale(row: any) {
   const next = !row.on_sale;
+  const action = next
+    ? t("sellerCenter.productList.onSaleAction")
+    : t("sellerCenter.productList.offSaleAction");
   await ElMessageBox.confirm(
-    `确认${next ? "上架" : "下架"}商品「${row.name}」？`,
-    "提示",
+    t("sellerCenter.productList.toggleConfirm", { action, name: row.name }),
+    t("dialog.warningTitle"),
     { type: "warning" },
   );
   await setSellerProductOnSale({ id: row.id, on_sale: next });
-  ElMessage.success(next ? "商品已上架" : "商品已下架");
+  ElMessage.success(t("sellerCenter.productList.toggleSuccess", { action }));
   loadList();
 }
 
 async function batchOnSale() {
   if (!batchOnSaleCandidates.value.length) {
-    return ElMessage.warning("请选择已审核通过且未上架的商品");
+    return ElMessage.warning(t("sellerCenter.productList.selectBatchWarning"));
   }
   await ElMessageBox.confirm(
-    `确认批量上架 ${batchOnSaleCandidates.value.length} 个商品？`,
-    "提示",
+    t("sellerCenter.productList.batchConfirm", {
+      count: batchOnSaleCandidates.value.length,
+    }),
+    t("dialog.warningTitle"),
     { type: "warning" },
   );
   batchLoading.value = true;
@@ -181,9 +211,9 @@ async function batchOnSale() {
     );
     const failed = results.filter((item) => item.status === "rejected").length;
     if (failed > 0) {
-      ElMessage.warning(`部分商品上架失败：${failed} 个`);
+      ElMessage.warning(t("sellerCenter.productList.batchFailed", { count: failed }));
     } else {
-      ElMessage.success("批量上架完成");
+      ElMessage.success(t("sellerCenter.productList.batchSuccess"));
     }
     loadList();
   } finally {

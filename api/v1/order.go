@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/service"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
@@ -222,8 +223,7 @@ func AdminRefundApproveOrderHandler() gin.HandlerFunc {
 			return
 		}
 
-		l := service.GetOrderSrv()
-		resp, err := l.AdminOrderRefundApprove(ctx.Request.Context(), &req)
+		resp, err := application.NewOrderUsecase().AdminRefundApprove(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

@@ -1,32 +1,32 @@
 <template>
   <el-card>
-    <template #header>用户管理</template>
+    <template #header>{{ t("page.user.title") }}</template>
     <el-table :data="list" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="user_name" label="用户名" />
-      <el-table-column prop="nick_name" label="昵称" />
-      <el-table-column prop="email" label="邮箱" />
-      <el-table-column label="状态" width="100">
+      <el-table-column prop="user_name" :label="t('page.user.username')" />
+      <el-table-column prop="nick_name" :label="t('page.user.nickname')" />
+      <el-table-column prop="email" :label="t('page.user.email')" />
+      <el-table-column :label="t('common.status')" width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-            {{ row.status === "active" ? "正常" : "封禁" }}
+            {{ row.status === "active" ? t("page.user.active") : t("page.user.banned") }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="管理员" width="90">
+      <el-table-column :label="t('page.user.admin')" width="90">
         <template #default="{ row }">
-          <el-tag v-if="row.is_admin" type="warning">是</el-tag>
+          <el-tag v-if="row.is_admin" type="warning">{{ t("page.user.yes") }}</el-tag>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120">
+      <el-table-column :label="t('common.actions')" width="120">
         <template #default="{ row }">
           <el-button
             size="small"
             :type="row.status === 'active' ? 'danger' : 'success'"
             @click="toggleBan(row)"
           >
-            {{ row.status === "active" ? "封禁" : "解封" }}
+            {{ row.status === "active" ? t("page.user.ban") : t("page.user.unban") }}
           </el-button>
         </template>
       </el-table-column>
@@ -46,6 +46,7 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { getUserList, banUser } from "@/api";
+import { t } from "@/locales";
 
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -64,7 +65,7 @@ async function loadList() {
 async function toggleBan(row: any) {
   const banned = row.status === "active";
   await banUser({ id: row.id, banned });
-  ElMessage.success(banned ? "封禁成功" : "已解封");
+  ElMessage.success(banned ? t("page.user.banSuccess") : t("page.user.unbanSuccess"));
   loadList();
 }
 

@@ -9,6 +9,8 @@ const (
 	OrderTypeRefunded
 )
 
+const OrderTimeKey = "OrderTime"
+
 const OrderPaidQueue = "rabbitmq-order-paid-queue"
 
 const RechargePaidQueue = "rabbitmq-recharge-paid-queue"

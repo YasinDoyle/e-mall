@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
@@ -130,6 +131,7 @@ func (s *SellerAccountSrv) WithdrawApply(ctx context.Context, req *types.SellerW
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.WithdrawApplied{Withdraw: withdraw, ShopName: profile.ShopName})
 	return buildSellerWithdrawResp(withdraw), nil
 }
 
@@ -217,6 +219,13 @@ func (s *SellerAccountSrv) AdminWithdrawAudit(ctx context.Context, req *types.Ad
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.WithdrawAuditChanged{
+		WithdrawID: withdraw.ID,
+		SellerID:   withdraw.SellerID,
+		Amount:     withdraw.Amount,
+		Status:     withdraw.Status,
+		Reason:     withdraw.AuditReason,
+	})
 	return buildSellerWithdrawResp(withdraw), nil
 }
 
@@ -296,6 +305,13 @@ func (s *SellerAccountSrv) AdminWithdrawPaid(ctx context.Context, req *types.Adm
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.WithdrawPaidStatusChanged{
+		WithdrawID: withdraw.ID,
+		SellerID:   withdraw.SellerID,
+		Amount:     withdraw.Amount,
+		Status:     withdraw.Status,
+		Reason:     withdraw.AuditReason,
+	})
 	return buildSellerWithdrawResp(withdraw), nil
 }
 

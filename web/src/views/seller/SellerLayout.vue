@@ -9,16 +9,16 @@
         router
         style="border: none; height: 100%"
       >
-        <el-menu-item index="/seller/apply">入驻状态</el-menu-item>
+        <el-menu-item index="/seller/apply">{{ $t("sellerCenter.menu.onboarding") }}</el-menu-item>
         <el-menu-item index="/seller/account" :disabled="!sellerStore.isApproved">
-          资金账户
+          {{ $t("sellerCenter.menu.account") }}
         </el-menu-item>
-        <el-menu-item index="/seller/products">商品管理</el-menu-item>
+        <el-menu-item index="/seller/products">{{ $t("sellerCenter.menu.products") }}</el-menu-item>
         <el-menu-item index="/seller/orders" :disabled="!sellerStore.isApproved">
-          订单管理
+          {{ $t("sellerCenter.menu.orders") }}
         </el-menu-item>
         <el-menu-item index="/seller/products/new" :disabled="!sellerStore.isApproved">
-          发布商品
+          {{ $t("sellerCenter.menu.publish") }}
         </el-menu-item>
       </el-menu>
     </el-aside>

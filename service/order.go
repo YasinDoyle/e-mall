@@ -12,8 +12,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
+	"github.com/YasinDoyle/e-mall/application"
 	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/cache"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
@@ -23,7 +25,6 @@ import (
 	util "github.com/YasinDoyle/e-mall/utils/log"
 )
 
-const OrderTimeKey = "OrderTime"
 const orderTimeoutScanInterval = 5 * time.Second
 
 var OrderSrvIns *OrderSrv
@@ -116,7 +117,7 @@ func (s *OrderSrv) OrderCreate(ctx context.Context, req *types.OrderCreateReq) (
 		Score:  float64(time.Now().Unix()) + 15*time.Minute.Seconds(),
 		Member: orderNum,
 	}
-	cache.RedisClient.ZAdd(cache.RedisContext, OrderTimeKey, data)
+	cache.RedisClient.ZAdd(cache.RedisContext, consts.OrderTimeKey, data)
 
 	resp = &types.OrderCreateResp{
 		ID:       order.ID,
@@ -150,7 +151,7 @@ func StartOrderTimeoutWorker(ctx context.Context) {
 }
 
 func consumeExpiredOrders(ctx context.Context) {
-	orderNums, err := cache.RedisClient.ZRangeByScore(ctx, OrderTimeKey, &redis.ZRangeBy{
+	orderNums, err := cache.RedisClient.ZRangeByScore(ctx, consts.OrderTimeKey, &redis.ZRangeBy{
 		Min:   "-inf",
 		Max:   strconv.FormatInt(time.Now().Unix(), 10),
 		Count: 50,
@@ -169,7 +170,7 @@ func consumeExpiredOrders(ctx context.Context) {
 		orderNum, parseErr := strconv.ParseUint(orderNumStr, 10, 64)
 		if parseErr != nil {
 			util.LogrusObj.Error(parseErr)
-			_ = cache.RedisClient.ZRem(ctx, OrderTimeKey, orderNumStr).Err()
+			_ = cache.RedisClient.ZRem(ctx, consts.OrderTimeKey, orderNumStr).Err()
 			continue
 		}
 
@@ -178,7 +179,7 @@ func consumeExpiredOrders(ctx context.Context) {
 			continue
 		}
 
-		if err = cache.RedisClient.ZRem(ctx, OrderTimeKey, orderNumStr).Err(); err != nil {
+		if err = cache.RedisClient.ZRem(ctx, consts.OrderTimeKey, orderNumStr).Err(); err != nil {
 			util.LogrusObj.Error(err)
 		}
 	}
@@ -328,6 +329,15 @@ func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp
 		util.LogrusObj.Error(err)
 		return nil, err
 	}
+	order, loadErr := dao.NewOrderDao(ctx).GetOrderByID(req.OrderId)
+	if loadErr == nil {
+		domainevent.Publish(ctx, domainevent.OrderShipped{
+			OrderID:    order.ID,
+			OrderNum:   order.OrderNum,
+			BuyerID:    order.UserID,
+			TrackingNo: order.TrackingNo,
+		})
+	}
 
 	return
 }
@@ -352,6 +362,11 @@ func (s *OrderSrv) OrderRefundRequest(ctx context.Context, req *types.OrderRefun
 		util.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.RefundRequested{
+		OrderID:  order.ID,
+		OrderNum: order.OrderNum,
+		SellerID: order.BossID,
+	})
 
 	resp = &types.OrderRefundResp{
 		OrderId:      order.ID,
@@ -364,70 +379,7 @@ func (s *OrderSrv) OrderRefundRequest(ctx context.Context, req *types.OrderRefun
 }
 
 func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.AdminOrderRefundApproveReq) (resp interface{}, err error) {
-	refundAmount := float64(0)
-	var orderNum uint64
-
-	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
-		orderDao := dao.NewOrderDaoByDB(tx)
-		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
-		if txErr != nil {
-			return txErr
-		}
-		if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
-			return e.NewBusinessError(e.ErrorRefundStatusInvalid)
-		}
-
-		refundAmount = order.Money * float64(order.Num)
-		if refundAmount <= 0 {
-			return e.NewBusinessError(e.ErrorRefundAmountInvalid)
-		}
-		orderNum = order.OrderNum
-
-		userDao := dao.NewUserDaoByDB(tx)
-		buyer, txErr := userDao.GetUserById(order.UserID)
-		if txErr != nil {
-			return txErr
-		}
-		if !buyer.HasPayKey() {
-			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
-		}
-
-		buyerMoney, txErr := buyer.DecryptMoney(req.Key)
-		if txErr != nil {
-			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
-		}
-
-		buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
-		buyer.Money, txErr = buyer.EncryptMoney(req.Key)
-		if txErr != nil {
-			return txErr
-		}
-		if txErr = userDao.UpdateUserById(order.UserID, buyer); txErr != nil {
-			return txErr
-		}
-
-		if txErr = GetSettlementSrv().HandleOrderRefunded(ctx, tx, order); txErr != nil {
-			return txErr
-		}
-
-		return orderDao.MarkOrderRefunded(order.ID)
-	})
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, e.NewBusinessError(e.ErrorRefundNotFound)
-		}
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-
-	resp = &types.OrderRefundResp{
-		OrderId:      req.OrderId,
-		OrderNum:     orderNum,
-		RefundAmount: refundAmount,
-		RefundStatus: consts.OrderRefundStatusRefunded,
-		Type:         consts.OrderTypeRefunded,
-	}
-	return
+	return application.NewOrderUsecase().AdminRefundApprove(ctx, req)
 }
 
 func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq) (resp interface{}, err error) {
@@ -437,6 +389,8 @@ func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq)
 		return nil, err
 	}
 
+	var orderNum uint64
+	var sellerID uint
 	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
 		orderDao := dao.NewOrderDaoByDB(tx)
 		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
@@ -446,6 +400,8 @@ func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq)
 		if order.UserID != u.Id || order.Type != consts.OrderTypeShipping {
 			return gorm.ErrRecordNotFound
 		}
+		orderNum = order.OrderNum
+		sellerID = order.BossID
 		if txErr = orderDao.UpdateOrderTypeByUser(req.OrderId, u.Id, consts.OrderTypeShipping, consts.OrderTypeReceipt); txErr != nil {
 			return txErr
 		}
@@ -458,6 +414,11 @@ func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq)
 		util.LogrusObj.Error(err)
 		return nil, err
 	}
+	domainevent.Publish(ctx, domainevent.OrderReceived{
+		OrderID:  req.OrderId,
+		OrderNum: orderNum,
+		SellerID: sellerID,
+	})
 
 	return
 }

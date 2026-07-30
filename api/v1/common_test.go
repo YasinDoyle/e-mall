@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -26,5 +28,33 @@ func TestErrorResponsePreservesBusinessErrorCode(t *testing.T) {
 	}
 	if resp.Error != e.GetMsg(e.ErrorSellerNotApproved) {
 		t.Fatalf("expected error %q, got %q", e.GetMsg(e.ErrorSellerNotApproved), resp.Error)
+	}
+}
+
+func TestErrorResponseLocalizesBusinessErrorMessageFromHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx.Request.Header.Set("Accept-Language", "en-US,en;q=0.9")
+
+	err := e.NewBusinessError(e.ErrorSellerNotApproved)
+	resp := ErrorResponse(ctx, err)
+
+	if resp.Status != e.ErrorSellerNotApproved {
+		t.Fatalf("expected status %d, got %d", e.ErrorSellerNotApproved, resp.Status)
+	}
+	expectedMsg := "Please complete seller onboarding and pass review first"
+	if resp.Msg != expectedMsg {
+		t.Fatalf("expected localized msg %q, got %q", expectedMsg, resp.Msg)
+	}
+	if resp.MsgKey != e.GetMsgKey(e.ErrorSellerNotApproved) {
+		t.Fatalf("expected msg key %q, got %q", e.GetMsgKey(e.ErrorSellerNotApproved), resp.MsgKey)
+	}
+	if resp.Data != resp.Msg {
+		t.Fatalf("expected data to match localized msg %q, got %v", resp.Msg, resp.Data)
+	}
+	if resp.Error != resp.Msg {
+		t.Fatalf("expected error to match localized msg %q, got %q", resp.Msg, resp.Error)
 	}
 }

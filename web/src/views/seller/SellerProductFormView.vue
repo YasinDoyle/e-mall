@@ -1,9 +1,11 @@
 <template>
   <el-card>
-    <template #header>发布商品</template>
+    <template #header>
+      {{ isEdit ? t("sellerCenter.productForm.editTitle") : t("sellerCenter.productForm.createTitle") }}
+    </template>
     <el-alert
       v-if="!sellerStore.isApproved"
-      title="商家入驻审核通过后才可以发布商品"
+      :title="t('sellerCenter.productForm.approvedOnly')"
       type="warning"
       :closable="false"
       show-icon
@@ -11,7 +13,7 @@
     />
     <el-alert
       v-else
-      title="商品发布后进入待审核状态，审核通过并上架后才会展示给买家"
+      :title="t('sellerCenter.productForm.submitTip')"
       type="info"
       :closable="false"
       show-icon
@@ -19,18 +21,18 @@
     />
 
     <el-form label-width="96px" :model="form" class="product-form">
-      <el-form-item label="商品名称" required>
+      <el-form-item :label="t('sellerCenter.productForm.name')" required>
         <el-input
           v-model="form.name"
           maxlength="80"
-          placeholder="请输入商品名称"
+          :placeholder="t('sellerCenter.productForm.namePlaceholder')"
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="分类" required>
+      <el-form-item :label="t('sellerCenter.productForm.category')" required>
         <el-select
           v-model="form.category_id"
-          placeholder="请选择分类"
+          :placeholder="t('sellerCenter.productForm.categoryPlaceholder')"
           style="width: 260px"
           :disabled="!sellerStore.isApproved"
         >
@@ -42,15 +44,15 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="标题" required>
+      <el-form-item :label="t('sellerCenter.productForm.title')" required>
         <el-input
           v-model="form.title"
           maxlength="120"
-          placeholder="请输入商品标题"
+          :placeholder="t('sellerCenter.productForm.titlePlaceholder')"
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="详情">
+      <el-form-item :label="t('sellerCenter.productForm.info')">
         <el-input
           v-model="form.info"
           type="textarea"
@@ -59,7 +61,67 @@
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="价格" required>
+      <el-divider content-position="left">{{ t("sellerCenter.productForm.auditMaterials") }}</el-divider>
+      <el-form-item :label="t('sellerCenter.productForm.brand')">
+        <el-input
+          v-model="form.brand"
+          maxlength="100"
+          :placeholder="t('sellerCenter.productForm.brandPlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.origin')">
+        <el-input
+          v-model="form.origin"
+          maxlength="120"
+          :placeholder="t('sellerCenter.productForm.originPlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.specification')">
+        <el-input
+          v-model="form.specification"
+          maxlength="120"
+          :placeholder="t('sellerCenter.productForm.specificationPlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.productionDate')">
+        <el-date-picker
+          v-model="form.production_date"
+          type="date"
+          value-format="YYYY-MM-DD"
+          :placeholder="t('sellerCenter.productForm.productionDatePlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.shelfLife')">
+        <el-input
+          v-model="form.shelf_life"
+          maxlength="80"
+          :placeholder="t('sellerCenter.productForm.shelfLifePlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.serviceGuarantees')">
+        <el-input
+          v-model="form.service_guarantees"
+          maxlength="255"
+          :placeholder="t('sellerCenter.productForm.serviceGuaranteesPlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.certificateMeta')">
+        <el-input
+          v-model="form.certificate_meta"
+          type="textarea"
+          :rows="3"
+          maxlength="500"
+          :placeholder="t('sellerCenter.productForm.certificateMetaPlaceholder')"
+          :disabled="!sellerStore.isApproved"
+        />
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.price')" required>
         <el-input-number
           v-model="form.price"
           :min="0.01"
@@ -68,7 +130,7 @@
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="优惠价" required>
+      <el-form-item :label="t('sellerCenter.productForm.discountPrice')" required>
         <el-input-number
           v-model="form.discount_price"
           :min="0.01"
@@ -77,7 +139,7 @@
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="库存" required>
+      <el-form-item :label="t('sellerCenter.productForm.stock')" required>
         <el-input-number
           v-model="form.num"
           :min="1"
@@ -85,7 +147,7 @@
           :disabled="!sellerStore.isApproved"
         />
       </el-form-item>
-      <el-form-item label="商品图片" required>
+      <el-form-item :label="t('sellerCenter.productForm.image')" :required="!isEdit">
         <el-upload
           v-model:file-list="fileList"
           list-type="picture-card"
@@ -97,6 +159,75 @@
           <el-icon><Plus /></el-icon>
         </el-upload>
       </el-form-item>
+      <el-form-item
+        v-if="isEdit && existingCertificates.length"
+        :label="t('sellerCenter.productForm.existingCertificates')"
+      >
+        <div class="existing-certificates">
+          <div
+            v-for="certificate in existingCertificates"
+            :key="certificate.id"
+            class="existing-certificate"
+          >
+            <el-image
+              :src="certificate.file_path"
+              fit="cover"
+              class="existing-certificate-img"
+            />
+            <span>{{ certificate.name }}</span>
+          </div>
+        </div>
+      </el-form-item>
+      <el-form-item :label="t('sellerCenter.productForm.certificates')">
+        <div class="certificate-list">
+          <div v-for="(item, index) in certificateItems" :key="item.id" class="certificate-item">
+            <el-select
+              v-model="item.certificate_type"
+              :placeholder="t('sellerCenter.productForm.certificateTypePlaceholder')"
+              style="width: 180px"
+              :disabled="!sellerStore.isApproved"
+            >
+              <el-option :label="t('sellerCenter.productForm.certificateQualification')" value="qualification" />
+              <el-option :label="t('sellerCenter.productForm.certificateQuality')" value="quality_inspection" />
+              <el-option :label="t('sellerCenter.productForm.certificateAuthorization')" value="authorization" />
+              <el-option :label="t('sellerCenter.productForm.certificateOther')" value="other" />
+            </el-select>
+            <el-input
+              v-model="item.name"
+              maxlength="120"
+              :placeholder="t('sellerCenter.productForm.certificateNamePlaceholder')"
+              :disabled="!sellerStore.isApproved"
+            />
+            <el-upload
+              v-model:file-list="item.files"
+              :auto-upload="false"
+              :limit="1"
+              accept="image/*"
+              :disabled="!sellerStore.isApproved"
+            >
+              <el-button :disabled="!sellerStore.isApproved">
+                {{ t("sellerCenter.productForm.chooseFile") }}
+              </el-button>
+            </el-upload>
+            <el-button :disabled="!sellerStore.isApproved" @click="removeCertificate(index)">
+              {{ t("sellerCenter.productForm.delete") }}
+            </el-button>
+          </div>
+          <el-button
+            type="primary"
+            plain
+            :disabled="!sellerStore.isApproved"
+            @click="addCertificate"
+          >
+            {{
+              isEdit
+                ? t("sellerCenter.productForm.addReplacementCertificate")
+                : t("sellerCenter.productForm.addCertificate")
+            }}
+          </el-button>
+          <span v-if="isEdit" class="muted">{{ t("sellerCenter.productForm.replaceTip") }}</span>
+        </div>
+      </el-form-item>
       <el-form-item>
         <el-button
           type="primary"
@@ -104,32 +235,65 @@
           :disabled="!sellerStore.isApproved"
           @click="submit"
         >
-          提交审核
+          {{
+            isEdit
+              ? t("sellerCenter.productForm.resubmit")
+              : t("sellerCenter.productForm.submit")
+          }}
         </el-button>
-        <el-button @click="$router.push('/seller/products')">返回列表</el-button>
+        <el-button @click="$router.push('/seller/products')">
+          {{ t("sellerCenter.productForm.backToList") }}
+        </el-button>
       </el-form-item>
     </el-form>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, type UploadUserFile } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
-import { createProduct, getCategoryList } from "@/api/product";
+import { useI18n } from "vue-i18n";
+import {
+  createProduct,
+  getCategoryList,
+  getProductDetail,
+  updateProduct,
+} from "@/api/product";
 import { useSellerStore } from "@/stores/seller";
+import type { ProductCertificate } from "@/types";
 
+const route = useRoute();
 const router = useRouter();
 const sellerStore = useSellerStore();
+const { t } = useI18n();
 const submitting = ref(false);
 const categories = ref<any[]>([]);
 const fileList = ref<UploadUserFile[]>([]);
+const existingCertificates = ref<ProductCertificate[]>([]);
+const productID = computed(() => Number(route.params.id || 0));
+const isEdit = computed(() => productID.value > 0);
+const certificateItems = ref<
+  {
+    id: number;
+    certificate_type: string;
+    name: string;
+    files: UploadUserFile[];
+  }[]
+>([]);
 const form = ref({
   name: "",
   category_id: undefined as number | undefined,
   title: "",
   info: "",
+  brand: "",
+  origin: "",
+  specification: "",
+  production_date: "",
+  shelf_life: "",
+  service_guarantees: "",
+  certificate_meta: "",
   price: 0,
   discount_price: 0,
   num: 1,
@@ -141,39 +305,113 @@ async function loadCategories() {
 }
 
 function validate() {
-  if (!form.value.name.trim()) return "请输入商品名称";
-  if (!form.value.category_id) return "请选择分类";
-  if (!form.value.title.trim()) return "请输入商品标题";
+  if (!form.value.name.trim()) return t("sellerCenter.productForm.namePlaceholder");
+  if (!form.value.category_id) return t("sellerCenter.productForm.categoryPlaceholder");
+  if (!form.value.title.trim()) return t("sellerCenter.productForm.titlePlaceholder");
   if (form.value.price <= 0 || form.value.discount_price <= 0) {
-    return "请输入有效价格";
+    return t("sellerCenter.productForm.validPriceRequired");
   }
-  if (!fileList.value.length) return "请上传商品图片";
+  if (!isEdit.value && !fileList.value.length) {
+    return t("sellerCenter.productForm.imageRequired");
+  }
+  if (certificateItems.value.some((item) => item.files.length && !item.name.trim())) {
+    return t("sellerCenter.productForm.certificateNameRequired");
+  }
   return "";
+}
+
+async function loadProductForEdit() {
+  if (!isEdit.value) return;
+  const res: any = await getProductDetail({ id: productID.value });
+  const product = res.data;
+  if (!product || product.boss_id !== sellerStore.profile?.user_id) {
+    ElMessage.warning(t("sellerCenter.productForm.ownerOnly"));
+    router.push("/seller/products");
+    return;
+  }
+  form.value = {
+    name: product.name ?? "",
+    category_id: product.category_id,
+    title: product.title ?? "",
+    info: product.info ?? "",
+    brand: product.brand ?? "",
+    origin: product.origin ?? "",
+    specification: product.specification ?? "",
+    production_date: product.production_date ?? "",
+    shelf_life: product.shelf_life ?? "",
+    service_guarantees: product.service_guarantees ?? "",
+    certificate_meta: product.certificate_meta ?? "",
+    price: Number(product.price || 0),
+    discount_price: Number(product.discount_price || 0),
+    num: Number(product.num || 1),
+  };
+  existingCertificates.value = product.certificates ?? [];
+}
+
+function addCertificate() {
+  certificateItems.value.push({
+    id: Date.now() + certificateItems.value.length,
+    certificate_type: "qualification",
+    name: "",
+    files: [],
+  });
+}
+
+function removeCertificate(index: number) {
+  certificateItems.value.splice(index, 1);
 }
 
 async function submit() {
   if (!sellerStore.isApproved) {
-    return ElMessage.warning("商家入驻审核通过后才可以发布商品");
+    return ElMessage.warning(t("sellerCenter.productForm.approvedOnly"));
   }
   const message = validate();
   if (message) return ElMessage.warning(message);
 
   const data = new FormData();
+  if (isEdit.value) {
+    data.append("id", String(productID.value));
+  }
   data.append("name", form.value.name.trim());
   data.append("category_id", String(form.value.category_id));
   data.append("title", form.value.title.trim());
   data.append("info", form.value.info.trim());
+  data.append("brand", form.value.brand.trim());
+  data.append("origin", form.value.origin.trim());
+  data.append("specification", form.value.specification.trim());
+  data.append("production_date", form.value.production_date || "");
+  data.append("shelf_life", form.value.shelf_life.trim());
+  data.append("service_guarantees", form.value.service_guarantees.trim());
+  data.append("certificate_meta", form.value.certificate_meta.trim());
   data.append("price", form.value.price.toFixed(2));
   data.append("discount_price", form.value.discount_price.toFixed(2));
   data.append("num", String(form.value.num));
   fileList.value.forEach((file) => {
     if (file.raw) data.append("image", file.raw);
   });
+  certificateItems.value.forEach((item) => {
+    const file = item.files[0];
+    if (!file?.raw) return;
+    data.append("certificate", file.raw);
+    data.append("certificate_type", item.certificate_type);
+    data.append("certificate_name", item.name.trim() || file.name);
+  });
+  if (isEdit.value) {
+    data.append(
+      "replace_certificates",
+      certificateItems.value.some((item) => !!item.files[0]?.raw) ? "true" : "false",
+    );
+  }
 
   submitting.value = true;
   try {
-    await createProduct(data);
-    ElMessage.success("商品已提交审核");
+    if (isEdit.value) {
+      await updateProduct(data);
+      ElMessage.success(t("sellerCenter.productForm.resubmitSuccess"));
+    } else {
+      await createProduct(data);
+      ElMessage.success(t("sellerCenter.productForm.submitSuccess"));
+    }
     router.push("/seller/products");
   } finally {
     submitting.value = false;
@@ -184,6 +422,7 @@ onMounted(async () => {
   await sellerStore.loadProfile({ silentError: true });
   if (sellerStore.isApproved) {
     await loadCategories();
+    await loadProductForEdit();
   }
 });
 </script>
@@ -193,6 +432,39 @@ onMounted(async () => {
   margin-bottom: 18px;
 }
 .product-form {
-  max-width: 760px;
+  max-width: 880px;
+}
+.certificate-list {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 12px;
+}
+.certificate-item {
+  display: grid;
+  grid-template-columns: 180px minmax(180px, 1fr) minmax(120px, auto) 64px;
+  align-items: center;
+  gap: 10px;
+}
+.existing-certificates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.existing-certificate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+}
+.existing-certificate-img {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+.muted {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

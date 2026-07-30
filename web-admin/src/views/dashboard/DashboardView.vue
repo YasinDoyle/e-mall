@@ -19,24 +19,24 @@
     <el-card class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>近 7 日订单趋势</span>
-          <el-button :loading="loading" size="small" @click="loadData">刷新</el-button>
+          <span>{{ t("page.dashboard.trendTitle") }}</span>
+          <el-button :loading="loading" size="small" @click="loadData">{{ t("common.refresh") }}</el-button>
         </div>
       </template>
       <v-chart class="trend-chart" :option="chartOption" autoresize />
     </el-card>
 
     <el-card>
-      <template #header>待审核商品</template>
+      <template #header>{{ t("page.dashboard.pendingProducts") }}</template>
       <el-table :data="pendingProducts" style="width: 100%" v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="商品名称" min-width="180" />
-        <el-table-column prop="price" label="价格" width="100" />
-        <el-table-column prop="boss_name" label="卖家" width="120" />
-        <el-table-column label="操作" width="160">
+        <el-table-column prop="name" :label="t('page.product.name')" min-width="180" />
+        <el-table-column prop="price" :label="t('page.product.price')" width="100" />
+        <el-table-column prop="boss_name" :label="t('page.product.seller')" width="120" />
+        <el-table-column :label="t('common.actions')" width="160">
           <template #default="{ row }">
-            <el-button size="small" type="success" @click="audit(row.id, 1)">上架</el-button>
-            <el-button size="small" type="danger" @click="audit(row.id, 2)">拒绝</el-button>
+            <el-button size="small" type="success" @click="audit(row.id, 1)">{{ t("page.dashboard.approve") }}</el-button>
+            <el-button size="small" type="danger" @click="audit(row.id, 2)">{{ t("page.dashboard.reject") }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -58,6 +58,7 @@ import {
   getStatsOrders,
   getStatsOverview,
 } from "@/api";
+import { t } from "@/locales";
 
 use([CanvasRenderer, LineChart, GridComponent, LegendComponent, TooltipComponent]);
 
@@ -119,31 +120,31 @@ function normalizeTrendData(raw: any) {
 
 const statCards = computed(() => [
   {
-    label: "今日订单",
+    label: t("page.dashboard.todayOrders"),
     value: overview.value.today_orders,
     icon: "Tickets",
     color: "#409eff",
   },
   {
-    label: "累计销售额",
+    label: t("page.dashboard.totalSales"),
     value: `¥${Number(overview.value.total_sales || 0).toFixed(2)}`,
     icon: "Money",
     color: "#67c23a",
   },
   {
-    label: "平台收益",
+    label: t("page.dashboard.platformRevenue"),
     value: `¥${Number(overview.value.platform_revenue || 0).toFixed(2)}`,
     icon: "Coin",
     color: "#f56c6c",
   },
   {
-    label: "注册用户",
+    label: t("page.dashboard.registeredUsers"),
     value: overview.value.registered_users,
     icon: "User",
     color: "#909399",
   },
   {
-    label: "待审核商品",
+    label: t("page.dashboard.pendingProducts"),
     value: pendingProducts.value.length,
     icon: "Goods",
     color: "#e6a23c",
@@ -153,7 +154,7 @@ const statCards = computed(() => [
 const chartOption = computed(() => ({
   color: ["#409eff", "#67c23a"],
   tooltip: { trigger: "axis" },
-  legend: { top: 0, data: ["订单数", "销售额"] },
+  legend: { top: 0, data: [t("page.dashboard.orderCount"), t("page.dashboard.salesAmount")] },
   grid: { top: 42, left: 48, right: 24, bottom: 36 },
   xAxis: {
     type: "category",
@@ -161,18 +162,18 @@ const chartOption = computed(() => ({
     data: trend.value.dates,
   },
   yAxis: [
-    { type: "value", name: "订单数", minInterval: 1 },
-    { type: "value", name: "销售额" },
+    { type: "value", name: t("page.dashboard.orderCount"), minInterval: 1 },
+    { type: "value", name: t("page.dashboard.salesAmount") },
   ],
   series: [
     {
-      name: "订单数",
+      name: t("page.dashboard.orderCount"),
       type: "line",
       smooth: true,
       data: trend.value.order_counts,
     },
     {
-      name: "销售额",
+      name: t("page.dashboard.salesAmount"),
       type: "line",
       smooth: true,
       yAxisIndex: 1,
@@ -199,7 +200,9 @@ async function loadData() {
 
 async function audit(id: number, status: number) {
   await auditProduct({ id, audit_status: status });
-  ElMessage.success(status === 1 ? "已上架" : "已拒绝");
+  ElMessage.success(t("page.dashboard.auditSuccess", {
+    action: status === 1 ? t("page.dashboard.approve") : t("page.dashboard.reject"),
+  }));
   loadData();
 }
 

@@ -1,5 +1,8 @@
 package e
 
+const DefaultLocale = "zh-CN"
+const EnglishLocale = "en-US"
+
 var MsgFlags = map[int]string{
 	SUCCESS:               "ok",
 	UpdatePasswordSuccess: "修改密码成功",
@@ -81,11 +84,201 @@ var MsgFlags = map[int]string{
 	ErrorSellerWithdrawNotFound:            "提现单不存在",
 }
 
+var LocaleMsgFlags = map[string]map[int]string{
+	DefaultLocale: MsgFlags,
+	EnglishLocale: {
+		SUCCESS:               "ok",
+		UpdatePasswordSuccess: "Password updated successfully",
+		NotExistInentifier:    "This third-party account is not linked",
+		ERROR:                 "fail",
+		InvalidParams:         "Invalid request parameters",
+
+		ErrorExistNick:          "Nickname already exists",
+		ErrorExistUser:          "Username already exists",
+		ErrorNotExistUser:       "User does not exist",
+		ErrorNotCompare:         "Invalid account or password",
+		ErrorNotComparePassword: "The two passwords do not match",
+		ErrorFailEncryption:     "Encryption failed",
+		ErrorNotExistProduct:    "Product does not exist",
+		ErrorNotExistAddress:    "Address does not exist",
+		ErrorExistFavorite:      "Product already favorited",
+		ErrorUserNotFound:       "User not found",
+
+		ErrorBossCheckTokenFail:        "Seller token authentication failed",
+		ErrorBossCheckTokenTimeout:     "Seller token has expired",
+		ErrorBossToken:                 "Seller token generation failed",
+		ErrorBoss:                      "Invalid seller token",
+		ErrorBossInsufficientAuthority: "Insufficient seller permissions",
+		ErrorBossProduct:               "Seller file read failed",
+
+		ErrorProductExistCart: "Product is already in cart; quantity increased by 1",
+		ErrorProductMoreCart:  "Quantity exceeds the limit",
+
+		ErrorAuthCheckTokenFail:        "Token authentication failed",
+		ErrorAuthCheckTokenTimeout:     "Token has expired",
+		ErrorAuthToken:                 "Token generation failed",
+		ErrorAuth:                      "Invalid token",
+		ErrorAuthInsufficientAuthority: "Insufficient permissions",
+		ErrorReadFile:                  "Failed to read file",
+		ErrorCallApi:                   "API call failed",
+		ErrorUnmarshalJson:             "Failed to decode JSON",
+
+		ErrorUploadFile:    "Upload failed",
+		ErrorAdminFindUser: "Admin user query failed",
+
+		ErrorDatabase: "Database operation failed, please try again",
+
+		ErrorOss: "OSS configuration error",
+
+		ErrorSellerNotApplied:                  "Seller onboarding has not been submitted",
+		ErrorSellerAuditPending:                "Seller onboarding application is under review",
+		ErrorSellerAlreadyApproved:             "Seller onboarding has already been approved",
+		ErrorSellerBanned:                      "Seller account is banned and cannot reapply",
+		ErrorSellerNotApproved:                 "Please complete seller onboarding and pass review first",
+		ErrorSellerInvalidStatus:               "Invalid seller status",
+		ErrorSellerInvalidApplication:          "Invalid parameters",
+		ErrorSellerShopNameRequired:            "Shop name is required",
+		ErrorSellerShopNameTooLong:             "Shop name cannot exceed 80 characters",
+		ErrorSellerDescriptionTooLong:          "Shop description cannot exceed 500 characters",
+		ErrorSellerRejectReasonMissing:         "Rejection reason is required",
+		ErrorSellerAuditStatusInvalid:          "Invalid seller audit status",
+		ErrorSellerPayKeyRequired:              "Please set a payment password before listing products",
+		ErrorProductSellerNotApproved:          "Product seller has not passed seller onboarding review",
+		ErrorCarouselProductRequired:           "Please select a related product",
+		ErrorCarouselProductNotExist:           "Related product does not exist",
+		ErrorSettlementInvalidAmount:           "Invalid settlement amount",
+		ErrorSettlementInvalidRate:             "Invalid commission rate",
+		ErrorSettlementSellerInvalid:           "Seller does not exist or has not been approved",
+		ErrorSettlementStatusInvalid:           "Settlement status does not allow this operation",
+		ErrorOrderPayStatusInvalid:             "Order has been paid or cannot be paid in its current status",
+		ErrorPaymentPayKeyRequired:             "Please set a payment password first",
+		ErrorPaymentPayKeyInvalid:              "Invalid payment password",
+		ErrorPaymentBalanceInsufficient:        "Insufficient coin balance",
+		ErrorPaymentStockInsufficient:          "Insufficient stock",
+		ErrorRefundStatusInvalid:               "Order status does not allow refund approval",
+		ErrorRefundAmountInvalid:               "Invalid refund amount",
+		ErrorRefundNotFound:                    "Refund request does not exist",
+		ErrorOrderSelfPurchaseForbidden:        "You cannot buy your own product",
+		ErrorSellerWithdrawAmountInvalid:       "Invalid withdrawal amount",
+		ErrorSellerWithdrawPayeeRequired:       "Withdrawal payee information is required",
+		ErrorSellerWithdrawInsufficientBalance: "Insufficient withdrawable balance",
+		ErrorSellerWithdrawStatusInvalid:       "Withdrawal status does not allow this operation",
+		ErrorSellerWithdrawReasonMissing:       "Rejection reason is required",
+		ErrorSellerWithdrawNotFound:            "Withdrawal request does not exist",
+	},
+}
+
+var MsgKeys = map[int]string{
+	SUCCESS:               "common.ok",
+	UpdatePasswordSuccess: "user.password_updated",
+	NotExistInentifier:    "auth.third_party_not_bound",
+	ERROR:                 "common.error",
+	InvalidParams:         "common.invalid_params",
+
+	ErrorExistNick:          "user.nickname_exists",
+	ErrorExistUser:          "user.username_exists",
+	ErrorNotExistUser:       "user.not_found",
+	ErrorNotCompare:         "auth.account_password_invalid",
+	ErrorNotComparePassword: "auth.password_confirm_mismatch",
+	ErrorFailEncryption:     "common.encrypt_failed",
+	ErrorNotExistProduct:    "product.not_found",
+	ErrorNotExistAddress:    "address.not_found",
+	ErrorExistFavorite:      "favorite.exists",
+	ErrorUserNotFound:       "user.not_found",
+
+	ErrorBossCheckTokenFail:        "seller.token_check_failed",
+	ErrorBossCheckTokenTimeout:     "seller.token_timeout",
+	ErrorBossToken:                 "seller.token_create_failed",
+	ErrorBoss:                      "seller.token_invalid",
+	ErrorBossInsufficientAuthority: "seller.insufficient_authority",
+	ErrorBossProduct:               "seller.product_file_read_failed",
+
+	ErrorProductExistCart: "cart.product_exists",
+	ErrorProductMoreCart:  "cart.quantity_limit_exceeded",
+
+	ErrorAuthCheckTokenFail:        "auth.token_check_failed",
+	ErrorAuthCheckTokenTimeout:     "auth.token_timeout",
+	ErrorAuthToken:                 "auth.token_create_failed",
+	ErrorAuth:                      "auth.token_invalid",
+	ErrorAuthInsufficientAuthority: "auth.insufficient_authority",
+	ErrorReadFile:                  "file.read_failed",
+	ErrorCallApi:                   "common.call_api_failed",
+	ErrorUnmarshalJson:             "json.unmarshal_failed",
+	ErrorAdminFindUser:             "admin.user_query_failed",
+
+	ErrorDatabase:   "database.error",
+	ErrorOss:        "oss.config_error",
+	ErrorUploadFile: "file.upload_failed",
+
+	ErrorSellerNotApplied:                  "seller.not_applied",
+	ErrorSellerAuditPending:                "seller.audit_pending",
+	ErrorSellerAlreadyApproved:             "seller.already_approved",
+	ErrorSellerBanned:                      "seller.banned",
+	ErrorSellerNotApproved:                 "seller.not_approved",
+	ErrorSellerInvalidStatus:               "seller.invalid_status",
+	ErrorSellerInvalidApplication:          "seller.invalid_application",
+	ErrorSellerShopNameRequired:            "seller.shop_name_required",
+	ErrorSellerShopNameTooLong:             "seller.shop_name_too_long",
+	ErrorSellerDescriptionTooLong:          "seller.description_too_long",
+	ErrorSellerRejectReasonMissing:         "seller.reject_reason_missing",
+	ErrorSellerAuditStatusInvalid:          "seller.audit_status_invalid",
+	ErrorSellerPayKeyRequired:              "seller.pay_key_required",
+	ErrorProductSellerNotApproved:          "product.seller_not_approved",
+	ErrorCarouselProductRequired:           "carousel.product_required",
+	ErrorCarouselProductNotExist:           "carousel.product_not_exist",
+	ErrorSettlementInvalidAmount:           "settlement.invalid_amount",
+	ErrorSettlementInvalidRate:             "settlement.invalid_rate",
+	ErrorSettlementSellerInvalid:           "settlement.seller_invalid",
+	ErrorSettlementStatusInvalid:           "settlement.status_invalid",
+	ErrorOrderPayStatusInvalid:             "order.pay_status_invalid",
+	ErrorPaymentPayKeyRequired:             "payment.pay_key_required",
+	ErrorPaymentPayKeyInvalid:              "payment.pay_key_invalid",
+	ErrorPaymentBalanceInsufficient:        "payment.balance_insufficient",
+	ErrorPaymentStockInsufficient:          "payment.stock_insufficient",
+	ErrorRefundStatusInvalid:               "refund.status_invalid",
+	ErrorRefundAmountInvalid:               "refund.amount_invalid",
+	ErrorRefundNotFound:                    "refund.not_found",
+	ErrorOrderSelfPurchaseForbidden:        "order.self_purchase_forbidden",
+	ErrorSellerWithdrawAmountInvalid:       "seller_withdraw.amount_invalid",
+	ErrorSellerWithdrawPayeeRequired:       "seller_withdraw.payee_required",
+	ErrorSellerWithdrawInsufficientBalance: "seller_withdraw.insufficient_balance",
+	ErrorSellerWithdrawStatusInvalid:       "seller_withdraw.status_invalid",
+	ErrorSellerWithdrawReasonMissing:       "seller_withdraw.reason_missing",
+	ErrorSellerWithdrawNotFound:            "seller_withdraw.not_found",
+}
+
 // GetMsg 获取状态码对应信息
 func GetMsg(code int) string {
-	msg, ok := MsgFlags[code]
+	return GetMsgByLocale(code, DefaultLocale)
+}
+
+func GetMsgKey(code int) string {
+	key, ok := MsgKeys[code]
+	if ok {
+		return key
+	}
+	return MsgKeys[ERROR]
+}
+
+func GetMsgByLocale(code int, locale string) string {
+	messages, ok := LocaleMsgFlags[NormalizeLocale(locale)]
+	if !ok {
+		messages = MsgFlags
+	}
+	msg, ok := messages[code]
 	if ok {
 		return msg
 	}
-	return MsgFlags[ERROR]
+	return messages[ERROR]
+}
+
+func NormalizeLocale(locale string) string {
+	switch locale {
+	case "zh", "zh-CN", "zh-Hans", "zh_CN":
+		return DefaultLocale
+	case "en", "en-US", "en_US":
+		return EnglishLocale
+	default:
+		return DefaultLocale
+	}
 }

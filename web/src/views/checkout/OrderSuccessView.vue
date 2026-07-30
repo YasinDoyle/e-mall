@@ -2,15 +2,17 @@
   <div style="text-align: center; padding: 60px">
     <el-result
       icon="success"
-      title="支付成功！"
-      sub-title="感谢您的购买，商家将尽快发货"
+      :title="t('orderSuccess.title')"
+      :sub-title="t('orderSuccess.subtitle')"
     >
       <template #extra>
-        <el-button type="primary" @click="$router.push('/user/orders')"
-          >查看订单</el-button
-        >
-        <el-button @click="$router.push('/')">继续购物</el-button>
+        <el-button type="primary" @click="$router.push('/user/orders')">{{ t('orderSuccess.viewOrder') }}</el-button>
+        <el-button @click="$router.push('/')">{{ t('orderSuccess.continueShopping') }}</el-button>
       </template>
     </el-result>
   </div>
 </template>
+
+<script setup lang="ts">
+import { t } from "@/locales";
+</script>

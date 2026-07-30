@@ -1,16 +1,29 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
-      <div class="login-title">🛒 E-Mall 管理后台</div>
+      <el-select
+        v-model="selectedLocale"
+        class="locale-select"
+        size="small"
+        :aria-label="t('common.language')"
+      >
+        <el-option
+          v-for="locale in supportedLocales"
+          :key="locale.value"
+          :label="locale.label"
+          :value="locale.value"
+        />
+      </el-select>
+      <div class="login-title">🛒 {{ t("admin.title") }}</div>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="用户名" prop="user_name">
-          <el-input v-model="form.user_name" placeholder="请输入管理员账号" />
+        <el-form-item :label="t('auth.username')" prop="user_name">
+          <el-input v-model="form.user_name" :placeholder="t('auth.adminUsernamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="t('auth.password')" prop="password">
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码"
+            :placeholder="t('auth.passwordPlaceholder')"
             show-password
           />
         </el-form-item>
@@ -21,7 +34,7 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登录
+            {{ t("common.login") }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -30,23 +43,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { computed, ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { adminLogin, getStatsOverview } from "@/api";
 import { useAdminStore } from "@/stores/admin";
 import { ApiErrorCode } from "@/utils/api-error";
+import { beginAdminLoginSession } from "@/utils/session";
+import { currentLocale, setLocale, supportedLocales } from "@/locales";
 
 const router = useRouter();
 const store = useAdminStore();
+const { t } = useI18n();
+const selectedLocale = computed({
+  get: () => currentLocale.value,
+  set: (locale: string) => setLocale(locale),
+});
 const formRef = ref<FormInstance>();
 const loading = ref(false);
 const form = reactive({ user_name: "", password: "" });
-const rules = {
-  user_name: [{ required: true, message: "请输入用户名", trigger: "blur" }],
-  password: [{ required: true, message: "请输入密码", trigger: "blur" }],
-};
+const rules = computed(() => ({
+  user_name: [
+    { required: true, message: t("auth.usernamePlaceholder"), trigger: "blur" },
+  ],
+  password: [
+    { required: true, message: t("auth.passwordPlaceholder"), trigger: "blur" },
+  ],
+}));
 
 async function handleLogin() {
   await formRef.value?.validate();
@@ -54,11 +79,12 @@ async function handleLogin() {
   try {
     const res: any = await adminLogin(form);
     if (!res.data?.user) {
-      ElMessage.error("账号或密码错误");
+      ElMessage.error(t("auth.accountInvalid"));
       return;
     }
+    beginAdminLoginSession();
     store.setToken(res.data.access_token);
-    localStorage.setItem("admin_refresh_token", res.data.refresh_token);
+    store.setRefreshToken(res.data.refresh_token);
     try {
       await getStatsOverview();
     } catch (error: any) {
@@ -70,6 +96,7 @@ async function handleLogin() {
       return;
     }
     store.setAdminInfo({
+      id: res.data.user.id,
       user_name: res.data.user.user_name,
       nick_name: res.data.user.nick_name,
     });
@@ -90,6 +117,13 @@ async function handleLogin() {
 }
 .login-card {
   width: 400px;
+  position: relative;
+}
+.locale-select {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 104px;
 }
 .login-title {
   text-align: center;

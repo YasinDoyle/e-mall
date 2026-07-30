@@ -1,3 +1,5 @@
+import { t } from "@/locales";
+
 export const ApiErrorCode = {
   SUCCESS: 200,
   UPDATE_PASSWORD_SUCCESS: 201,
@@ -37,43 +39,43 @@ export const ApiErrorCode = {
   ERROR_UPLOAD_FILE: 50002,
 } as const;
 
-export const ApiErrorMessage: Record<number, string> = {
-  [ApiErrorCode.SUCCESS]: "ok",
-  [ApiErrorCode.UPDATE_PASSWORD_SUCCESS]: "修改密码成功",
-  [ApiErrorCode.NOT_EXIST_IDENTIFIER]: "该第三方账号未绑定",
-  [ApiErrorCode.ERROR]: "fail",
-  [ApiErrorCode.INVALID_PARAMS]: "请求参数错误",
-  [ApiErrorCode.ERROR_EXIST_NICK]: "已存在该昵称",
-  [ApiErrorCode.ERROR_EXIST_USER]: "已存在该用户名",
-  [ApiErrorCode.ERROR_NOT_EXIST_USER]: "该用户不存在",
-  [ApiErrorCode.ERROR_NOT_COMPARE]: "账号密码错误",
-  [ApiErrorCode.ERROR_NOT_COMPARE_PASSWORD]: "两次密码输入不一致",
-  [ApiErrorCode.ERROR_FAIL_ENCRYPTION]: "加密失败",
-  [ApiErrorCode.ERROR_NOT_EXIST_PRODUCT]: "该商品不存在",
-  [ApiErrorCode.ERROR_NOT_EXIST_ADDRESS]: "该收获地址不存在",
-  [ApiErrorCode.ERROR_EXIST_FAVORITE]: "已收藏该商品",
-  [ApiErrorCode.ERROR_USER_NOT_FOUND]: "用户不存在",
-  [ApiErrorCode.ERROR_BOSS_CHECK_TOKEN_FAIL]: "商家的Token鉴权失败",
-  [ApiErrorCode.ERROR_BOSS_CHECK_TOKEN_TIMEOUT]: "商家Token已超时",
-  [ApiErrorCode.ERROR_BOSS_TOKEN]: "商家的Token生成失败",
-  [ApiErrorCode.ERROR_BOSS]: "商家Token错误",
-  [ApiErrorCode.ERROR_BOSS_INSUFFICIENT_AUTHORITY]: "商家权限不足",
-  [ApiErrorCode.ERROR_BOSS_PRODUCT]: "商家读文件错误",
-  [ApiErrorCode.ERROR_PRODUCT_EXIST_CART]: "商品已经在购物车了，数量+1",
-  [ApiErrorCode.ERROR_PRODUCT_MORE_CART]: "超过最大上限",
-  [ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL]: "Token鉴权失败",
-  [ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_TIMEOUT]: "Token已超时",
-  [ApiErrorCode.ERROR_AUTH_TOKEN]: "Token生成失败",
-  [ApiErrorCode.ERROR_AUTH]: "Token错误",
-  [ApiErrorCode.ERROR_AUTH_INSUFFICIENT_AUTHORITY]: "权限不足",
-  [ApiErrorCode.ERROR_READ_FILE]: "读文件失败",
-  [ApiErrorCode.ERROR_SEND_EMAIL]: "发送邮件失败",
-  [ApiErrorCode.ERROR_CALL_API]: "调用接口失败",
-  [ApiErrorCode.ERROR_UNMARSHAL_JSON]: "解码JSON失败",
-  [ApiErrorCode.ERROR_ADMIN_FIND_USER]: "管理员查询用户失败",
-  [ApiErrorCode.ERROR_DATABASE]: "数据库操作出错,请重试",
-  [ApiErrorCode.ERROR_OSS]: "OSS配置错误",
-  [ApiErrorCode.ERROR_UPLOAD_FILE]: "上传失败",
+export const ApiErrorMessageKey: Record<number, string> = {
+  [ApiErrorCode.SUCCESS]: "common.ok",
+  [ApiErrorCode.UPDATE_PASSWORD_SUCCESS]: "user.password_updated",
+  [ApiErrorCode.NOT_EXIST_IDENTIFIER]: "auth.third_party_not_bound",
+  [ApiErrorCode.ERROR]: "common.error",
+  [ApiErrorCode.INVALID_PARAMS]: "common.invalid_params",
+  [ApiErrorCode.ERROR_EXIST_NICK]: "user.nickname_exists",
+  [ApiErrorCode.ERROR_EXIST_USER]: "user.username_exists",
+  [ApiErrorCode.ERROR_NOT_EXIST_USER]: "user.not_found",
+  [ApiErrorCode.ERROR_NOT_COMPARE]: "auth.account_password_invalid",
+  [ApiErrorCode.ERROR_NOT_COMPARE_PASSWORD]: "auth.password_confirm_mismatch",
+  [ApiErrorCode.ERROR_FAIL_ENCRYPTION]: "common.encrypt_failed",
+  [ApiErrorCode.ERROR_NOT_EXIST_PRODUCT]: "product.not_found",
+  [ApiErrorCode.ERROR_NOT_EXIST_ADDRESS]: "address.not_found",
+  [ApiErrorCode.ERROR_EXIST_FAVORITE]: "favorite.exists",
+  [ApiErrorCode.ERROR_USER_NOT_FOUND]: "user.not_found",
+  [ApiErrorCode.ERROR_BOSS_CHECK_TOKEN_FAIL]: "seller.token_check_failed",
+  [ApiErrorCode.ERROR_BOSS_CHECK_TOKEN_TIMEOUT]: "seller.token_timeout",
+  [ApiErrorCode.ERROR_BOSS_TOKEN]: "seller.token_create_failed",
+  [ApiErrorCode.ERROR_BOSS]: "seller.token_invalid",
+  [ApiErrorCode.ERROR_BOSS_INSUFFICIENT_AUTHORITY]: "seller.insufficient_authority",
+  [ApiErrorCode.ERROR_BOSS_PRODUCT]: "seller.product_file_read_failed",
+  [ApiErrorCode.ERROR_PRODUCT_EXIST_CART]: "cart.product_exists",
+  [ApiErrorCode.ERROR_PRODUCT_MORE_CART]: "cart.quantity_limit_exceeded",
+  [ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_FAIL]: "auth.token_check_failed",
+  [ApiErrorCode.ERROR_AUTH_CHECK_TOKEN_TIMEOUT]: "auth.token_timeout",
+  [ApiErrorCode.ERROR_AUTH_TOKEN]: "auth.token_create_failed",
+  [ApiErrorCode.ERROR_AUTH]: "auth.token_invalid",
+  [ApiErrorCode.ERROR_AUTH_INSUFFICIENT_AUTHORITY]: "auth.insufficient_authority",
+  [ApiErrorCode.ERROR_READ_FILE]: "file.read_failed",
+  [ApiErrorCode.ERROR_SEND_EMAIL]: "common.call_api_failed",
+  [ApiErrorCode.ERROR_CALL_API]: "common.call_api_failed",
+  [ApiErrorCode.ERROR_UNMARSHAL_JSON]: "json.unmarshal_failed",
+  [ApiErrorCode.ERROR_ADMIN_FIND_USER]: "admin.user_query_failed",
+  [ApiErrorCode.ERROR_DATABASE]: "database.error",
+  [ApiErrorCode.ERROR_OSS]: "oss.config_error",
+  [ApiErrorCode.ERROR_UPLOAD_FILE]: "file.upload_failed",
 };
 
 function firstText(...values: unknown[]): string {
@@ -85,11 +87,19 @@ function firstText(...values: unknown[]): string {
   return "";
 }
 
-export function resolveApiErrorMessage(payload: any, fallback = "请求失败") {
+function apiMessage(key: string, fallback = "") {
+  return t(`api.${key}`, fallback);
+}
+
+export function resolveApiErrorMessage(payload: any, fallback = t("common.requestFailed", "请求失败")) {
   const status = Number(payload?.status ?? payload?.code);
   const detail = firstText(payload?.data, payload?.error, payload?.msg);
-  if (status && ApiErrorMessage[status]) {
-    return detail || ApiErrorMessage[status];
+  const msgKey = firstText(payload?.msg_key);
+  if (msgKey) {
+    return apiMessage(msgKey, detail || fallback);
+  }
+  if (status && ApiErrorMessageKey[status]) {
+    return detail || apiMessage(ApiErrorMessageKey[status], fallback);
   }
   return detail || fallback;
 }

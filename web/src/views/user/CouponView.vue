@@ -1,16 +1,16 @@
 <template>
   <el-card>
-    <template #header>我的优惠券</template>
+    <template #header>{{ t("coupon.title") }}</template>
 
     <el-tabs v-model="activeTab" @tab-change="loadData">
-      <el-tab-pane label="可领取" name="claimable" />
-      <el-tab-pane label="可使用" name="usable" />
-      <el-tab-pane label="已使用" name="used" />
-      <el-tab-pane label="已过期" name="expired" />
+      <el-tab-pane :label="t('coupon.claimable')" name="claimable" />
+      <el-tab-pane :label="t('coupon.usable')" name="usable" />
+      <el-tab-pane :label="t('coupon.used')" name="used" />
+      <el-tab-pane :label="t('coupon.expired')" name="expired" />
     </el-tabs>
 
     <el-skeleton v-if="loading" :rows="4" animated />
-    <el-empty v-else-if="!displayCoupons.length" description="暂无优惠券" />
+    <el-empty v-else-if="!displayCoupons.length" :description="t('coupon.empty')" />
 
     <div v-else class="coupon-grid">
       <div
@@ -24,7 +24,9 @@
         </div>
         <div class="coupon-info">
           <div class="coupon-name">{{ coupon.name }}</div>
-          <div class="coupon-expire">有效期至 {{ formatDate(coupon.expire_at) }}</div>
+          <div class="coupon-expire">
+            {{ t("coupon.expireAt", { date: formatDate(coupon.expire_at) }) }}
+          </div>
           <el-button
             v-if="activeTab === 'claimable'"
             size="small"
@@ -32,7 +34,7 @@
             :loading="claimingId === coupon.id"
             @click="handleClaim(coupon.id)"
           >
-            领取
+            {{ t("coupon.claim") }}
           </el-button>
           <el-tag v-else :type="tagType(coupon)">
             {{ statusText(coupon) }}
@@ -46,6 +48,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import {
   claimCoupon,
   getCouponList,
@@ -53,6 +56,7 @@ import {
 } from "@/api/coupon";
 
 const activeTab = ref("usable");
+const { t } = useI18n();
 const loading = ref(false);
 const claimingId = ref<number | null>(null);
 const claimableCoupons = ref<any[]>([]);
@@ -75,15 +79,15 @@ function couponKey(coupon: any) {
 
 function discountText(coupon: any) {
   if (coupon.coupon_type === 2) {
-    return `${Number(coupon.discount * 10).toFixed(1)}折`;
+    return t("coupon.discount", { value: Number(coupon.discount * 10).toFixed(1) });
   }
   return `¥${Number(coupon.discount || 0).toFixed(0)}`;
 }
 
 function thresholdText(coupon: any) {
   return Number(coupon.min_amount || 0) > 0
-    ? `满 ${Number(coupon.min_amount).toFixed(0)} 可用`
-    : "无门槛";
+    ? t("coupon.threshold", { amount: Number(coupon.min_amount).toFixed(0) })
+    : t("coupon.noThreshold");
 }
 
 function formatDate(value: string) {
@@ -92,17 +96,17 @@ function formatDate(value: string) {
 }
 
 function isDisabled(coupon: any) {
-  return activeTab.value !== "claimable" && statusText(coupon) !== "可使用";
+  return activeTab.value !== "claimable" && statusText(coupon) !== t("coupon.usable");
 }
 
 function statusText(coupon: any) {
-  if (coupon.status === 1) return "已使用";
-  if (new Date(coupon.expire_at).getTime() < Date.now()) return "已过期";
-  return "可使用";
+  if (coupon.status === 1) return t("coupon.used");
+  if (new Date(coupon.expire_at).getTime() < Date.now()) return t("coupon.expired");
+  return t("coupon.usable");
 }
 
 function tagType(coupon: any) {
-  return statusText(coupon) === "可使用" ? "success" : "info";
+  return statusText(coupon) === t("coupon.usable") ? "success" : "info";
 }
 
 async function loadData() {
@@ -124,7 +128,7 @@ async function handleClaim(couponId: number) {
   claimingId.value = couponId;
   try {
     await claimCoupon({ coupon_id: couponId });
-    ElMessage.success("领取成功");
+    ElMessage.success(t("coupon.claimSuccess"));
     await loadData();
   } finally {
     claimingId.value = null;

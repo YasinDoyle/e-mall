@@ -1,10 +1,10 @@
 <template>
   <div class="payment-wrap">
-    <h2 class="page-title">支付订单</h2>
+    <h2 class="page-title">{{ t("payment.title") }}</h2>
 
     <el-card class="section-card">
-      <template #header>订单信息</template>
-      <el-empty v-if="!pendingOrders.length" description="暂无待支付订单" />
+      <template #header>{{ t("payment.orderInfo") }}</template>
+      <el-empty v-if="!pendingOrders.length" :description="t('payment.noPendingOrders')" />
       <div v-for="item in pendingOrders" :key="item.order_id" class="order-row">
         <span>{{ productName(item) }} × {{ item.num }}</span>
         <span class="price"
@@ -13,35 +13,35 @@
       </div>
       <el-divider v-if="pendingOrders.length" style="margin: 12px 0" />
       <div v-if="pendingOrders.length" class="total-row">
-        <span>应付总额</span>
+        <span>{{ t("payment.totalAmount") }}</span>
         <span class="total-price">¥{{ totalPrice }}</span>
       </div>
     </el-card>
 
     <el-card class="section-card">
-      <template #header>支付方式</template>
+      <template #header>{{ t("payment.paymentMethod") }}</template>
       <el-radio-group
         v-model="payMethod"
         style="display: flex; flex-direction: column; gap: 12px"
       >
         <el-radio value="balance">
-          <span>余额支付</span>
-          <span style="color: #999; font-size: 12px; margin-left: 8px"
-            >（当前余额：{{ balanceText }}）</span
-          >
+          <span>{{ t("payment.balancePay") }}</span>
+          <span style="color: #999; font-size: 12px; margin-left: 8px">
+            ({{ balanceText }})
+          </span>
         </el-radio>
-        <el-radio value="wechat">微信充值后余额支付</el-radio>
-        <el-radio value="alipay">支付宝充值后余额支付</el-radio>
+        <el-radio value="wechat">{{ t("payment.wechatRechargePay") }}</el-radio>
+        <el-radio value="alipay">{{ t("payment.alipayRechargePay") }}</el-radio>
       </el-radio-group>
     </el-card>
 
     <el-card v-if="payMethod === 'balance'" class="section-card">
-      <template #header>支付密码</template>
+      <template #header>{{ t("payment.payPassword") }}</template>
       <div class="payment-key-row">
         <el-input
           v-model="payPassword"
           type="password"
-          placeholder="请输入6位支付密码"
+          :placeholder="t('payment.payPasswordPlaceholder')"
           maxlength="6"
           show-password
         />
@@ -50,18 +50,18 @@
           :disabled="payPassword.length !== 6"
           @click="loadBalance"
         >
-          刷新余额
+          {{ t("payment.refreshBalance") }}
         </el-button>
       </div>
     </el-card>
 
     <el-card v-else class="section-card">
       <template #header>
-        {{ payMethod === "wechat" ? "微信充值" : "支付宝充值" }}
+        {{ payMethod === "wechat" ? t("payment.wechatRecharge") : t("payment.alipayRecharge") }}
       </template>
       <div class="recharge-panel">
         <div class="recharge-row">
-          <span>建议充值金额</span>
+          <span>{{ t("payment.suggestedRecharge") }}</span>
           <el-input-number
             v-model="rechargeAmount"
             :min="0.01"
@@ -74,21 +74,21 @@
           :loading="rechargeLoading"
           @click="startRecharge"
         >
-          {{ rechargeOrderNum ? "重新发起充值" : "发起充值" }}
+          {{ rechargeOrderNum ? t("payment.rechargeAgain") : t("payment.startRecharge") }}
         </el-button>
       </div>
 
       <div v-if="rechargeOrderNum" class="recharge-result">
         <div class="result-row">
-          <span>充值单号</span>
+          <span>{{ t("payment.rechargeNo") }}</span>
           <b>{{ rechargeOrderNum }}</b>
         </div>
         <div class="result-row">
-          <span>支付状态</span>
+          <span>{{ t("payment.paymentStatus") }}</span>
           <el-tag :type="rechargeStatusTag">{{ rechargeStatusText }}</el-tag>
         </div>
         <div v-if="wechatQrUrl" class="qr-wrap">
-          <img :src="qrImageUrl" alt="微信支付二维码" />
+          <img :src="qrImageUrl" :alt="t('payment.rechargeQrAlt')" />
           <div class="qr-link">{{ wechatQrUrl }}</div>
         </div>
         <div v-if="pendingCredit > 0" class="apply-box">
@@ -97,7 +97,7 @@
             type="password"
             maxlength="6"
             show-password
-            placeholder="输入6位支付密码确认入账"
+            :placeholder="t('payment.confirmCreditPassword')"
           />
           <el-button
             type="success"
@@ -105,14 +105,14 @@
             :disabled="payPassword.length !== 6"
             @click="handleApplyCredit"
           >
-            确认入账
+            {{ t("payment.confirmCredit") }}
           </el-button>
         </div>
       </div>
     </el-card>
 
     <div class="pay-footer">
-      <el-button size="large" @click="$router.push('/cart')">取消</el-button>
+      <el-button size="large" @click="$router.push('/cart')">{{ t("payment.cancel") }}</el-button>
       <el-button
         type="primary"
         size="large"
@@ -120,7 +120,7 @@
         :disabled="!canPay"
         @click="handlePay"
       >
-        立即支付 ¥{{ totalPrice }}
+        {{ t("payment.payNow", { amount: totalPrice }) }}
       </el-button>
     </div>
   </div>
@@ -138,11 +138,18 @@ import {
   getRechargeStatus,
   wechatRecharge,
 } from "@/api/recharge";
+import { useUserStore } from "@/stores/user";
+import { activeUserSessionStorageKey } from "@/utils/session";
+import { t } from "@/locales";
 
 const router = useRouter();
+const userStore = useUserStore();
 
 const pendingOrders = ref<any[]>(
-  JSON.parse(sessionStorage.getItem("pending_orders") ?? "[]"),
+  JSON.parse(
+    sessionStorage.getItem(activeUserSessionStorageKey("pending_orders")) ??
+      "[]",
+  ),
 );
 const payMethod = ref("balance");
 const payPassword = ref("");
@@ -166,17 +173,19 @@ const totalPrice = computed(() =>
 );
 
 const balanceText = computed(() =>
-  balanceLoaded.value ? `¥${balance.value}` : "输入支付密码后刷新",
+  balanceLoaded.value
+    ? t("payment.currentBalance", { balance: `¥${balance.value}` })
+    : t("payment.balanceAfterPassword"),
 );
 
 const rechargeStatusText = computed(
   () =>
     ({
-      pending: "待支付",
-      paid: "已支付，待入账",
-      credited: "已入账",
-      failed: "已失败",
-    })[rechargeStatus.value] ?? "待发起",
+      pending: t("payment.pending"),
+      paid: t("payment.paidPendingCredit"),
+      credited: t("payment.credited"),
+      failed: t("payment.failed"),
+    })[rechargeStatus.value] ?? t("payment.pendingStart"),
 );
 
 const rechargeStatusTag = computed(
@@ -204,16 +213,21 @@ const canPay = computed(
 );
 
 function productName(item: any) {
-  return item.name || item.product_name || "商品";
+  return item.name || item.product_name || t("common.unknown");
 }
 
 function unitPriceValue(item: any) {
   return Number(item.money ?? item.discount_price ?? item.price ?? 0);
 }
 
+function syncPaidCartCount(paidCount: number) {
+  if (paidCount <= 0) return;
+  userStore.setCartCount(Math.max(0, userStore.cartCount - paidCount));
+}
+
 async function loadBalance() {
   if (payPassword.value.length !== 6) {
-    return ElMessage.warning("请输入6位支付密码");
+    return ElMessage.warning(t("payment.payPasswordRequired"));
   }
   balanceLoading.value = true;
   try {
@@ -222,7 +236,7 @@ async function loadBalance() {
     balanceLoaded.value = true;
   } catch (error: any) {
     balanceLoaded.value = false;
-    ElMessage.error(error?.message || "余额查询失败，请检查支付密码");
+    ElMessage.error(error?.message || t("payment.balanceQueryFailed"));
   } finally {
     balanceLoading.value = false;
   }
@@ -242,7 +256,7 @@ function startPolling() {
 
 async function startRecharge() {
   const amount = rechargeAmount.value || Number(totalPrice.value);
-  if (amount <= 0) return ElMessage.warning("充值金额不合法");
+  if (amount <= 0) return ElMessage.warning(t("payment.invalidRechargeAmount"));
   rechargeLoading.value = true;
   try {
     const api = payMethod.value === "wechat" ? wechatRecharge : alipayRecharge;
@@ -279,11 +293,11 @@ async function pollRechargeStatus() {
 }
 
 async function handleApplyCredit() {
-  if (payPassword.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
+  if (payPassword.value.length !== 6) return ElMessage.warning(t("payment.payPasswordRequired"));
   applyingCredit.value = true;
   try {
     await applyPendingCredit({ key: payPassword.value });
-    ElMessage.success("入账成功，请继续完成余额支付");
+    ElMessage.success(t("payment.creditedSuccess"));
     pendingCredit.value = 0;
     rechargeStatus.value = "credited";
     payMethod.value = "balance";
@@ -294,14 +308,14 @@ async function handleApplyCredit() {
 }
 
 async function handlePay() {
-  if (payPassword.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
+  if (payPassword.value.length !== 6) return ElMessage.warning(t("payment.payPasswordRequired"));
   if (!pendingOrders.value.length)
-    return ElMessage.error("订单信息丢失，请重新下单");
+    return ElMessage.error(t("payment.orderMissing"));
 
   paying.value = true;
   const paidOrderIds: number[] = [];
   try {
-    // 逐笔支付（每个商品一个订单）
+    // Pay each order individually because each cart item maps to one order.
     for (const item of pendingOrders.value) {
       await payOrder({
         order_id: item.order_id,
@@ -313,27 +327,32 @@ async function handlePay() {
       });
       paidOrderIds.push(item.order_id);
     }
-    sessionStorage.removeItem("pending_orders");
-    sessionStorage.setItem("paid_order_ids", JSON.stringify(paidOrderIds));
-    ElMessage.success("支付成功！");
+    sessionStorage.removeItem(activeUserSessionStorageKey("pending_orders"));
+    sessionStorage.setItem(
+      activeUserSessionStorageKey("paid_order_ids"),
+      JSON.stringify(paidOrderIds),
+    );
+    syncPaidCartCount(paidOrderIds.length);
+    ElMessage.success(t("payment.paymentSuccess"));
     router.push("/order/success");
   } catch (error: any) {
     if (paidOrderIds.length) {
+      syncPaidCartCount(paidOrderIds.length);
       pendingOrders.value = pendingOrders.value.filter(
         (item) => !paidOrderIds.includes(item.order_id),
       );
       if (pendingOrders.value.length) {
         sessionStorage.setItem(
-          "pending_orders",
+          activeUserSessionStorageKey("pending_orders"),
           JSON.stringify(pendingOrders.value),
         );
       } else {
-        sessionStorage.removeItem("pending_orders");
+        sessionStorage.removeItem(activeUserSessionStorageKey("pending_orders"));
       }
-      ElMessage.error("部分订单支付成功，剩余订单支付失败，请重试");
+      ElMessage.error(t("payment.partialPaymentFailed"));
       return;
     }
-    ElMessage.error(error?.message || "支付失败，请检查余额或支付密码");
+    ElMessage.error(error?.message || t("payment.paymentFailed"));
   } finally {
     paying.value = false;
   }

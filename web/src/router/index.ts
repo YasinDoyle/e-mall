@@ -100,6 +100,10 @@ const router = createRouter({
               path: "wallet",
               component: () => import("@/views/user/WalletView.vue"),
             },
+            {
+              path: "notifications",
+              component: () => import("@/views/user/NotificationView.vue"),
+            },
           ],
         },
 
@@ -135,6 +139,12 @@ const router = createRouter({
                 import("@/views/seller/SellerProductFormView.vue"),
               meta: { sellerApproved: true },
             },
+            {
+              path: "products/:id/edit",
+              component: () =>
+                import("@/views/seller/SellerProductFormView.vue"),
+              meta: { sellerApproved: true },
+            },
           ],
         },
       ],
@@ -153,7 +163,7 @@ router.beforeEach(async (to) => {
   if (to.meta.auth && !userStore.isLoggedIn) {
     return { path: "/login", query: { redirect: to.fullPath } };
   }
-  if (to.meta.guest && userStore.isLoggedIn) {
+  if (to.meta.guest && userStore.isLoggedIn && to.query.switch !== "1") {
     return { path: "/" };
   }
   if (to.meta.sellerApproved) {

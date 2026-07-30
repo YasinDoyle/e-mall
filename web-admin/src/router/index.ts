@@ -60,6 +60,10 @@ const router = createRouter({
           path: "notice",
           component: () => import("@/views/notice/NoticeView.vue"),
         },
+        {
+          path: "notification",
+          component: () => import("@/views/notification/NotificationView.vue"),
+        },
       ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },

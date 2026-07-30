@@ -8,19 +8,19 @@
           align-items: center;
         "
       >
-        <span>公告管理</span>
-        <el-button type="primary" @click="openCreate">新增公告</el-button>
+        <span>{{ t("page.notice.title") }}</span>
+        <el-button type="primary" @click="openCreate">{{ t("page.notice.create") }}</el-button>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%">
       <el-table-column prop="ID" label="ID" width="80" />
-      <el-table-column prop="Text" label="内容" show-overflow-tooltip />
-      <el-table-column label="操作" width="160">
+      <el-table-column prop="Text" :label="t('page.notice.content')" show-overflow-tooltip />
+      <el-table-column :label="t('common.actions')" width="160">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" @click="openEdit(row)">{{ t("common.edit") }}</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row.ID)"
-            >删除</el-button
+            >{{ t("common.delete") }}</el-button
           >
         </template>
       </el-table-column>
@@ -28,23 +28,23 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="form.id ? '编辑公告' : '新增公告'"
+      :title="form.id ? t('page.notice.edit') : t('page.notice.create')"
       width="500px"
     >
       <el-form :model="form" label-width="60px">
-        <el-form-item label="内容">
+        <el-form-item :label="t('page.notice.content')">
           <el-input
             v-model="form.text"
             type="textarea"
             :rows="4"
-            placeholder="请输入公告内容"
+            :placeholder="t('page.notice.contentPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave"
-          >保存</el-button
+          >{{ t("common.save") }}</el-button
         >
       </template>
     </el-dialog>
@@ -55,6 +55,7 @@
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getNoticeList, createNotice, updateNotice, deleteNotice } from "@/api";
+import { t } from "@/locales";
 
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
@@ -79,7 +80,7 @@ function openEdit(row: any) {
 }
 
 async function handleSave() {
-  if (!form.text.trim()) return ElMessage.warning("请输入公告内容");
+  if (!form.text.trim()) return ElMessage.warning(t("page.notice.contentRequired"));
   saving.value = true;
   try {
     if (form.id) {
@@ -87,7 +88,7 @@ async function handleSave() {
     } else {
       await createNotice({ text: form.text });
     }
-    ElMessage.success("保存成功");
+    ElMessage.success(t("common.saveSuccess"));
     dialogVisible.value = false;
     loadList();
   } finally {
@@ -96,9 +97,9 @@ async function handleSave() {
 }
 
 async function handleDelete(id: number) {
-  await ElMessageBox.confirm("确认删除该公告？", "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.notice.deleteConfirm"), t("common.notice"), { type: "warning" });
   await deleteNotice({ id });
-  ElMessage.success("删除成功");
+  ElMessage.success(t("common.deleteSuccess"));
   loadList();
 }
 

@@ -127,6 +127,15 @@ type AdminProductResp struct {
 	AuditStatus   uint   `json:"audit_status"`
 	Status        uint   `json:"status"`
 	CreatedAt     int64  `json:"created_at"`
+
+	Brand             string                   `json:"brand"`
+	Origin            string                   `json:"origin"`
+	Specification     string                   `json:"specification"`
+	ProductionDate    string                   `json:"production_date"`
+	ShelfLife         string                   `json:"shelf_life"`
+	ServiceGuarantees string                   `json:"service_guarantees"`
+	CertificateMeta   string                   `json:"certificate_meta"`
+	Certificates      []ProductCertificateResp `json:"certificates"`
 }
 
 // ===== 统计 =====

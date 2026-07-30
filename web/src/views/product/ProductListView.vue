@@ -4,7 +4,7 @@
       <span
         :class="['cat-item', { active: !selectedCategory }]"
         @click="selectCategory(undefined)"
-        >全部</span
+        >{{ t("productList.all") }}</span
       >
       <span
         v-for="cat in categories"
@@ -17,7 +17,7 @@
     <div v-loading="loading" class="product-grid">
       <ProductCard v-for="p in products" :key="p.id" :product="p" />
     </div>
-    <el-empty v-if="!loading && !products.length" description="暂无商品" />
+    <el-empty v-if="!loading && !products.length" :description="t('productList.empty')" />
     <Pagination
       v-model:page="page"
       :page-size="pageSize"
@@ -34,6 +34,7 @@ import ProductCard from "@/components/common/ProductCard.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import { getProductList, getCategoryList } from "@/api/product";
 import type { Product, Category } from "@/types";
+import { t } from "@/locales";
 
 const route = useRoute();
 const products = ref<Product[]>([]);

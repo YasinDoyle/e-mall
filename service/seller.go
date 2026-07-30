@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
@@ -57,6 +58,7 @@ func (s *SellerSrv) Apply(ctx context.Context, req *types.SellerApplyReq) (resp 
 			log.LogrusObj.Error(err)
 			return nil, err
 		}
+		notifySellerApplicationSubmitted(ctx, profile)
 		resp = buildSellerProfileResp(profile)
 		return
 	}
@@ -78,11 +80,19 @@ func (s *SellerSrv) Apply(ctx context.Context, req *types.SellerApplyReq) (resp 
 		profile.Status = consts.SellerStatusPending
 		profile.RejectReason = ""
 		profile.ApprovedAt = nil
+		notifySellerApplicationSubmitted(ctx, profile)
 		resp = buildSellerProfileResp(profile)
 		return
 	default:
 		return nil, e.NewBusinessError(e.ErrorSellerInvalidStatus)
 	}
+}
+
+func notifySellerApplicationSubmitted(ctx context.Context, profile *model.SellerProfile) {
+	if profile == nil {
+		return
+	}
+	domainevent.Publish(ctx, domainevent.SellerApplied{SellerID: profile.UserID, ShopName: profile.ShopName})
 }
 
 func (s *SellerSrv) Profile(ctx context.Context) (resp interface{}, err error) {

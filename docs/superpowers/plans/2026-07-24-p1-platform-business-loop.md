@@ -200,38 +200,53 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task A: Realtime Notification MVP and Subscription Boundary
 
+**Status:** Completed. Implemented persistent notification records, user/admin notification APIs, unread count, mark-read operations, SSE unread stream, polling fallback, and user/admin notification views. Follow-up acceptance fix on 2026-07-29: SSE is the default primary channel; navbar/admin layout stop steady unread-count polling while SSE is active, and polling only starts when SSE is disabled or connection setup fails.
+
 **Goal:** Replace refresh-only status discovery with a usable notification inbox and browser subscription boundary, without taking on A4 reliable messaging infrastructure yet.
 
 - Add a `notification` model/table with recipient, scene, title/content, payload, read status, and timestamps.
 - Create notifications from P1/P2-visible business state changes: seller audit approved/rejected, product audit result, order paid/shipped/refunded, settlement generated/paid.
 - Add user/admin notification APIs: list, unread count, mark read, mark all read.
 - Add SSE or WebSocket browser subscription endpoint for logged-in users and admins.
+- In this MVP, notification creation stores durable rows and signals active SSE connections through an in-process notification hub; browser clients receive unread-count updates and then load notification list/detail through the notification APIs.
 - User web subscribes to own notifications and refreshes seller/product/order state when relevant notifications arrive.
 - Admin web subscribes to pending-work notifications and shows badges/toasts for seller/product/refund/settlement queues.
-- Provide polling fallback for environments where persistent connections are unavailable.
+- Provide polling fallback for environments where persistent connections are unavailable; do not run periodic unread-count polling at the same time as a healthy SSE subscription.
 - Keep RabbitMQ, local message table, retry, dead-letter queues, and cross-service event reliability in A4.
 
 ### Post-P1 Task B: Runtime Configuration for Frontend and Fixed Parameters
 
+**Status:** Completed. Added frontend-local config stores, boot-time config loading, configurable app/admin title text, default notification page size, notification polling interval, upload limit, and feature flags. Removed the backend public config API to keep frontend display defaults out of the Go service boundary.
+
 **Goal:** Move site name, app title, brand text, static defaults, polling intervals, and feature flags out of hardcoded frontend constants.
 
-- Add frontend runtime config loading, for example `/config/app-config.json` or `/api/v1/config/public`.
+- Add frontend runtime config loading from local defaults and Vite environment variables.
 - Include site name, admin site name, logo text, default page size, notification polling interval, upload limits, and enabled feature flags.
 - Load config before app mount and expose it through a Pinia app config store.
 - Keep environment-specific values out of component code.
-- Add backend public config DTO if serving config from Go.
+- Add a backend `/api/v1/capabilities/public` style endpoint later only when frontend state must reflect real backend capabilities, such as P2 payment methods or upload constraints.
 
 ### Post-P1 Task C: Internationalization Architecture
+
+**Status:** Completed. User web and admin web now ship `zh-CN` and `en-US` locale resources, language switchers, dynamic Element Plus locale, locale headers, and backend localized business errors. Follow-up acceptance fixes moved user web checkout/payment, product detail/search/list, order detail/success, registration, not-found, seller/user center pages, and admin business pages behind locale resources. `web/tests/post-p1-acceptance.test.mjs` now locks the migrated user-facing slices and asserts admin page components stay free of hardcoded Chinese copy.
 
 **Goal:** Introduce a real i18n boundary instead of scattering fixed Chinese strings through frontend and backend.
 
 - Add frontend i18n using Vue I18n with `zh-CN` as the initial locale.
+- Add `en-US` locale files for user web and admin web covering migrated menus, buttons, validation messages, status labels, and API error messages.
+- Add a language switcher in the user web navbar and admin layout, with selected locale persisted locally.
+- Make Element Plus locale switch dynamically with the selected frontend locale.
+- Send axios and SSE `X-Locale` / `Accept-Language` headers based on the selected locale, not a hardcoded default.
+- Add backend `en-US` business error messages while keeping `utils/e` error codes and `msg_key` stable.
 - Move Element Plus locale setup, menus, buttons, validation messages, and status labels into locale files.
 - Add backend message keys for business errors and API-facing labels; keep `utils/e` codes stable while allowing locale-specific messages.
 - Decide locale propagation strategy: request header, user preference, or query fallback.
-- Add tests for stable error codes independent of displayed language.
+- Add tests or manual QA cases proving stable error codes independent of displayed language, and proving user/admin language switching updates frontend labels plus backend business error display messages.
+- Acceptance fix added `web/tests/post-p1-acceptance.test.mjs` to lock the user-visible i18n coverage slices already migrated, including the 2026-07-29 user-reported pages.
 
 ### Post-P1 Task D: Product Detail and Audit Information Enrichment
+
+**Status:** Completed. Added product audit enrichment fields, product certificate attachments, seller publish/edit form support, product detail display, and admin audit detail review.
 
 **Goal:** Add the product information needed for seller publishing and admin audit detail pages, while leaving search indexing and category-specific commerce modeling to later phases.
 
@@ -244,17 +259,24 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task E: Multi-Account Frontend Session Architecture
 
+**Status:** Completed. User web and admin web keep the shared account session pool in `localStorage`, while the active account pointer is tab-scoped in `sessionStorage`. A fresh tab/window no longer auto-logs in from the last active account; it starts from a pending unauthenticated tab session. Normal logout clears only the current tab's active session and keeps the shared account pool, so tab B logout does not remove account A from tab A. User web and admin web expose explicit saved-account switch/add-account UI. Acceptance tests cover fresh-tab isolation, current-tab-only logout preservation, account switcher UI, and request-token selection isolation across two simulated tab-scoped sessions.
+
 **Goal:** Support multiple accounts in the same browser without later logins overwriting earlier sessions.
 
 - Audit current token, user info, cart count, seller profile, and app cache storage keys in user web and admin web.
 - Replace single global `localStorage` session keys with account-scoped session namespaces, for example by user ID, session ID, or selected workspace profile.
 - Decide supported UX: account switcher in one tab, isolated sessions per tab/window, or both.
+- Support multiple tabs operating different active accounts at the same time: keep the shared account session pool in `localStorage`, but move the active account pointer to per-tab `sessionStorage`.
+- When a new tab opens without a tab-scoped active account, start from a pending unauthenticated tab session; do not inherit the last active account from another tab.
 - Ensure request interceptors attach the token for the active account only.
 - Scope Pinia persistence, seller profile cache, cart state, and notification subscriptions to the active account.
-- Add logout behavior that clears only the current account session unless the user chooses to clear all sessions.
-- Add regression tests or manual QA cases for logging in as account A and account B in the same browser without state replacement.
+- Add logout behavior that clears only the current tab's active session unless the user chooses to remove an account from the shared session pool or clear all sessions.
+- Add regression tests or manual QA cases for logging in as account A and account B in the same browser without state replacement, and for tab A using account A while tab B uses account B without request-token crossover.
+- Acceptance fix added `web/tests/post-p1-acceptance.test.mjs` for fresh-tab isolation and current-tab-only logout preservation.
 
 ### Post-P1 Task F: Seller Account and Withdrawal MVP
+
+**Status:** Completed.
 
 **Goal:** Separate seller operating funds from user coin wallet and support auditable withdrawal applications, without taking on third-party payout/risk-control hardening yet.
 
@@ -269,3 +291,33 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 - Keep user coin wallet and seller account independent; do not require seller payment password to change seller operating funds.
 - Leave third-party payout channel integration, payout risk scoring, high-risk audit hardening, and reconciliation automation to A1/A4.
 - Add tests for insufficient balance, duplicate payout prevention, reject unfreeze, paid state transition, and account flow consistency.
+
+### Post-P1 Task G: Backend Application Layer and Domain Event Boundary
+
+**Status:** Completed.
+
+**Goal:** Stop direct service-to-service orchestration by introducing an `application` layer for complete use cases and a lightweight domain-event boundary for side effects, while keeping reliable MQ/outbox work in A4.
+
+**Architecture decision:**
+
+- Use方案 B for strong-consistency flows: `api/v1` calls an application/usecase object, and that usecase opens the transaction and coordinates DAOs/domain helpers.
+- Use方案 C for side effects: core business code publishes domain events, and event handlers create notifications or sync product indexes.
+- Keep domain services pure where possible: validation, amount calculation, and state transitions should not call other services or HTTP handlers.
+- Keep `service` methods as endpoint-facing compatibility wrappers during migration, but forbid new direct `GetXxxSrv()` calls from one service to another.
+- Keep A4 reliable messaging out of Post-P1: the event publisher is in-process and synchronous for now, with an interface that can later be backed by outbox/RabbitMQ.
+
+**Migration plan:**
+
+- Add `application` package for cross-module use cases that currently require service orchestration.
+- Add `domain/event` package with event names, payloads, a `Publisher` interface, and an in-process publisher implementation.
+- Move notification writes behind event handlers instead of calling `NotificationSrv` from seller/order/payment/product/admin/settlement services.
+- Move product index sync/delete behind product domain events instead of calling `ProductIndexSrv` from product/admin services.
+- Move settlement/seller-account coordination for payment, refund, and settlement-paid flows into application usecases; the usecase controls the GORM transaction.
+- Add architecture regression tests that fail if `service/*.go` adds direct `GetXxxSrv()` calls, except for the service's own constructor or explicitly grandfathered migration shims.
+- Document the new backend layering rule in `AGENTS.md` after the first migration lands.
+
+**Initial target scope:**
+
+- Notification and product-index side effects must use domain events in this task.
+- Payment success, refund approval, and settlement paid must stop calling other services directly and instead go through application/usecase orchestration.
+- Existing HTTP routes and frontend API contracts must remain stable.

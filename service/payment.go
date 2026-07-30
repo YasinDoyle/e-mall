@@ -2,21 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
-	"time"
 
-	"gorm.io/gorm"
-
-	"github.com/YasinDoyle/e-mall/consts"
-	"github.com/YasinDoyle/e-mall/repository/cache"
-	"github.com/YasinDoyle/e-mall/repository/db/dao"
-	"github.com/YasinDoyle/e-mall/repository/rabbitmq"
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/types"
-	"github.com/YasinDoyle/e-mall/utils/ctl"
-	"github.com/YasinDoyle/e-mall/utils/e"
-	"github.com/YasinDoyle/e-mall/utils/log"
 )
 
 var PaymentSrvIns *PaymentSrv
@@ -36,121 +25,5 @@ func GetPaymentSrv() *PaymentSrv {
 
 // PayDown 支付操作
 func (s *PaymentSrv) PayDown(ctx context.Context, req *types.PaymentDownReq) (resp interface{}, err error) {
-	u, err := ctl.GetUserInfo(ctx)
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return nil, err
-	}
-	var paidEvent *types.OrderPaidEvent
-	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
-		uId := u.Id
-
-		payment, err := dao.NewOrderDaoByDB(tx).GetOrderById(req.OrderId, uId)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-		if payment.Type != consts.OrderTypeUnPaid {
-			return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
-		}
-		if err = ensureNotBuyingOwnProduct(payment.UserID, payment.BossID); err != nil {
-			return err
-		}
-
-		paidAt := time.Now()
-		err = dao.NewOrderDaoByDB(tx).UpdateOrderPaidById(req.OrderId, uId, paidAt)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
-			}
-			log.LogrusObj.Error(err)
-			return err
-		}
-		payment.Type = consts.OrderTypePendingShipping
-		payment.PaidAt = &paidAt
-
-		money := payment.Money
-		num := payment.Num
-		money = money * float64(num)
-		paidEvent = &types.OrderPaidEvent{
-			OrderID:     payment.ID,
-			OrderNum:    payment.OrderNum,
-			UserID:      payment.UserID,
-			BossID:      payment.BossID,
-			ProductID:   payment.ProductID,
-			Num:         payment.Num,
-			TotalAmount: money,
-			PaidAt:      paidAt,
-		}
-
-		userDao := dao.NewUserDaoByDB(tx)
-		user, err := userDao.GetUserById(uId)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-		if !user.HasPayKey() {
-			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
-		}
-
-		// 对钱进行解密。减去订单。再进行加密。
-		moneyFloat, err := user.DecryptMoney(req.Key)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
-		}
-		if moneyFloat-money < 0.0 { // 金额不足进行回滚
-			log.LogrusObj.Error(err)
-			return e.NewBusinessError(e.ErrorPaymentBalanceInsufficient)
-		}
-
-		finMoney := fmt.Sprintf("%f", moneyFloat-money)
-		user.Money = finMoney
-		user.Money, err = user.EncryptMoney(req.Key)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		err = userDao.UpdateUserById(uId, user)
-		if err != nil { // 更新用户金额失败，回滚
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		productDao := dao.NewProductDaoByDB(tx)
-		_, err = productDao.GetProductById(payment.ProductID)
-		if err != nil {
-			log.LogrusObj.Error(err)
-			return err
-		}
-		err = productDao.DecreaseStock(payment.ProductID, num)
-		if err != nil { // 更新商品数量减少失败，回滚
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return e.NewBusinessError(e.ErrorPaymentStockInsufficient)
-			}
-			log.LogrusObj.Error(err)
-			return err
-		}
-
-		return GetSettlementSrv().HandleOrderPaid(ctx, tx, payment)
-
-	})
-
-	if err != nil {
-		log.LogrusObj.Error(err)
-		return
-	}
-	if paidEvent != nil {
-		if zremErr := cache.RedisClient.ZRem(ctx, OrderTimeKey, fmt.Sprintf("%d", paidEvent.OrderNum)).Err(); zremErr != nil {
-			log.LogrusObj.Error(zremErr)
-		}
-	}
-	if paidEvent != nil {
-		if publishErr := rabbitmq.PublishJSON(ctx, consts.OrderPaidQueue, paidEvent); publishErr != nil {
-			log.LogrusObj.Error(publishErr)
-		}
-	}
-
-	return
+	return application.NewPaymentUsecase().PayDown(ctx, req)
 }

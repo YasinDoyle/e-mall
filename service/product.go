@@ -5,13 +5,16 @@ import (
 	"errors"
 	"mime/multipart"
 	"strconv"
+	"strings"
 	"sync"
 
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
+	esrepo "github.com/YasinDoyle/e-mall/repository/es"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/e"
@@ -38,34 +41,14 @@ func (s *ProductSrv) ProductShow(ctx context.Context, req *types.ProductShowReq)
 		log.LogrusObj.Error(err)
 		return
 	}
-	pResp := &types.ProductResp{
-		ID:            p.ID,
-		Name:          p.Name,
-		CategoryID:    p.CategoryID,
-		Title:         p.Title,
-		Info:          p.Info,
-		ImgPath:       p.ImgPath,
-		Price:         p.Price,
-		DiscountPrice: p.DiscountPrice,
-		View:          p.View(),
-		CreatedAt:     p.CreatedAt.Unix(),
-		Num:           p.Num,
-		OnSale:        p.OnSale,
-		BossID:        p.BossID,
-		BossName:      p.BossName,
-		BossAvatar:    p.BossAvatar,
-	}
-	pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
-	pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
-
-	resp = pResp
+	resp = buildProductRespWithCertificates(ctx, p)
 
 	return
 
 }
 
 // 创建商品
-func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileHeader, req *types.ProductCreateReq) (resp interface{}, err error) {
+func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileHeader, certificateFiles []*multipart.FileHeader, req *types.ProductCreateReq) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(ctx)
 	if err != nil {
 		log.LogrusObj.Error(err)
@@ -83,6 +66,9 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	}
 	if err = ensureSellerProfileApproved(sellerProfile); err != nil {
 		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, errors.New("请上传商品图片")
 	}
 	// 以第一张作为封面图
 	tmp, _ := files[0].Open()
@@ -106,6 +92,14 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		BossID:        uId,
 		BossName:      boss.UserName,
 		BossAvatar:    boss.Avatar,
+
+		Brand:             strings.TrimSpace(req.Brand),
+		Origin:            strings.TrimSpace(req.Origin),
+		Specification:     strings.TrimSpace(req.Specification),
+		ProductionDate:    strings.TrimSpace(req.ProductionDate),
+		ShelfLife:         strings.TrimSpace(req.ShelfLife),
+		ServiceGuarantees: strings.TrimSpace(req.ServiceGuarantees),
+		CertificateMeta:   strings.TrimSpace(req.CertificateMeta),
 	}
 	productDao := dao.NewProductDao(ctx)
 	err = productDao.CreateProduct(product)
@@ -113,10 +107,6 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
-
 	wg := new(sync.WaitGroup)
 	wg.Add(len(files))
 	for index, file := range files {
@@ -145,7 +135,11 @@ func (s *ProductSrv) ProductCreate(ctx context.Context, files []*multipart.FileH
 	}
 
 	wg.Wait()
-
+	if err = createProductCertificates(productDao.DB, uId, product, certificateFiles, req.CertificateTypes, req.CertificateNames); err != nil {
+		log.LogrusObj.Error(err)
+		return
+	}
+	domainevent.Publish(ctx, domainevent.ProductSubmitted{Product: product})
 	return
 }
 
@@ -164,26 +158,7 @@ func (s *ProductSrv) ProductList(ctx context.Context, req *types.ProductListReq)
 	}
 	pRespList := make([]*types.ProductResp, 0)
 	for _, p := range products {
-		pResp := &types.ProductResp{
-			ID:            p.ID,
-			Name:          p.Name,
-			CategoryID:    p.CategoryID,
-			Title:         p.Title,
-			Info:          p.Info,
-			ImgPath:       p.ImgPath,
-			Price:         p.Price,
-			DiscountPrice: p.DiscountPrice,
-			View:          p.View(),
-			CreatedAt:     p.CreatedAt.Unix(),
-			Num:           p.Num,
-			OnSale:        p.OnSale,
-			BossID:        p.BossID,
-			BossName:      p.BossName,
-			BossAvatar:    p.BossAvatar,
-		}
-		pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
-		pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
-		pRespList = append(pRespList, pResp)
+		pRespList = append(pRespList, buildProductResp(p))
 	}
 
 	resp = &types.DataListResp{
@@ -202,37 +177,69 @@ func (s *ProductSrv) ProductDelete(ctx context.Context, req *types.ProductDelete
 		log.LogrusObj.Error(err)
 		return
 	}
-	if syncErr := GetProductIndexSrv().DeleteProduct(ctx, req.ID); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
-	}
+	domainevent.Publish(ctx, domainevent.ProductDeleted{ProductID: req.ID})
 	return
 }
 
 // 更新商品
-func (s *ProductSrv) ProductUpdate(ctx context.Context, req *types.ProductUpdateReq) (resp interface{}, err error) {
-	product := &model.Product{
-		Name:       req.Name,
-		CategoryID: req.CategoryID,
-		Title:      req.Title,
-		Info:       req.Info,
-		// ImgPath:       service.ImgPath,
-		Price:         req.Price,
-		DiscountPrice: req.DiscountPrice,
-		OnSale:        req.OnSale,
-	}
-	err = dao.NewProductDao(ctx).UpdateProduct(req.ID, product)
+func (s *ProductSrv) ProductUpdate(ctx context.Context, certificateFiles []*multipart.FileHeader, req *types.ProductUpdateReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
 	if err != nil {
 		log.LogrusObj.Error(err)
-		return
+		return nil, err
 	}
-	product, err = dao.NewProductDao(ctx).ShowProductById(req.ID)
+	sellerProfile, err := dao.NewSellerDao(ctx).GetSellerProfileByUserID(u.Id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorSellerNotApproved)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	if err = ensureSellerProfileApproved(sellerProfile); err != nil {
+		return nil, err
+	}
+
+	productDao := dao.NewProductDao(ctx)
+	updates := map[string]interface{}{
+		"name":               strings.TrimSpace(req.Name),
+		"category_id":        req.CategoryID,
+		"title":              strings.TrimSpace(req.Title),
+		"info":               strings.TrimSpace(req.Info),
+		"price":              req.Price,
+		"discount_price":     req.DiscountPrice,
+		"num":                req.Num,
+		"brand":              strings.TrimSpace(req.Brand),
+		"origin":             strings.TrimSpace(req.Origin),
+		"specification":      strings.TrimSpace(req.Specification),
+		"production_date":    strings.TrimSpace(req.ProductionDate),
+		"shelf_life":         strings.TrimSpace(req.ShelfLife),
+		"service_guarantees": strings.TrimSpace(req.ServiceGuarantees),
+		"certificate_meta":   strings.TrimSpace(req.CertificateMeta),
+		"audit_status":       consts.ProductAuditPending,
+		"on_sale":            false,
+	}
+	if err = productDao.UpdateProductByBoss(req.ID, u.Id, updates); err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	product, err := productDao.ShowProductById(req.ID)
 	if err != nil {
 		log.LogrusObj.Error(err)
-		return
+		return nil, err
 	}
-	if syncErr := GetProductIndexSrv().SyncProduct(ctx, product); syncErr != nil {
-		log.LogrusObj.Errorln(syncErr)
+	if req.ReplaceCertificates {
+		certificateDao := dao.NewProductCertificateDaoByDB(productDao.DB)
+		if err = certificateDao.DeleteByProductID(product.ID); err != nil {
+			log.LogrusObj.Error(err)
+			return nil, err
+		}
+		if err = createProductCertificates(productDao.DB, u.Id, product, certificateFiles, req.CertificateTypes, req.CertificateNames); err != nil {
+			log.LogrusObj.Error(err)
+			return nil, err
+		}
 	}
+	domainevent.Publish(ctx, domainevent.ProductChanged{Product: product})
 
 	return
 }
@@ -240,7 +247,7 @@ func (s *ProductSrv) ProductUpdate(ctx context.Context, req *types.ProductUpdate
 // 搜索商品 TODO 后续用脚本同步数据MySQL到ES，用ES进行搜索
 func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearchReq) (resp interface{}, err error) {
 	req.BasePage = normalizeProductPage(req.BasePage)
-	if products, count, searchErr := GetProductIndexSrv().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
+	if products, count, searchErr := esrepo.NewProductIndexRepo().SearchProducts(ctx, req.Info, req.BasePage); searchErr == nil {
 		for _, p := range products {
 			p.BossAvatar = util.AvatarURL(p.BossAvatar)
 			p.ImgPath = util.ProductImageURL(p.ImgPath)
@@ -262,26 +269,7 @@ func (s *ProductSrv) ProductSearch(ctx context.Context, req *types.ProductSearch
 
 	pRespList := make([]*types.ProductResp, 0)
 	for _, p := range products {
-		pResp := &types.ProductResp{
-			ID:            p.ID,
-			Name:          p.Name,
-			CategoryID:    p.CategoryID,
-			Title:         p.Title,
-			Info:          p.Info,
-			ImgPath:       p.ImgPath,
-			Price:         p.Price,
-			DiscountPrice: p.DiscountPrice,
-			View:          p.View(),
-			CreatedAt:     p.CreatedAt.Unix(),
-			Num:           p.Num,
-			OnSale:        p.OnSale,
-			BossID:        p.BossID,
-			BossName:      p.BossName,
-			BossAvatar:    p.BossAvatar,
-		}
-		pResp.BossAvatar = util.AvatarURL(pResp.BossAvatar)
-		pResp.ImgPath = util.ProductImageURL(pResp.ImgPath)
-		pRespList = append(pRespList, pResp)
+		pRespList = append(pRespList, buildProductResp(p))
 	}
 
 	resp = &types.DataListResp{
@@ -318,27 +306,7 @@ func (s *ProductSrv) BossProductList(ctx context.Context, req *types.BossProduct
 	}
 	list := make([]*types.ProductResp, 0, len(products))
 	for _, product := range products {
-		item := &types.ProductResp{
-			ID:            product.ID,
-			Name:          product.Name,
-			CategoryID:    product.CategoryID,
-			Title:         product.Title,
-			Info:          product.Info,
-			ImgPath:       product.ImgPath,
-			Price:         product.Price,
-			DiscountPrice: product.DiscountPrice,
-			View:          product.View(),
-			CreatedAt:     product.CreatedAt.Unix(),
-			Num:           product.Num,
-			OnSale:        product.OnSale,
-			BossID:        product.BossID,
-			BossName:      product.BossName,
-			BossAvatar:    product.BossAvatar,
-			AuditStatus:   product.AuditStatus,
-		}
-		item.BossAvatar = util.AvatarURL(item.BossAvatar)
-		item.ImgPath = util.ProductImageURL(item.ImgPath)
-		list = append(list, item)
+		list = append(list, buildProductResp(product))
 	}
 	resp = &types.DataListResp{Item: list, Total: total}
 	return
@@ -404,11 +372,149 @@ func ensureSellerCanEnableTrading(user *model.User, onSale bool) error {
 	return nil
 }
 
+func createProductCertificates(db *gorm.DB, sellerID uint, product *model.Product, files []*multipart.FileHeader, certificateTypes []string, certificateNames []string) error {
+	if len(files) == 0 {
+		return nil
+	}
+	certificateDao := dao.NewProductCertificateDaoByDB(db)
+	for index, file := range files {
+		tmp, err := file.Open()
+		if err != nil {
+			return err
+		}
+		path, err := util.UploadProductImage(tmp, file.Size, sellerID, product.Name+"_certificate_"+strconv.Itoa(index))
+		if err != nil {
+			return err
+		}
+		certificate := &model.ProductCertificate{
+			ProductID:       product.ID,
+			CertificateType: valueAt(certificateTypes, index, "other"),
+			Name:            valueAt(certificateNames, index, file.Filename),
+			FilePath:        path,
+		}
+		if err = certificateDao.CreateProductCertificate(certificate); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func buildProductRespWithCertificates(ctx context.Context, product *model.Product) *types.ProductResp {
+	resp := buildProductResp(product)
+	if product == nil {
+		return resp
+	}
+	certificates, err := dao.NewProductCertificateDao(ctx).ListByProductID(product.ID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return resp
+	}
+	resp.Certificates = buildProductCertificateRespList(certificates)
+	return resp
+}
+
+func buildProductResp(product *model.Product) *types.ProductResp {
+	if product == nil {
+		return &types.ProductResp{}
+	}
+	resp := &types.ProductResp{
+		ID:                product.ID,
+		Name:              product.Name,
+		CategoryID:        product.CategoryID,
+		Title:             product.Title,
+		Info:              product.Info,
+		ImgPath:           product.ImgPath,
+		Price:             product.Price,
+		DiscountPrice:     product.DiscountPrice,
+		View:              productView(product),
+		CreatedAt:         product.CreatedAt.Unix(),
+		Num:               product.Num,
+		OnSale:            product.OnSale,
+		BossID:            product.BossID,
+		BossName:          product.BossName,
+		BossAvatar:        product.BossAvatar,
+		AuditStatus:       product.AuditStatus,
+		Brand:             product.Brand,
+		Origin:            product.Origin,
+		Specification:     product.Specification,
+		ProductionDate:    product.ProductionDate,
+		ShelfLife:         product.ShelfLife,
+		ServiceGuarantees: product.ServiceGuarantees,
+		CertificateMeta:   product.CertificateMeta,
+	}
+	resp.BossAvatar = avatarURL(resp.BossAvatar)
+	resp.ImgPath = productImageURL(resp.ImgPath)
+	return resp
+}
+
+func buildProductCertificateRespList(certificates []*model.ProductCertificate) []types.ProductCertificateResp {
+	list := make([]types.ProductCertificateResp, 0, len(certificates))
+	for _, certificate := range certificates {
+		list = append(list, buildProductCertificateResp(certificate))
+	}
+	return list
+}
+
+func buildProductCertificateResp(certificate *model.ProductCertificate) types.ProductCertificateResp {
+	if certificate == nil {
+		return types.ProductCertificateResp{}
+	}
+	return types.ProductCertificateResp{
+		ID:              certificate.ID,
+		ProductID:       certificate.ProductID,
+		CertificateType: certificate.CertificateType,
+		Name:            certificate.Name,
+		FilePath:        productImageURL(certificate.FilePath),
+		CreatedAt:       certificate.CreatedAt.Unix(),
+	}
+}
+
+func valueAt(values []string, index int, fallback string) string {
+	if index >= len(values) {
+		return strings.TrimSpace(fallback)
+	}
+	value := strings.TrimSpace(values[index])
+	if value == "" {
+		return strings.TrimSpace(fallback)
+	}
+	return value
+}
+
+func productView(product *model.Product) (view uint64) {
+	if product == nil || product.ID == 0 {
+		return 0
+	}
+	defer func() {
+		if recover() != nil {
+			view = 0
+		}
+	}()
+	return product.View()
+}
+
+func productImageURL(path string) (url string) {
+	defer func() {
+		if recover() != nil {
+			url = path
+		}
+	}()
+	return util.ProductImageURL(path)
+}
+
+func avatarURL(path string) (url string) {
+	defer func() {
+		if recover() != nil {
+			url = path
+		}
+	}()
+	return util.AvatarURL(path)
+}
+
 // ProductImgList 获取商品列表图片
 func (s *ProductSrv) ProductImgList(ctx context.Context, req *types.ListProductImgReq) (resp interface{}, err error) {
 	productImgs, _ := dao.NewProductImgDao(ctx).ListProductImgByProductId(req.ID)
 	for i := range productImgs {
-		productImgs[i].ImgPath = util.ProductImageURL(productImgs[i].ImgPath)
+		productImgs[i].ImgPath = productImageURL(productImgs[i].ImgPath)
 	}
 
 	resp = &types.DataListResp{

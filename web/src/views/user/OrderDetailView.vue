@@ -8,7 +8,7 @@
           align-items: center;
         "
       >
-        <span>订单详情</span>
+        <span>{{ t("orderDetail.title") }}</span>
         <el-tag :type="statusTagType(order.type)">{{
           statusText(order.type)
         }}</el-tag>
@@ -31,75 +31,75 @@
     <div class="product-row" @click="$router.push(`/product/${order.product_id}`)">
       <img :src="order.img_path" class="product-img" />
       <div class="product-info">
-        <div class="product-name">{{ order.name || "商品" }}</div>
-        <div class="product-meta">商品 ID：{{ order.product_id }}</div>
+        <div class="product-name">{{ order.name || t("orderDetail.product") }}</div>
+        <div class="product-meta">{{ t("orderDetail.productId", { id: order.product_id }) }}</div>
       </div>
       <div class="product-price">¥{{ totalAmount(order) }}</div>
     </div>
 
     <el-descriptions :column="2" border>
-      <el-descriptions-item label="订单号">{{
+      <el-descriptions-item :label="t('orderDetail.orderNo')">{{
         order.order_num
       }}</el-descriptions-item>
-      <el-descriptions-item label="物流单号">{{
-        order.tracking_no || "暂无"
+      <el-descriptions-item :label="t('orderDetail.trackingNo')">{{
+        order.tracking_no || t("orderDetail.none")
       }}</el-descriptions-item>
-      <el-descriptions-item label="数量"
+      <el-descriptions-item :label="t('orderDetail.quantity', { count: '' })"
         >{{ order.num }} 件</el-descriptions-item
       >
-      <el-descriptions-item label="金额">
+      <el-descriptions-item :label="t('orderDetail.amount')">
         <span style="color: #f56c6c; font-weight: bold">
           ¥{{ totalAmount(order) }}
         </span>
       </el-descriptions-item>
-      <el-descriptions-item label="收货人">
+      <el-descriptions-item :label="t('orderDetail.recipient')">
         {{ order.address_name || "-" }} {{ order.address_phone || "" }}
       </el-descriptions-item>
-      <el-descriptions-item label="收货地址">
+      <el-descriptions-item :label="t('orderDetail.address')">
         {{ order.address || "-" }}
       </el-descriptions-item>
-      <el-descriptions-item v-if="order.refund_status" label="售后状态">
+      <el-descriptions-item v-if="order.refund_status" :label="t('orderDetail.afterSaleStatus')">
         {{ refundText(order.refund_status) }}
       </el-descriptions-item>
-      <el-descriptions-item v-if="order.refund_reason" label="退款原因">
+      <el-descriptions-item v-if="order.refund_reason" :label="t('orderDetail.refundReason')">
         {{ order.refund_reason }}
       </el-descriptions-item>
     </el-descriptions>
 
     <div class="order-actions">
       <el-button v-if="order.type === 3" type="primary" @click="handleReceive"
-        >确认收货</el-button
+        >{{ t("orderDetail.confirmReceive") }}</el-button
       >
       <el-button
         v-if="order.type === 4"
         @click="openReviewDialog"
-        >写评价</el-button
+        >{{ t("orderDetail.writeReview") }}</el-button
       >
-      <el-button @click="$router.back()">返回</el-button>
+      <el-button @click="$router.back()">{{ t("orderDetail.back") }}</el-button>
     </div>
 
-    <el-dialog v-model="reviewDialogVisible" title="评价商品" width="520px">
+    <el-dialog v-model="reviewDialogVisible" :title="t('orderDetail.reviewTitle')" width="520px">
       <el-form label-width="70px">
-        <el-form-item label="评分">
+        <el-form-item :label="t('orderDetail.rating')">
           <el-rate v-model="reviewForm.rating" />
         </el-form-item>
-        <el-form-item label="评价">
+        <el-form-item :label="t('orderDetail.review')">
           <el-input
             v-model="reviewForm.content"
             type="textarea"
             :rows="4"
             maxlength="500"
             show-word-limit
-            placeholder="说说这次购买体验"
+            :placeholder="t('orderDetail.reviewPlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="图片">
+        <el-form-item :label="t('orderDetail.image')">
           <el-upload
             :show-file-list="false"
             accept="image/*"
             :before-upload="handleReviewImageUpload"
           >
-            <el-button :loading="uploadingImage">上传图片</el-button>
+            <el-button :loading="uploadingImage">{{ t("orderDetail.uploadImage") }}</el-button>
           </el-upload>
           <div v-if="reviewForm.images.length" class="review-upload-list">
             <div
@@ -109,16 +109,16 @@
             >
               <el-image :src="img" fit="cover" />
               <el-button link type="danger" @click="removeReviewImage(img)"
-                >删除</el-button
+                >{{ t("orderDetail.delete") }}</el-button
               >
             </div>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="reviewDialogVisible = false">取消</el-button>
+        <el-button @click="reviewDialogVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="submittingReview" @click="submitReview"
-          >提交评价</el-button
+          >{{ t("orderDetail.submitReview") }}</el-button
         >
       </template>
     </el-dialog>
@@ -128,8 +128,8 @@
     <el-icon class="is-loading" size="40"><Loading /></el-icon>
   </div>
 
-  <el-empty v-else description="订单不存在或已删除">
-    <el-button @click="$router.push('/user/orders')">返回订单列表</el-button>
+  <el-empty v-else :description="t('orderDetail.orderNotFound')">
+    <el-button @click="$router.push('/user/orders')">{{ t("orderDetail.backToOrders") }}</el-button>
   </el-empty>
 </template>
 
@@ -140,6 +140,8 @@ import { ElMessage } from "element-plus";
 import { Loading } from "@element-plus/icons-vue";
 import { getOrderDetail, receiveOrder } from "@/api/order";
 import { createReview, uploadReviewImage } from "@/api/review";
+import { orderStatusText, refundStatusText } from "@/utils/status-labels";
+import { t } from "@/locales";
 
 const route = useRoute();
 const order = ref<any>(null);
@@ -153,33 +155,24 @@ const reviewForm = ref({
   images: [] as string[],
 });
 
-const statusText = (type: number) =>
-  ({
-    1: "待支付",
-    2: "待发货",
-    3: "已发货",
-    4: "已完成",
-    5: "退款中",
-    6: "已退款",
-  })[type] ?? "未知";
+const statusText = orderStatusText;
 const statusTagType = (type: number) =>
   (({ 1: "warning", 2: "primary", 3: "warning", 4: "success", 5: "danger", 6: "info" })[
     type
   ] ?? "info") as any;
-const refundText = (status: number) =>
-  ({ 1: "退款申请中", 2: "已退款" })[status] ?? "退款处理中";
+const refundText = refundStatusText;
 
 const timeline = computed(() => {
   const type = order.value?.type ?? 0;
   return [
-    { label: "提交订单", done: type >= 1 },
-    { label: "支付成功", done: type >= 2 },
+    { label: t("orderTimeline.submitted", "提交订单"), done: type >= 1 },
+    { label: t("orderTimeline.paid", "支付成功"), done: type >= 2 },
     {
-      label: "商家发货",
+      label: t("orderTimeline.shipped", "商家发货"),
       done: type >= 3,
       desc: order.value?.tracking_no ? `物流单号：${order.value.tracking_no}` : "",
     },
-    { label: "确认收货", done: type >= 4 },
+    { label: t("orderTimeline.received", "确认收货"), done: type >= 4 },
   ];
 });
 
@@ -204,7 +197,7 @@ async function loadOrder() {
 async function handleReceive() {
   try {
     await receiveOrder({ order_id: order.value.id });
-    ElMessage.success("已确认收货");
+    ElMessage.success(t("orderDetail.receivedSuccess"));
     loadOrder();
   } catch {}
 }
@@ -220,15 +213,15 @@ function openReviewDialog() {
 
 async function handleReviewImageUpload(file: File) {
   if (!file.type.startsWith("image/")) {
-    ElMessage.warning("请选择图片文件");
+    ElMessage.warning(t("orderDetail.chooseImage"));
     return false;
   }
   if (file.size > 3 * 1024 * 1024) {
-    ElMessage.warning("评价图片不能超过 3MB");
+    ElMessage.warning(t("orderDetail.reviewImageTooLarge"));
     return false;
   }
   if (reviewForm.value.images.length >= 3) {
-    ElMessage.warning("最多上传 3 张图片");
+    ElMessage.warning(t("orderDetail.reviewImageLimit"));
     return false;
   }
 
@@ -251,7 +244,7 @@ function removeReviewImage(img: string) {
 }
 
 async function submitReview() {
-  if (!reviewForm.value.rating) return ElMessage.warning("请选择评分");
+  if (!reviewForm.value.rating) return ElMessage.warning(t("orderDetail.chooseRating"));
   submittingReview.value = true;
   try {
     await createReview({
@@ -261,7 +254,7 @@ async function submitReview() {
       content: reviewForm.value.content.trim(),
       images: reviewForm.value.images.join(","),
     });
-    ElMessage.success("评价成功");
+    ElMessage.success(t("orderDetail.reviewSuccess"));
     reviewDialogVisible.value = false;
   } finally {
     submittingReview.value = false;

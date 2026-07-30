@@ -2,101 +2,103 @@
   <el-card>
     <template #header>
       <div class="card-header">
-        <span>商家提现</span>
+        <span>{{ t("page.withdraw.title") }}</span>
         <div class="filters">
           <el-input-number
             v-model="sellerId"
             :min="0"
             :step="1"
-            placeholder="商家ID"
+            :placeholder="t('page.withdraw.sellerId')"
             controls-position="right"
             @change="reload"
           />
           <el-select
             v-model="statusFilter"
             clearable
-            placeholder="提现状态"
+            :placeholder="t('page.withdraw.statusPlaceholder')"
             style="width: 140px"
             @change="reload"
           >
-            <el-option label="待审核" value="pending" />
-            <el-option label="已通过" value="approved" />
-            <el-option label="已拒绝" value="rejected" />
-            <el-option label="已打款" value="paid" />
-            <el-option label="打款失败" value="failed" />
+            <el-option :label="t('status.withdraw.pending')" value="pending" />
+            <el-option :label="t('status.withdraw.approved')" value="approved" />
+            <el-option :label="t('status.withdraw.rejected')" value="rejected" />
+            <el-option :label="t('status.withdraw.paid')" value="paid" />
+            <el-option :label="t('status.withdraw.failed')" value="failed" />
           </el-select>
-          <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="loading" @click="loadList">{{ t("common.refresh") }}</el-button>
         </div>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column label="商家" min-width="220">
+      <el-table-column :label="t('page.withdraw.seller')" min-width="220">
         <template #default="{ row }">
           <div class="seller-name">{{ row.shop_name || row.user_name || "-" }}</div>
-          <div class="muted">商家ID: {{ row.seller_id }} · {{ row.nick_name || "-" }}</div>
+          <div class="muted">{{ t("page.withdraw.sellerLine", { id: row.seller_id }) }} / {{ row.nick_name || "-" }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="金额" width="110">
+      <el-table-column :label="t('common.amount')" width="110">
         <template #default="{ row }">¥{{ money(row.amount) }}</template>
       </el-table-column>
-      <el-table-column label="收款信息" min-width="220">
+      <el-table-column :label="t('page.withdraw.payeeInfo')" min-width="220">
         <template #default="{ row }">
           <div>{{ row.payee_name }}</div>
-          <div class="muted">{{ row.payee_account }} · {{ row.payee_channel }}</div>
+          <div class="muted">{{ row.payee_account }} / {{ row.payee_channel }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="110">
+      <el-table-column :label="t('common.status')" width="110">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ row.status_text }}</el-tag>
+          <el-tag :type="statusTag(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审核结果" min-width="150" show-overflow-tooltip>
+      <el-table-column :label="t('page.withdraw.auditResult')" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ row.audit_reason || "-" }}</template>
       </el-table-column>
-      <el-table-column label="时间" min-width="220">
+      <el-table-column :label="t('common.time')" min-width="220">
         <template #default="{ row }">
-          <div>申请：{{ formatTime(row.created_at) }}</div>
-          <div class="muted">审核：{{ formatTime(row.audited_at) }}</div>
-          <div class="muted">打款：{{ formatTime(row.paid_at) }}</div>
+          <div>{{ t("page.withdraw.requestedAt", { time: formatTime(row.created_at) }) }}</div>
+          <div class="muted">{{ t("page.withdraw.auditedAt", { time: formatTime(row.audited_at) }) }}</div>
+          <div class="muted">{{ t("page.withdraw.paidAt", { time: formatTime(row.paid_at) }) }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column :label="t('common.actions')" width="280" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openDetail(row)">流水</el-button>
-          <el-button
-            v-if="row.status === 'pending'"
-            size="small"
-            type="success"
-            @click="approve(row)"
-          >
-            通过
-          </el-button>
-          <el-button
-            v-if="row.status === 'pending'"
-            size="small"
-            type="warning"
-            @click="openReject(row)"
-          >
-            拒绝
-          </el-button>
-          <el-button
-            v-if="row.status === 'approved'"
-            size="small"
-            type="primary"
-            @click="markPaid(row)"
-          >
-            已打款
-          </el-button>
-          <el-button
-            v-if="row.status === 'approved'"
-            size="small"
-            type="danger"
-            @click="openFailed(row)"
-          >
-            打款失败
-          </el-button>
+          <div class="withdraw-actions">
+            <el-button size="small" @click="openDetail(row)">{{ t("common.flow") }}</el-button>
+            <el-button
+              v-if="row.status === 'pending'"
+              size="small"
+              type="success"
+              @click="approve(row)"
+            >
+              {{ t("page.withdraw.approve") }}
+            </el-button>
+            <el-button
+              v-if="row.status === 'pending'"
+              size="small"
+              type="warning"
+              @click="openReject(row)"
+            >
+              {{ t("page.withdraw.reject") }}
+            </el-button>
+            <el-button
+              v-if="row.status === 'approved'"
+              size="small"
+              type="primary"
+              @click="markPaid(row)"
+            >
+              {{ t("page.withdraw.markPaid") }}
+            </el-button>
+            <el-button
+              v-if="row.status === 'approved'"
+              size="small"
+              type="danger"
+              @click="openFailed(row)"
+            >
+              {{ t("page.withdraw.markFailed") }}
+            </el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -112,10 +114,10 @@
 
     <el-dialog v-model="reasonVisible" :title="reasonDialogTitle" width="520px">
       <el-form label-width="88px">
-        <el-form-item label="提现单">
-          <span>#{{ currentRow?.id }} · ¥{{ money(currentRow?.amount || 0) }}</span>
+        <el-form-item :label="t('page.withdraw.withdrawOrder')">
+          <span>#{{ currentRow?.id }} / ¥{{ money(currentRow?.amount || 0) }}</span>
         </el-form-item>
-        <el-form-item label="原因" required>
+        <el-form-item :label="t('page.withdraw.reason')" required>
           <el-input
             v-model="reason"
             type="textarea"
@@ -127,22 +129,22 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="reasonVisible = false">取消</el-button>
+        <el-button @click="reasonVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="saving" @click="submitReason">
-          确认
+          {{ t("common.confirm") }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="detailVisible" title="提现流水" width="760px">
+    <el-dialog v-model="detailVisible" :title="t('page.withdraw.flowTitle')" width="760px">
       <el-table :data="flows" size="small">
-        <el-table-column prop="flow_no" label="流水号" min-width="190" />
-        <el-table-column prop="flow_type" label="类型" width="180" />
-        <el-table-column prop="direction" label="方向" width="80" />
-        <el-table-column label="金额" width="100">
+        <el-table-column prop="flow_no" :label="t('page.withdraw.flowNo')" min-width="190" />
+        <el-table-column prop="flow_type" :label="t('common.type')" width="180" />
+        <el-table-column prop="direction" :label="t('common.direction')" width="80" />
+        <el-table-column :label="t('common.amount')" width="100">
           <template #default="{ row }">¥{{ money(row.amount) }}</template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="140" />
+        <el-table-column prop="remark" :label="t('common.remark')" min-width="140" />
       </el-table>
     </el-dialog>
   </el-card>
@@ -157,6 +159,8 @@ import {
   getAdminSellerWithdrawList,
   markAdminSellerWithdrawPaid,
 } from "@/api/withdraw";
+import { t } from "@/locales";
+import { requestAdminPendingCountsRefresh } from "@/utils/adminPending";
 
 const list = ref<any[]>([]);
 const flows = ref<any[]>([]);
@@ -194,6 +198,18 @@ function statusTag(status: string) {
   )[status] ?? "info";
 }
 
+function statusText(status: string) {
+  return (
+    {
+      pending: t("status.withdraw.pending"),
+      approved: t("status.withdraw.approved"),
+      rejected: t("status.withdraw.rejected"),
+      paid: t("status.withdraw.paid"),
+      failed: t("status.withdraw.failed"),
+    } as any
+  )[status] ?? t("common.unknown");
+}
+
 function reload() {
   page.value = 1;
   loadList();
@@ -216,11 +232,12 @@ async function loadList() {
 }
 
 async function approve(row: any) {
-  await ElMessageBox.confirm(`确认通过提现吗？`, "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.withdraw.approveConfirm"), t("common.notice"), { type: "warning" });
   saving.value = true;
   try {
     await auditAdminSellerWithdraw({ id: row.id, status: "approved" });
-    ElMessage.success("已通过");
+    ElMessage.success(t("page.withdraw.approveSuccess"));
+    requestAdminPendingCountsRefresh();
     loadList();
   } finally {
     saving.value = false;
@@ -242,15 +259,15 @@ function openFailed(row: any) {
 }
 
 const reasonDialogTitle = computed(() =>
-  reasonMode.value === "reject" ? "拒绝提现" : "标记打款失败",
+  reasonMode.value === "reject" ? t("page.withdraw.rejectTitle") : t("page.withdraw.failedTitle"),
 );
 const reasonPlaceholder = computed(() =>
-  reasonMode.value === "reject" ? "请输入拒绝原因" : "请输入失败原因",
+  reasonMode.value === "reject" ? t("page.withdraw.rejectPlaceholder") : t("page.withdraw.failedPlaceholder"),
 );
 
 async function submitReason() {
   if (!reason.value.trim()) {
-    return ElMessage.warning("请填写原因");
+    return ElMessage.warning(t("page.withdraw.reasonRequired"));
   }
   if (!currentRow.value) return;
   saving.value = true;
@@ -261,14 +278,15 @@ async function submitReason() {
         status: "rejected",
         reason: reason.value.trim(),
       });
-      ElMessage.success("已拒绝");
+      ElMessage.success(t("page.withdraw.rejectSuccess"));
+      requestAdminPendingCountsRefresh();
     } else {
       await markAdminSellerWithdrawPaid({
         id: currentRow.value.id,
         status: "failed",
         reason: reason.value.trim(),
       });
-      ElMessage.success("已标记失败");
+      ElMessage.success(t("page.withdraw.failedSuccess"));
     }
     reasonVisible.value = false;
     loadList();
@@ -278,11 +296,12 @@ async function submitReason() {
 }
 
 async function markPaid(row: any) {
-  await ElMessageBox.confirm(`确认已打款提现吗？`, "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.withdraw.paidConfirm"), t("common.notice"), { type: "warning" });
   saving.value = true;
   try {
     await markAdminSellerWithdrawPaid({ id: row.id, status: "paid" });
-    ElMessage.success("已标记打款");
+    ElMessage.success(t("page.withdraw.paidSuccess"));
+    requestAdminPendingCountsRefresh();
     loadList();
   } finally {
     saving.value = false;
@@ -315,6 +334,15 @@ onMounted(loadList);
 .muted {
   color: #909399;
   font-size: 12px;
+}
+.withdraw-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.withdraw-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 .pager {
   margin-top: 16px;

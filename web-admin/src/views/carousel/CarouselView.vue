@@ -8,9 +8,9 @@
           align-items: center;
         "
       >
-        <span>轮播图管理</span>
+        <span>{{ t("page.carousel.title") }}</span>
         <el-button type="primary" @click="dialogVisible = true"
-          >新增轮播图</el-button
+          >{{ t("page.carousel.create") }}</el-button
         >
       </div>
     </template>
@@ -41,10 +41,10 @@
             "
           >
             <span style="font-size: 12px; color: #999"
-              >商品ID: {{ item.product_id }}</span
+              >{{ t("page.carousel.productIdLine", { id: item.product_id }) }}</span
             >
             <el-button size="small" type="danger" @click="handleDelete(item.id)"
-              >删除</el-button
+              >{{ t("common.delete") }}</el-button
             >
           </div>
         </el-card>
@@ -53,42 +53,42 @@
 
     <el-dialog
       v-model="dialogVisible"
-      title="新增轮播图"
+      :title="t('page.carousel.create')"
       width="520px"
       @closed="resetForm"
     >
       <el-form :model="form" label-width="90px">
-        <el-form-item label="上传图片">
+        <el-form-item :label="t('page.carousel.uploadImage')">
           <el-upload
             accept="image/*"
             :show-file-list="false"
             :before-upload="handleImageUpload"
           >
-            <el-button>选择图片</el-button>
+            <el-button>{{ t("page.carousel.selectImage") }}</el-button>
           </el-upload>
           <div v-if="imagePreview" class="image-preview">
             <img :src="imagePreview" />
           </div>
         </el-form-item>
-        <el-form-item label="图片地址">
+        <el-form-item :label="t('page.carousel.imageUrl')">
           <el-input
             v-model="form.img_path"
-            placeholder="输入图片 URL"
+            :placeholder="t('page.carousel.imageUrlPlaceholder')"
             @input="handleManualUrlInput"
           />
         </el-form-item>
-        <el-form-item label="关联商品ID">
+        <el-form-item :label="t('page.carousel.productId')">
           <el-input-number
             v-model="form.product_id"
             :min="1"
-            placeholder="请输入商品ID"
+            :placeholder="t('page.carousel.productIdPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave"
-          >保存</el-button
+          >{{ t("common.save") }}</el-button
         >
       </template>
     </el-dialog>
@@ -104,6 +104,7 @@ import {
   deleteCarousel,
   uploadCarouselImage,
 } from "@/api";
+import { t } from "@/locales";
 
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
@@ -123,10 +124,10 @@ async function loadList() {
 
 async function handleSave() {
   if (!selectedFile.value && !form.img_path.trim()) {
-    return ElMessage.warning("请上传图片或输入图片地址");
+    return ElMessage.warning(t("page.carousel.imageRequired"));
   }
   if (!form.product_id || form.product_id < 1) {
-    return ElMessage.warning("请输入有效的关联商品ID");
+    return ElMessage.warning(t("page.carousel.productIdRequired"));
   }
   saving.value = true;
   try {
@@ -137,13 +138,13 @@ async function handleSave() {
       const uploadRes: any = await uploadCarouselImage(formData);
       imgPath = uploadRes.data?.url ?? "";
     }
-    if (!imgPath) return ElMessage.warning("图片上传失败");
+    if (!imgPath) return ElMessage.warning(t("page.carousel.uploadFailed"));
 
     await createCarousel({
       img_path: imgPath,
       product_id: form.product_id,
     });
-    ElMessage.success("创建成功");
+    ElMessage.success(t("common.createSuccess"));
     dialogVisible.value = false;
     loadList();
   } finally {
@@ -153,7 +154,7 @@ async function handleSave() {
 
 function handleImageUpload(file: File) {
   if (!file.type.startsWith("image/")) {
-    ElMessage.warning("请选择图片文件");
+    ElMessage.warning(t("page.carousel.selectImageFile"));
     return false;
   }
   selectedFile.value = file;
@@ -176,9 +177,9 @@ function handleManualUrlInput() {
 }
 
 async function handleDelete(id: number) {
-  await ElMessageBox.confirm("确认删除该轮播图？", "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.carousel.deleteConfirm"), t("common.notice"), { type: "warning" });
   await deleteCarousel({ id });
-  ElMessage.success("删除成功");
+  ElMessage.success(t("common.deleteSuccess"));
   loadList();
 }
 

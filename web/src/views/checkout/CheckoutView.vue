@@ -1,8 +1,7 @@
 <template>
   <div class="checkout-wrap">
-    <h2 class="page-title">确认订单</h2>
+    <h2 class="page-title">{{ t("checkout.title") }}</h2>
 
-    <!-- 收货地址 -->
     <el-card class="section-card">
       <template #header>
         <div
@@ -12,9 +11,9 @@
             align-items: center;
           "
         >
-          <span>收货地址</span>
+          <span>{{ t("checkout.addressTitle") }}</span>
           <el-button link type="primary" @click="showAddressDialog = true">
-            {{ addresses.length ? "更换地址" : "新增地址" }}
+            {{ addresses.length ? t("checkout.changeAddress") : t("checkout.addAddress") }}
           </el-button>
         </div>
       </template>
@@ -27,17 +26,16 @@
           selectedAddress.address
         }}</span>
       </div>
-      <el-empty v-else description="请先添加收货地址" :image-size="60">
+      <el-empty v-else :description="t('checkout.noAddress')" :image-size="60">
         <el-button type="primary" size="small" @click="showAddressDialog = true"
-          >新增地址</el-button
+          >{{ t('checkout.addAddress') }}</el-button
         >
       </el-empty>
     </el-card>
 
-    <!-- 商品清单 -->
     <el-card class="section-card">
-      <template #header>商品清单</template>
-      <el-empty v-if="!checkoutItems.length" description="暂无待结算商品" />
+      <template #header>{{ t("checkout.itemList") }}</template>
+      <el-empty v-if="!checkoutItems.length" :description="t('checkout.noItems')" />
       <div v-for="item in checkoutItems" :key="item.id" class="order-item">
         <img :src="item.img_path" class="order-img" />
         <div class="order-info">
@@ -50,33 +48,32 @@
       </div>
     </el-card>
 
-    <!-- 价格汇总 -->
     <el-card class="section-card">
       <div class="summary-row">
-        <span>商品总价</span>
+        <span>{{ t("checkout.totalPrice") }}</span>
         <span>¥{{ totalPrice }}</span>
       </div>
       <div class="summary-row">
-        <span>优惠券</span>
+        <span>{{ t("checkout.coupon") }}</span>
         <div class="coupon-row">
           <span :class="{ discount: couponDiscountValue > 0 }">
-            {{ selectedCoupon ? `-${couponDiscount}` : "未选择" }}
+            {{ selectedCoupon ? `-${couponDiscount}` : t("checkout.notSelected") }}
           </span>
           <el-button link type="primary" @click="showCouponDialog = true">
-            {{ selectedCoupon ? "更换" : "选择" }}
+            {{ selectedCoupon ? t("checkout.changeCoupon") : t("checkout.selectCoupon") }}
           </el-button>
         </div>
       </div>
       <el-divider style="margin: 10px 0" />
       <div class="summary-row total">
-        <span>应付金额</span>
+        <span>{{ t("checkout.payable") }}</span>
         <span class="total-price">¥{{ payablePrice }}</span>
       </div>
     </el-card>
 
     <div class="checkout-footer">
       <el-button size="large" @click="$router.push('/cart')"
-        >返回购物车</el-button
+        >{{ t("checkout.backToCart") }}</el-button
       >
       <el-button
         type="primary"
@@ -85,12 +82,11 @@
         :disabled="!selectedAddress || !checkoutItems.length"
         @click="handleSubmit"
       >
-        提交订单
+        {{ t("checkout.submitOrder") }}
       </el-button>
     </div>
 
-    <!-- 地址弹窗 -->
-    <el-dialog v-model="showAddressDialog" title="选择收货地址" width="500px">
+    <el-dialog v-model="showAddressDialog" :title="t('checkout.selectAddressTitle')" width="500px">
       <div
         v-for="addr in addresses"
         :key="addr.id"
@@ -105,27 +101,27 @@
       </div>
       <el-divider />
       <el-form :model="newAddr" label-width="70px" size="small">
-        <el-form-item label="姓名"
+        <el-form-item :label="t('checkout.name')"
           ><el-input v-model="newAddr.name"
         /></el-form-item>
-        <el-form-item label="手机号"
+        <el-form-item :label="t('checkout.phone')"
           ><el-input v-model="newAddr.phone"
         /></el-form-item>
-        <el-form-item label="地址"
+        <el-form-item :label="t('checkout.address')"
           ><el-input v-model="newAddr.address" type="textarea"
         /></el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showAddressDialog = false">取消</el-button>
+        <el-button @click="showAddressDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="handleAddAddress"
-          >保存新地址</el-button
+          >{{ t('checkout.saveAddress') }}</el-button
         >
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showCouponDialog" title="选择优惠券" width="560px">
+    <el-dialog v-model="showCouponDialog" :title="t('checkout.selectCouponTitle')" width="560px">
       <el-skeleton v-if="couponLoading" :rows="3" animated />
-      <el-empty v-else-if="!usableCoupons.length" description="暂无可用优惠券" />
+      <el-empty v-else-if="!usableCoupons.length" :description="t('checkout.noAvailableCoupons')" />
       <div v-else class="coupon-list">
         <div
           v-for="coupon in usableCoupons"
@@ -146,15 +142,15 @@
             </div>
           </div>
           <el-tag v-if="!eligibleItemForCoupon(coupon)" type="info"
-            >未达门槛</el-tag
+            >{{ t('checkout.unavailable') }}</el-tag
           >
-          <el-tag v-else type="success">可用</el-tag>
+          <el-tag v-else type="success">{{ t('checkout.available') }}</el-tag>
         </div>
       </div>
       <template #footer>
-        <el-button @click="clearCoupon">不使用优惠券</el-button>
+        <el-button @click="clearCoupon">{{ t('checkout.noCoupon') }}</el-button>
         <el-button type="primary" @click="showCouponDialog = false"
-          >确定</el-button
+          >{{ t('checkout.confirm') }}</el-button
         >
       </template>
     </el-dialog>
@@ -170,11 +166,16 @@ import { getAddressList, createAddress } from "@/api/address";
 import { createOrder } from "@/api/order";
 import { deleteCart } from "@/api/cart";
 import { getUserCouponList } from "@/api/coupon";
+import { activeUserSessionStorageKey } from "@/utils/session";
+import { t } from "@/locales";
 
 const router = useRouter();
 
 const checkoutItems = ref<any[]>(
-  JSON.parse(sessionStorage.getItem("checkout_items") ?? "[]"),
+  JSON.parse(
+    sessionStorage.getItem(activeUserSessionStorageKey("checkout_items")) ??
+      "[]",
+  ),
 );
 const addresses = ref<any[]>([]);
 const selectedAddress = ref<any>(null);
@@ -245,15 +246,24 @@ function eligibleItemForCoupon(coupon: any) {
 
 function couponText(coupon: any) {
   if (coupon.coupon_type === 2) {
-    return `${Number(coupon.discount * 10).toFixed(1)}折`;
+    return t("checkout.couponFold", {
+      amount: Number(coupon.discount * 10).toFixed(1).replace(/\.0$/, ""),
+    });
   }
-  return `减 ¥${Number(coupon.discount || 0).toFixed(0)}`;
+  return t("checkout.couponMoney", {
+    amount: Number(coupon.discount || 0).toFixed(0),
+  });
 }
 
 function couponScopeText(coupon: any) {
   const item = eligibleItemForCoupon(coupon);
-  if (!item) return `满 ${Number(coupon.min_amount || 0).toFixed(0)} 可用`;
-  return `应用到 ${item.name || "首个可用商品"}`;
+  if (!item) {
+    return t("checkout.couponPercent", {
+      percent: Number(coupon.min_amount || 0).toFixed(0),
+      fold: Number(coupon.min_amount || 0).toFixed(0),
+    });
+  }
+  return item.name || t("checkout.available");
 }
 
 function selectCoupon(coupon: any) {
@@ -293,10 +303,10 @@ async function loadCoupons() {
 
 async function handleAddAddress() {
   if (!newAddr.name || !newAddr.phone || !newAddr.address) {
-    return ElMessage.warning("请填写完整地址信息");
+    return ElMessage.warning(t("checkout.fillAddressComplete"));
   }
   await createAddress({ ...newAddr });
-  ElMessage.success("地址已保存");
+  ElMessage.success(t("checkout.addressSaved"));
   newAddr.name = "";
   newAddr.phone = "";
   newAddr.address = "";
@@ -305,10 +315,10 @@ async function handleAddAddress() {
 }
 
 async function handleSubmit() {
-  if (!selectedAddress.value) return ElMessage.warning("请选择收货地址");
-  if (!checkoutItems.value.length) return ElMessage.warning("订单为空");
+  if (!selectedAddress.value) return ElMessage.warning(t("checkout.selectAddressWarning"));
+  if (!checkoutItems.value.length) return ElMessage.warning(t("checkout.orderEmpty"));
 
-  // 每件购物车商品单独创建一个订单（当前后端一个订单对应一个商品）
+  // Create one order per cart item because the backend maps one order to one product.
   submitting.value = true;
   try {
     const pendingOrders: any[] = [];
@@ -332,12 +342,15 @@ async function handleSubmit() {
       });
     }
     await Promise.all(checkoutItems.value.map((item) => deleteCart({ id: item.id })));
-    // 将订单信息传给支付页
-    sessionStorage.setItem("pending_orders", JSON.stringify(pendingOrders));
-    sessionStorage.removeItem("checkout_items");
+    // Pass the order payload to the payment page.
+    sessionStorage.setItem(
+      activeUserSessionStorageKey("pending_orders"),
+      JSON.stringify(pendingOrders),
+    );
+    sessionStorage.removeItem(activeUserSessionStorageKey("checkout_items"));
     router.push("/payment");
   } catch (err) {
-    ElMessage.error("下单失败，请重试");
+    ElMessage.error(t("checkout.submitFailed"));
   } finally {
     submitting.value = false;
   }
