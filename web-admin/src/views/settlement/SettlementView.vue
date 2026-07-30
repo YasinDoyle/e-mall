@@ -2,66 +2,66 @@
   <el-card>
     <template #header>
       <div class="card-header">
-        <span>结算管理</span>
+        <span>{{ t("page.settlement.title") }}</span>
         <div class="filters">
           <el-input-number
             v-model="sellerID"
             :min="0"
             :step="1"
-            placeholder="商家ID"
+            :placeholder="t('page.settlement.sellerId')"
             controls-position="right"
           />
-          <el-select v-model="statusFilter" clearable placeholder="结算状态" style="width: 140px" @change="reload">
-            <el-option label="待结算" value="pending" />
-            <el-option label="已生成" value="generated" />
-            <el-option label="已打款" value="paid" />
-            <el-option label="已退款" value="refunded" />
+          <el-select v-model="statusFilter" clearable :placeholder="t('page.settlement.statusPlaceholder')" style="width: 140px" @change="reload">
+            <el-option :label="t('status.settlement.pending')" value="pending" />
+            <el-option :label="t('status.settlement.generated')" value="generated" />
+            <el-option :label="t('status.settlement.paid')" value="paid" />
+            <el-option :label="t('status.settlement.refunded')" value="refunded" />
           </el-select>
-          <el-button :loading="loading" @click="reloadAll">刷新</el-button>
-          <el-button :loading="backfilling" @click="backfillAccount">回填账户</el-button>
-          <el-button type="primary" @click="generate">按商家批量生成</el-button>
+          <el-button :loading="loading" @click="reloadAll">{{ t("common.refresh") }}</el-button>
+          <el-button :loading="backfilling" @click="backfillAccount">{{ t("page.settlement.backfillAccount") }}</el-button>
+          <el-button type="primary" @click="generate">{{ t("page.settlement.generateBySeller") }}</el-button>
         </div>
       </div>
     </template>
 
     <div class="summary-grid">
       <div class="summary-item">
-        <span class="summary-label">平台收益</span>
+        <span class="summary-label">{{ t("page.settlement.platformRevenue") }}</span>
         <b>¥{{ money(overview.platform_revenue) }}</b>
       </div>
     </div>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="seller_id" label="商家ID" width="90" />
-      <el-table-column prop="order_num" label="订单号" min-width="170" />
-      <el-table-column label="订单金额" width="110">
+      <el-table-column prop="seller_id" :label="t('page.settlement.sellerId')" width="90" />
+      <el-table-column prop="order_num" :label="t('page.settlement.orderNo')" min-width="170" />
+      <el-table-column :label="t('page.settlement.grossAmount')" width="110">
         <template #default="{ row }">¥{{ money(row.gross_amount) }}</template>
       </el-table-column>
-      <el-table-column label="佣金" width="130">
+      <el-table-column :label="t('page.settlement.commission')" width="130">
         <template #default="{ row }">
           ¥{{ money(row.commission_amount) }}
           <span class="muted">({{ percent(row.commission_rate) }})</span>
         </template>
       </el-table-column>
-      <el-table-column label="应结算" width="120">
+      <el-table-column :label="t('page.settlement.settlementAmount')" width="120">
         <template #default="{ row }">¥{{ money(row.settlement_amount) }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="110">
+      <el-table-column :label="t('common.status')" width="110">
         <template #default="{ row }">
           <el-tag :type="statusTag(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column :label="t('common.actions')" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openDetail(row)">流水</el-button>
+          <el-button size="small" @click="openDetail(row)">{{ t("common.flow") }}</el-button>
           <el-button
             v-if="row.status === 'pending'"
             size="small"
             type="primary"
             @click="generateOne(row)"
           >
-            生成结算
+            {{ t("page.settlement.generateOne") }}
           </el-button>
           <el-button
             v-if="row.status === 'generated'"
@@ -69,7 +69,7 @@
             type="primary"
             @click="markPaid(row)"
           >
-            标记打款
+            {{ t("page.settlement.markPaid") }}
           </el-button>
         </template>
       </el-table-column>
@@ -84,15 +84,15 @@
       @current-change="loadList"
     />
 
-    <el-dialog v-model="detailVisible" title="结算流水" width="760px">
+    <el-dialog v-model="detailVisible" :title="t('page.settlement.flowTitle')" width="760px">
       <el-table :data="flows" size="small">
-        <el-table-column prop="flow_no" label="流水号" min-width="190" />
-        <el-table-column prop="flow_type" label="类型" width="150" />
-        <el-table-column prop="direction" label="方向" width="80" />
-        <el-table-column label="金额" width="100">
+        <el-table-column prop="flow_no" :label="t('page.settlement.flowNo')" min-width="190" />
+        <el-table-column prop="flow_type" :label="t('common.type')" width="150" />
+        <el-table-column prop="direction" :label="t('common.direction')" width="80" />
+        <el-table-column :label="t('common.amount')" width="100">
           <template #default="{ row }">¥{{ money(row.amount) }}</template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="140" />
+        <el-table-column prop="remark" :label="t('common.remark')" min-width="140" />
       </el-table>
     </el-dialog>
   </el-card>
@@ -110,6 +110,8 @@ import {
   markAdminSettlementPaid,
 } from "@/api/settlement";
 import { getStatsOverview } from "@/api";
+import { t } from "@/locales";
+import { requestAdminPendingCountsRefresh } from "@/utils/adminPending";
 
 const list = ref<any[]>([]);
 const flows = ref<any[]>([]);
@@ -136,12 +138,12 @@ function percent(value: number) {
 function statusText(status: string) {
   return (
     {
-      pending: "待结算",
-      generated: "已生成",
-      paid: "已打款",
-      refunded: "已退款",
+      pending: t("status.settlement.pending"),
+      generated: t("status.settlement.generated"),
+      paid: t("status.settlement.paid"),
+      refunded: t("status.settlement.refunded"),
     } as any
-  )[status] ?? "未知";
+  )[status] ?? t("common.unknown");
 }
 
 function statusTag(status: string) {
@@ -198,15 +200,16 @@ async function reloadAll() {
 
 async function generate() {
   if (!sellerID.value) {
-    return ElMessage.warning("请输入商家ID");
+    return ElMessage.warning(t("page.settlement.sellerIdRequired"));
   }
   const res: any = await generateAdminSettlement({ seller_id: sellerID.value });
-  ElMessage.success(`已生成 ${res.data?.count ?? 0} 条结算单`);
+  ElMessage.success(t("page.settlement.generateSuccess", { count: res.data?.count ?? 0 }));
+  requestAdminPendingCountsRefresh();
   reload();
 }
 
 async function backfillAccount() {
-  await ElMessageBox.confirm("确认回填所有已打款但未入账的商家账户吗？", "提示", {
+  await ElMessageBox.confirm(t("page.settlement.backfillConfirm"), t("common.notice"), {
     type: "warning",
   });
   backfilling.value = true;
@@ -214,9 +217,11 @@ async function backfillAccount() {
     const res: any = await backfillAdminSellerAccount();
     const data = res.data || {};
     ElMessage.success(
-      `回填完成：${data.settlement_count ?? 0} 笔结算，${data.seller_count ?? 0} 个商家，¥${money(
-        data.amount ?? 0,
-      )}`,
+      t("page.settlement.backfillSuccess", {
+        settlementCount: data.settlement_count ?? 0,
+        sellerCount: data.seller_count ?? 0,
+        amount: money(data.amount ?? 0),
+      }),
     );
     loadList();
   } finally {
@@ -226,23 +231,24 @@ async function backfillAccount() {
 
 async function generateOne(row: any) {
   await ElMessageBox.confirm(
-    `确认生成订单 ${row.order_num} 的单笔结算？`,
-    "提示",
+    t("page.settlement.generateOneConfirm", { orderNo: row.order_num }),
+    t("common.notice"),
     { type: "warning" },
   );
   await generateOneAdminSettlement({ id: row.id });
-  ElMessage.success("已生成单笔结算");
+  ElMessage.success(t("page.settlement.generateOneSuccess"));
+  requestAdminPendingCountsRefresh();
   loadList();
 }
 
 async function markPaid(row: any) {
   await ElMessageBox.confirm(
-    `确认将结算单 ${row.id} 标记为已打款？`,
-    "提示",
+    t("page.settlement.markPaidConfirm", { id: row.id }),
+    t("common.notice"),
     { type: "warning" },
   );
   await markAdminSettlementPaid({ id: row.id });
-  ElMessage.success("已标记打款");
+  ElMessage.success(t("page.settlement.markPaidSuccess"));
   loadList();
 }
 

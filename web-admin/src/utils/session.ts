@@ -1,5 +1,5 @@
 const ACTIVE_SESSION_KEY = "mall:admin:active_session";
-const LAST_ACTIVE_SESSION_KEY = "mall:admin:last_active_session";
+const PENDING_LOGIN_KEY = "mall:admin:pending_login";
 const SESSIONS_KEY = "mall:admin:sessions";
 const PENDING_SESSION_ID = "pending";
 
@@ -7,6 +7,13 @@ export interface AdminInfo {
   id?: number;
   user_name: string;
   nick_name: string;
+}
+
+export interface AdminSessionSummary {
+  id: string;
+  title: string;
+  subtitle: string;
+  active: boolean;
 }
 
 interface AdminSession {
@@ -25,32 +32,56 @@ function readSessions(): Record<string, AdminSession> {
   }
 }
 
+function getSessionTitle(session: AdminSession, fallback: string) {
+  return session.adminInfo?.nick_name || session.adminInfo?.user_name || fallback;
+}
+
 function writeSessions(sessions: Record<string, AdminSession>) {
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 }
 
 function activeSessionID() {
-  const activeID =
-    sessionStorage.getItem(ACTIVE_SESSION_KEY) ||
-    localStorage.getItem(ACTIVE_SESSION_KEY) ||
-    localStorage.getItem(LAST_ACTIVE_SESSION_KEY) ||
-    PENDING_SESSION_ID;
-  sessionStorage.setItem(ACTIVE_SESSION_KEY, activeID);
-  return activeID;
+  const activeID = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+  if (activeID) {
+    return activeID;
+  }
+  clearPendingSession();
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  return PENDING_SESSION_ID;
 }
 
 function setActiveSessionID(id: string) {
   sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
-  localStorage.setItem(LAST_ACTIVE_SESSION_KEY, id);
-  localStorage.removeItem(ACTIVE_SESSION_KEY);
+  if (id === PENDING_SESSION_ID) {
+    return;
+  }
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
 }
 
 function emptySession(id: string): AdminSession {
   return { id, token: "", refreshToken: "", adminInfo: null, data: {} };
 }
 
+function clearPendingSession() {
+  const sessions = readSessions();
+  if (!sessions[PENDING_SESSION_ID]) {
+    return;
+  }
+  delete sessions[PENDING_SESSION_ID];
+  writeSessions(sessions);
+}
+
+function isPendingLoginSession() {
+  return sessionStorage.getItem(PENDING_LOGIN_KEY) === "1";
+}
+
 export function getActiveAdminSession(): AdminSession | null {
-  return readSessions()[activeSessionID()] ?? migrateLegacyAdminSession();
+  const id = activeSessionID();
+  if (id === PENDING_SESSION_ID && !isPendingLoginSession()) {
+    clearPendingSession();
+    return null;
+  }
+  return readSessions()[id] ?? null;
 }
 
 export function getActiveAdminToken() {
@@ -65,10 +96,34 @@ export function getActiveAdminInfo() {
   return getActiveAdminSession()?.adminInfo ?? null;
 }
 
+export function listSavedAdminSessions(): AdminSessionSummary[] {
+  const sessions = readSessions();
+  const activeID = sessionStorage.getItem(ACTIVE_SESSION_KEY) || PENDING_SESSION_ID;
+  return Object.values(sessions)
+    .filter((session) => session.id !== PENDING_SESSION_ID && !!session.token)
+    .map((session) => ({
+      id: session.id,
+      title: getSessionTitle(session, `#${session.id}`),
+      subtitle: session.adminInfo?.user_name || `#${session.id}`,
+      active: session.id === activeID,
+    }));
+}
+
+export function activateAdminSession(id: string) {
+  const sessions = readSessions();
+  if (!sessions[id]) {
+    return false;
+  }
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
+  return true;
+}
+
 export function beginAdminLoginSession() {
   const sessions = readSessions();
   sessions[PENDING_SESSION_ID] = emptySession(PENDING_SESSION_ID);
   sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  sessionStorage.setItem(PENDING_LOGIN_KEY, "1");
   writeSessions(sessions);
 }
 
@@ -83,7 +138,6 @@ export function setActiveAdminTokens(token: string, refreshToken?: string) {
   sessions[id] = session;
   setActiveSessionID(id);
   writeSessions(sessions);
-  clearLegacyAdminSession();
 }
 
 export function setActiveAdminInfo(info: AdminInfo) {
@@ -104,54 +158,10 @@ export function setActiveAdminInfo(info: AdminInfo) {
   }
   setActiveSessionID(nextID);
   writeSessions(sessions);
-  clearLegacyAdminSession();
 }
 
 export function clearActiveAdminSession() {
-  const sessions = readSessions();
-  delete sessions[activeSessionID()];
-  const nextID = Object.keys(sessions)[0] ?? "";
-  if (nextID) {
-    setActiveSessionID(nextID);
-  } else {
-    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
-    localStorage.removeItem(ACTIVE_SESSION_KEY);
-    localStorage.removeItem(LAST_ACTIVE_SESSION_KEY);
-  }
-  writeSessions(sessions);
-  clearLegacyAdminSession();
-}
-
-function migrateLegacyAdminSession(): AdminSession | null {
-  const token = localStorage.getItem("admin_token") ?? "";
-  const refreshToken = localStorage.getItem("admin_refresh_token") ?? "";
-  const adminInfo = readJSON<AdminInfo>("admin_info");
-  if (!token && !refreshToken && !adminInfo) {
-    return null;
-  }
-  const id = adminInfo?.id ? String(adminInfo.id) : adminInfo?.user_name || PENDING_SESSION_ID;
-  const session = emptySession(id);
-  session.token = token;
-  session.refreshToken = refreshToken;
-  session.adminInfo = adminInfo;
-  const sessions = readSessions();
-  sessions[id] = session;
-  setActiveSessionID(id);
-  writeSessions(sessions);
-  clearLegacyAdminSession();
-  return session;
-}
-
-function readJSON<T>(key: string): T | null {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "null");
-  } catch {
-    return null;
-  }
-}
-
-function clearLegacyAdminSession() {
-  localStorage.removeItem("admin_token");
-  localStorage.removeItem("admin_refresh_token");
-  localStorage.removeItem("admin_info");
+  clearPendingSession();
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
 }

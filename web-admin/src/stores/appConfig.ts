@@ -21,7 +21,7 @@ export const defaultAppConfig: PublicAppConfig = {
   notification_polling_interval_ms: 30000,
   upload_max_size_mb: 5,
   feature_flags: {
-    notification_sse: false,
+    notification_sse: true,
     notification_polling: true,
   },
 };

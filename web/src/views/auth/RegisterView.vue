@@ -1,17 +1,17 @@
 <template>
   <div class="register-page">
     <el-card class="register-card">
-      <h2 class="title">注册</h2>
+      <h2 class="title">{{ t("register.title") }}</h2>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="用户名" prop="user_name">
-          <el-input v-model="form.user_name" placeholder="请输入用户名" />
+        <el-form-item :label="t('register.username')" prop="user_name">
+          <el-input v-model="form.user_name" :placeholder="t('register.usernamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="昵称">
-          <el-input v-model="form.nick_name" placeholder="请输入昵称" />
+        <el-form-item :label="t('register.nickname')">
+          <el-input v-model="form.nick_name" :placeholder="t('register.nicknamePlaceholder')" />
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item :label="t('register.email')" prop="email">
           <div class="email-code-row">
-            <el-input v-model="form.email" placeholder="请输入邮箱" />
+            <el-input v-model="form.email" :placeholder="t('register.emailPlaceholder')" />
             <el-button
               :loading="sendingCode"
               :disabled="codeCountdown > 0"
@@ -21,26 +21,26 @@
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="邮箱验证码" prop="email_code">
+        <el-form-item :label="t('register.emailCode')" prop="email_code">
           <el-input
             v-model="form.email_code"
-            placeholder="请输入6位邮箱验证码"
+            :placeholder="t('register.emailCodePlaceholder')"
             maxlength="6"
           />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="t('register.password')" prop="password">
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="请输入密码（至少6位）"
+            :placeholder="t('register.passwordPlaceholder')"
             show-password
           />
         </el-form-item>
-        <el-form-item label="确认密码" prop="password_confirm">
+        <el-form-item :label="t('register.confirmPassword')" prop="password_confirm">
           <el-input
             v-model="form.password_confirm"
             type="password"
-            placeholder="请再次输入密码"
+            :placeholder="t('register.confirmPasswordPlaceholder')"
             show-password
           />
         </el-form-item>
@@ -51,12 +51,12 @@
             :loading="loading"
             @click="handleRegister"
           >
-            注册
+            {{ t("register.register") }}
           </el-button>
         </el-form-item>
       </el-form>
       <div class="footer-links">
-        已有账号？<RouterLink to="/login">立即登录</RouterLink>
+        {{ t("register.existingAccount") }}<RouterLink to="/login">{{ t("register.loginNow") }}</RouterLink>
       </div>
     </el-card>
   </div>
@@ -68,6 +68,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { sendRegisterEmailCode, userRegister } from "@/api/user";
+import { t } from "@/locales";
 
 const router = useRouter();
 const formRef = ref<FormInstance>();
@@ -85,29 +86,29 @@ const form = reactive({
 });
 
 const codeButtonText = computed(() =>
-  codeCountdown.value > 0 ? `${codeCountdown.value}s` : "发送验证码",
+  codeCountdown.value > 0 ? `${codeCountdown.value}${t("register.countdownSuffix")}` : t("register.sendCode"),
 );
 
 const rules = {
-  user_name: [{ required: true, message: "请输入用户名", trigger: "blur" }],
+  user_name: [{ required: true, message: t("register.usernameRequired"), trigger: "blur" }],
   email: [
-    { required: true, message: "请输入邮箱", trigger: "blur" },
-    { type: "email", message: "邮箱格式不正确", trigger: "blur" },
+    { required: true, message: t("register.emailRequired"), trigger: "blur" },
+    { type: "email", message: t("register.emailFormatInvalid"), trigger: "blur" },
   ],
   email_code: [
-    { required: true, message: "请输入邮箱验证码", trigger: "blur" },
-    { len: 6, message: "邮箱验证码为6位", trigger: "blur" },
+    { required: true, message: t("register.emailCodeRequired"), trigger: "blur" },
+    { len: 6, message: t("register.emailCodeLength"), trigger: "blur" },
   ],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 6, message: "密码至少6位", trigger: "blur" },
+    { required: true, message: t("register.passwordRequired"), trigger: "blur" },
+    { min: 6, message: t("register.passwordMinLength"), trigger: "blur" },
   ],
   password_confirm: [
-    { required: true, message: "请再次输入密码", trigger: "blur" },
+    { required: true, message: t("register.confirmPasswordRequired"), trigger: "blur" },
     {
       validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
         if (value !== form.password) {
-          callback(new Error("两次密码输入不一致"));
+          callback(new Error(t("register.passwordMismatch")));
           return;
         }
         callback();
@@ -131,13 +132,13 @@ function startCountdown() {
 
 async function handleSendCode() {
   if (!form.email) {
-    return ElMessage.warning("请输入邮箱");
+    return ElMessage.warning(t("register.emailEmpty"));
   }
   await formRef.value?.validateField("email");
   sendingCode.value = true;
   try {
     await sendRegisterEmailCode({ email: form.email });
-    ElMessage.success("验证码已发送，请查收邮箱");
+    ElMessage.success(t("register.codeSent"));
     startCountdown();
   } finally {
     sendingCode.value = false;
@@ -152,7 +153,7 @@ async function handleRegister() {
       ...form,
       nick_name: form.nick_name || form.user_name,
     });
-    ElMessage.success("注册成功，请登录");
+    ElMessage.success(t("register.registerSuccess"));
     router.push("/login");
   } finally {
     loading.value = false;

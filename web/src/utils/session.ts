@@ -1,7 +1,7 @@
 import type { UserInfo } from "@/types";
 
 const ACTIVE_SESSION_KEY = "mall:user:active_session";
-const LAST_ACTIVE_SESSION_KEY = "mall:user:last_active_session";
+const PENDING_LOGIN_KEY = "mall:user:pending_login";
 const SESSIONS_KEY = "mall:user:sessions";
 const PENDING_SESSION_ID = "pending";
 
@@ -13,6 +13,13 @@ interface UserSession {
   data: Record<string, string>;
 }
 
+export interface UserSessionSummary {
+  id: string;
+  title: string;
+  subtitle: string;
+  active: boolean;
+}
+
 function readSessions(): Record<string, UserSession> {
   try {
     return JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "{}");
@@ -21,32 +28,56 @@ function readSessions(): Record<string, UserSession> {
   }
 }
 
+function getSessionTitle(session: UserSession, fallback: string) {
+  return session.userInfo?.nick_name || session.userInfo?.user_name || fallback;
+}
+
 function writeSessions(sessions: Record<string, UserSession>) {
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 }
 
 function activeSessionID() {
-  const activeID =
-    sessionStorage.getItem(ACTIVE_SESSION_KEY) ||
-    localStorage.getItem(ACTIVE_SESSION_KEY) ||
-    localStorage.getItem(LAST_ACTIVE_SESSION_KEY) ||
-    PENDING_SESSION_ID;
-  sessionStorage.setItem(ACTIVE_SESSION_KEY, activeID);
-  return activeID;
+  const activeID = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+  if (activeID) {
+    return activeID;
+  }
+  clearPendingSession();
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  return PENDING_SESSION_ID;
 }
 
 function setActiveSessionID(id: string) {
   sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
-  localStorage.setItem(LAST_ACTIVE_SESSION_KEY, id);
-  localStorage.removeItem(ACTIVE_SESSION_KEY);
+  if (id === PENDING_SESSION_ID) {
+    return;
+  }
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
 }
 
 function emptySession(id: string): UserSession {
   return { id, token: "", refreshToken: "", userInfo: null, data: {} };
 }
 
+function clearPendingSession() {
+  const sessions = readSessions();
+  if (!sessions[PENDING_SESSION_ID]) {
+    return;
+  }
+  delete sessions[PENDING_SESSION_ID];
+  writeSessions(sessions);
+}
+
+function isPendingLoginSession() {
+  return sessionStorage.getItem(PENDING_LOGIN_KEY) === "1";
+}
+
 export function getActiveUserSession(): UserSession | null {
-  return readSessions()[activeSessionID()] ?? migrateLegacyUserSession();
+  const id = activeSessionID();
+  if (id === PENDING_SESSION_ID && !isPendingLoginSession()) {
+    clearPendingSession();
+    return null;
+  }
+  return readSessions()[id] ?? null;
 }
 
 export function getActiveUserToken() {
@@ -65,6 +96,7 @@ export function beginUserLoginSession() {
   const sessions = readSessions();
   sessions[PENDING_SESSION_ID] = emptySession(PENDING_SESSION_ID);
   sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  sessionStorage.setItem(PENDING_LOGIN_KEY, "1");
   writeSessions(sessions);
 }
 
@@ -79,7 +111,6 @@ export function setActiveUserTokens(token: string, refreshToken?: string) {
   sessions[id] = session;
   setActiveSessionID(id);
   writeSessions(sessions);
-  clearLegacyUserSession();
 }
 
 export function setActiveUserInfo(info: UserInfo) {
@@ -100,26 +131,39 @@ export function setActiveUserInfo(info: UserInfo) {
   }
   setActiveSessionID(nextID);
   writeSessions(sessions);
-  clearLegacyUserSession();
 }
 
 export function clearActiveUserSession() {
-  const sessions = readSessions();
-  delete sessions[activeSessionID()];
-  const nextID = Object.keys(sessions)[0] ?? "";
-  if (nextID) {
-    setActiveSessionID(nextID);
-  } else {
-    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
-    localStorage.removeItem(ACTIVE_SESSION_KEY);
-    localStorage.removeItem(LAST_ACTIVE_SESSION_KEY);
-  }
-  writeSessions(sessions);
-  clearLegacyUserSession();
+  clearPendingSession();
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, PENDING_SESSION_ID);
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
 }
 
 export function getActiveUserScopedItem(key: string) {
   return getActiveUserSession()?.data[key] ?? null;
+}
+
+export function listSavedUserSessions(): UserSessionSummary[] {
+  const sessions = readSessions();
+  const activeID = sessionStorage.getItem(ACTIVE_SESSION_KEY) || PENDING_SESSION_ID;
+  return Object.values(sessions)
+    .filter((session) => session.id !== PENDING_SESSION_ID && !!session.token)
+    .map((session) => ({
+      id: session.id,
+      title: getSessionTitle(session, `#${session.id}`),
+      subtitle: session.userInfo?.user_name || `#${session.id}`,
+      active: session.id === activeID,
+    }));
+}
+
+export function activateUserSession(id: string) {
+  const sessions = readSessions();
+  if (!sessions[id]) {
+    return false;
+  }
+  sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
+  sessionStorage.removeItem(PENDING_LOGIN_KEY);
+  return true;
 }
 
 export function setActiveUserScopedItem(key: string, value: string) {
@@ -142,43 +186,4 @@ export function removeActiveUserScopedItem(key: string) {
 export function activeUserSessionStorageKey(key: string) {
   const session = getActiveUserSession();
   return `mall:user:${session?.id ?? PENDING_SESSION_ID}:${key}`;
-}
-
-function migrateLegacyUserSession(): UserSession | null {
-  const token = localStorage.getItem("token") ?? "";
-  const refreshToken = localStorage.getItem("refreshToken") ?? "";
-  const userInfo = readJSON<UserInfo>("userInfo");
-  if (!token && !refreshToken && !userInfo) {
-    return null;
-  }
-  const id = userInfo?.id ? String(userInfo.id) : PENDING_SESSION_ID;
-  const session = emptySession(id);
-  session.token = token;
-  session.refreshToken = refreshToken;
-  session.userInfo = userInfo;
-  const sellerProfile = localStorage.getItem("sellerProfile");
-  if (sellerProfile) {
-    session.data.sellerProfile = sellerProfile;
-  }
-  const sessions = readSessions();
-  sessions[id] = session;
-  setActiveSessionID(id);
-  writeSessions(sessions);
-  clearLegacyUserSession();
-  return session;
-}
-
-function readJSON<T>(key: string): T | null {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "null");
-  } catch {
-    return null;
-  }
-}
-
-function clearLegacyUserSession() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("userInfo");
-  localStorage.removeItem("sellerProfile");
 }

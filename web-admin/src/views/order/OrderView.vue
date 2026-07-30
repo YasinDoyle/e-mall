@@ -2,50 +2,50 @@
   <el-card>
     <template #header>
       <div class="card-header">
-        <span>订单管理</span>
+        <span>{{ t("page.order.title") }}</span>
         <div class="filters">
-          <el-select v-model="typeFilter" placeholder="订单状态" clearable style="width: 150px" @change="reload">
+          <el-select v-model="typeFilter" :placeholder="t('page.order.orderStatus')" clearable style="width: 150px" @change="reload">
             <el-option v-for="item in orderTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <el-select v-model="refundFilter" placeholder="退款状态" clearable style="width: 140px" @change="reload">
+          <el-select v-model="refundFilter" :placeholder="t('page.order.refundStatus')" clearable style="width: 140px" @change="reload">
             <el-option v-for="item in refundTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="loading" @click="loadList">{{ t("common.refresh") }}</el-button>
         </div>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="order_num" label="订单号" min-width="170" />
-      <el-table-column label="商品" min-width="220">
+      <el-table-column prop="order_num" :label="t('page.order.orderNo')" min-width="170" />
+      <el-table-column :label="t('page.order.product')" min-width="220">
         <template #default="{ row }">
           <div class="product-cell">
             <img v-if="row.img_path" :src="row.img_path" class="product-img" />
             <div>
               <div>{{ row.name || "-" }}</div>
-              <div class="muted">商品ID: {{ row.product_id }}</div>
+              <div class="muted">{{ t("page.order.productId", { id: row.product_id }) }}</div>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="user_id" label="买家ID" width="90" />
-      <el-table-column prop="boss_id" label="卖家ID" width="90" />
-      <el-table-column label="金额" width="110">
+      <el-table-column prop="user_id" :label="t('page.order.buyerId')" width="90" />
+      <el-table-column prop="boss_id" :label="t('page.order.sellerId')" width="90" />
+      <el-table-column :label="t('common.amount')" width="110">
         <template #default="{ row }">¥{{ totalAmount(row).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="订单状态" width="130">
+      <el-table-column :label="t('page.order.orderStatus')" width="130">
         <template #default="{ row }">
           <el-tag :type="orderTypeTag(row.type)">{{ orderTypeText(row.type) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="退款状态" width="110">
+      <el-table-column :label="t('page.order.refundStatus')" width="110">
         <template #default="{ row }">
           <el-tag :type="refundTag(row.refund_status)">{{ refundText(row.refund_status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="refund_reason" label="退款原因" min-width="160" show-overflow-tooltip />
-      <el-table-column label="操作" width="130" fixed="right">
+      <el-table-column prop="refund_reason" :label="t('page.order.refundReason')" min-width="160" show-overflow-tooltip />
+      <el-table-column :label="t('common.actions')" width="130" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="row.refund_status === 1"
@@ -53,7 +53,7 @@
             type="primary"
             @click="approveRefund(row)"
           >
-            退款审批
+            {{ t("page.order.refundAudit") }}
           </el-button>
           <span v-else class="muted">-</span>
         </template>
@@ -76,6 +76,8 @@ import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { approveOrderRefund, getAdminOrderList } from "@/api";
 import { orderStatusText, refundStatusText } from "@/utils/status-labels";
+import { t } from "@/locales";
+import { requestAdminPendingCountsRefresh } from "@/utils/adminPending";
 
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -135,18 +137,22 @@ async function loadList() {
 
 async function approveRefund(row: any) {
   const { value } = await ElMessageBox.prompt(
-    `确认给订单 ${row.order_num} 退款 ¥${totalAmount(row).toFixed(2)}，请输入资金密钥`,
-    "退款审批",
+    t("page.order.refundPrompt", {
+      orderNo: row.order_num,
+      amount: totalAmount(row).toFixed(2),
+    }),
+    t("page.order.refundAudit"),
     {
       inputType: "password",
       inputPattern: /.+/,
-      inputErrorMessage: "请输入资金密钥",
-      confirmButtonText: "审批退款",
-      cancelButtonText: "取消",
+      inputErrorMessage: t("page.order.fundKeyRequired"),
+      confirmButtonText: t("page.order.refundConfirm"),
+      cancelButtonText: t("common.cancel"),
     },
   );
   await approveOrderRefund({ order_id: row.id, key: value });
-  ElMessage.success("退款审批完成");
+  ElMessage.success(t("page.order.refundSuccess"));
+  requestAdminPendingCountsRefresh();
   loadList();
 }
 

@@ -200,7 +200,7 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task A: Realtime Notification MVP and Subscription Boundary
 
-**Status:** Completed. Implemented persistent notification records, user/admin notification APIs, unread count, mark-read operations, SSE unread stream, polling fallback, and user/admin notification views.
+**Status:** Completed. Implemented persistent notification records, user/admin notification APIs, unread count, mark-read operations, SSE unread stream, polling fallback, and user/admin notification views. Follow-up acceptance fix on 2026-07-29: SSE is the default primary channel; navbar/admin layout stop steady unread-count polling while SSE is active, and polling only starts when SSE is disabled or connection setup fails.
 
 **Goal:** Replace refresh-only status discovery with a usable notification inbox and browser subscription boundary, without taking on A4 reliable messaging infrastructure yet.
 
@@ -211,7 +211,7 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 - In this MVP, notification creation stores durable rows and signals active SSE connections through an in-process notification hub; browser clients receive unread-count updates and then load notification list/detail through the notification APIs.
 - User web subscribes to own notifications and refreshes seller/product/order state when relevant notifications arrive.
 - Admin web subscribes to pending-work notifications and shows badges/toasts for seller/product/refund/settlement queues.
-- Provide polling fallback for environments where persistent connections are unavailable.
+- Provide polling fallback for environments where persistent connections are unavailable; do not run periodic unread-count polling at the same time as a healthy SSE subscription.
 - Keep RabbitMQ, local message table, retry, dead-letter queues, and cross-service event reliability in A4.
 
 ### Post-P1 Task B: Runtime Configuration for Frontend and Fixed Parameters
@@ -228,7 +228,7 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task C: Internationalization Architecture
 
-**Status:** Completed. User web and admin web now ship `zh-CN` and `en-US` locale resources for migrated menus, login forms, validation messages, status labels, and API error messages. Both the user navbar/login page and admin layout/login page expose a language switcher with local persistence. Element Plus locale is provided through a reactive root `el-config-provider`, and axios/SSE requests send `X-Locale` / `Accept-Language` based on the selected locale. Backend business errors now include stable `msg_key` values and `zh-CN` / `en-US` messages while keeping `utils/e` codes stable.
+**Status:** Completed. User web and admin web now ship `zh-CN` and `en-US` locale resources, language switchers, dynamic Element Plus locale, locale headers, and backend localized business errors. Follow-up acceptance fixes moved user web checkout/payment, product detail/search/list, order detail/success, registration, not-found, seller/user center pages, and admin business pages behind locale resources. `web/tests/post-p1-acceptance.test.mjs` now locks the migrated user-facing slices and asserts admin page components stay free of hardcoded Chinese copy.
 
 **Goal:** Introduce a real i18n boundary instead of scattering fixed Chinese strings through frontend and backend.
 
@@ -242,6 +242,7 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 - Add backend message keys for business errors and API-facing labels; keep `utils/e` codes stable while allowing locale-specific messages.
 - Decide locale propagation strategy: request header, user preference, or query fallback.
 - Add tests or manual QA cases proving stable error codes independent of displayed language, and proving user/admin language switching updates frontend labels plus backend business error display messages.
+- Acceptance fix added `web/tests/post-p1-acceptance.test.mjs` to lock the user-visible i18n coverage slices already migrated, including the 2026-07-29 user-reported pages.
 
 ### Post-P1 Task D: Product Detail and Audit Information Enrichment
 
@@ -258,7 +259,7 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 
 ### Post-P1 Task E: Multi-Account Frontend Session Architecture
 
-**Status:** Completed. User web and admin web keep the shared account session pool in `localStorage`, but the active account pointer is now tab-scoped in `sessionStorage`. A last-active pointer remains in `localStorage` only to initialize a new tab conveniently; after initialization, each tab keeps its own active account. Login flows start from a `pending` tab session before moving tokens into the resolved account ID, so logging into account B in tab B does not overwrite account A in tab A. Request interceptors, SSE subscriptions, seller profile cache, and checkout/payment temporary data all read the current tab's active account.
+**Status:** Completed. User web and admin web keep the shared account session pool in `localStorage`, while the active account pointer is tab-scoped in `sessionStorage`. A fresh tab/window no longer auto-logs in from the last active account; it starts from a pending unauthenticated tab session. Normal logout clears only the current tab's active session and keeps the shared account pool, so tab B logout does not remove account A from tab A. User web and admin web expose explicit saved-account switch/add-account UI. Acceptance tests cover fresh-tab isolation, current-tab-only logout preservation, account switcher UI, and request-token selection isolation across two simulated tab-scoped sessions.
 
 **Goal:** Support multiple accounts in the same browser without later logins overwriting earlier sessions.
 
@@ -266,11 +267,12 @@ P1 focuses on making the platform business loop usable. After P1 is accepted, pl
 - Replace single global `localStorage` session keys with account-scoped session namespaces, for example by user ID, session ID, or selected workspace profile.
 - Decide supported UX: account switcher in one tab, isolated sessions per tab/window, or both.
 - Support multiple tabs operating different active accounts at the same time: keep the shared account session pool in `localStorage`, but move the active account pointer to per-tab `sessionStorage`.
-- When a new tab opens without a tab-scoped active account, initialize it from the last active account as a convenience, then keep future tab switching isolated.
+- When a new tab opens without a tab-scoped active account, start from a pending unauthenticated tab session; do not inherit the last active account from another tab.
 - Ensure request interceptors attach the token for the active account only.
 - Scope Pinia persistence, seller profile cache, cart state, and notification subscriptions to the active account.
-- Add logout behavior that clears only the current account session unless the user chooses to clear all sessions.
+- Add logout behavior that clears only the current tab's active session unless the user chooses to remove an account from the shared session pool or clear all sessions.
 - Add regression tests or manual QA cases for logging in as account A and account B in the same browser without state replacement, and for tab A using account A while tab B uses account B without request-token crossover.
+- Acceptance fix added `web/tests/post-p1-acceptance.test.mjs` for fresh-tab isolation and current-tab-only logout preservation.
 
 ### Post-P1 Task F: Seller Account and Withdrawal MVP
 

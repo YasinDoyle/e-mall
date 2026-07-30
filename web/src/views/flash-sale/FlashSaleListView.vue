@@ -2,18 +2,18 @@
   <div class="flash-wrap">
     <div class="flash-header">
       <el-icon color="#f56c6c" size="28"><Lightning /></el-icon>
-      <span class="flash-title">秒杀专场</span>
+      <span class="flash-title">{{ t("flashSale.title") }}</span>
       <el-tag type="danger" effect="dark" style="margin-left: 12px"
-        >火热进行中</el-tag
+        >{{ t("flashSale.hot") }}</el-tag
       >
-      <span class="countdown">距本场结束 {{ countdownText }}</span>
+      <span class="countdown">{{ t("flashSale.endsIn", { time: countdownText }) }}</span>
     </div>
 
     <el-skeleton v-if="loading" :rows="5" animated />
 
-    <el-empty v-else-if="!list.length" description="暂无秒杀商品">
+    <el-empty v-else-if="!list.length" :description="t('flashSale.empty')">
       <el-button type="primary" @click="$router.push('/products')"
-        >逛逛普通商品</el-button
+        >{{ t("flashSale.browseProducts") }}</el-button
       >
     </el-empty>
 
@@ -25,7 +25,7 @@
         class="flash-card"
         @click="$router.push(`/flash-sale/${productId(item)}`)"
       >
-        <div class="flash-badge">秒杀</div>
+        <div class="flash-badge">{{ t("flashSale.badge") }}</div>
         <div class="flash-name">
           {{ titleText(item) }}
         </div>
@@ -39,7 +39,7 @@
             status="exception"
             :show-text="false"
           />
-          <span class="stock-text">剩余 {{ stockNum(item) }} 件</span>
+          <span class="stock-text">{{ t("flashSale.stockLeft", { count: stockNum(item) }) }}</span>
         </div>
         <el-button
           type="danger"
@@ -47,7 +47,7 @@
           style="width: 100%; margin-top: 10px"
           :disabled="stockNum(item) <= 0"
         >
-          {{ stockNum(item) > 0 ? "立即抢购" : "已售罄" }}
+          {{ stockNum(item) > 0 ? t("flashSale.buyNow") : t("flashSale.soldOut") }}
         </el-button>
       </el-card>
     </div>
@@ -57,8 +57,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { Lightning } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
 import { getFlashSaleList } from "@/api/flashSale";
 
+const { t } = useI18n();
 const list = ref<any[]>([]);
 const loading = ref(true);
 const now = ref(Date.now());
@@ -91,14 +93,13 @@ function stockNum(item: any) {
 }
 
 function titleText(item: any) {
-  return item.title ?? item.Title ?? `商品 #${productId(item)}`;
+  return item.title ?? item.Title ?? t("flashSale.productFallback", { id: productId(item) });
 }
 
 function moneyText(item: any) {
   return Number(item.money ?? item.Money ?? 0).toFixed(2);
 }
 
-// 简单估算已售比例（没有原始库存字段时固定显示剩余热度）
 function stockPercent(item: any) {
   const remain = stockNum(item);
   if (remain <= 0) return 100;

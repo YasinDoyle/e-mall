@@ -2,34 +2,34 @@
   <el-card>
     <template #header>
       <div class="page-head">
-        <span>消息通知</span>
+        <span>{{ t("page.notification.title") }}</span>
         <div class="actions">
-          <el-checkbox v-model="unreadOnly">只看未读</el-checkbox>
+          <el-checkbox v-model="unreadOnly">{{ t("page.notification.unreadOnly") }}</el-checkbox>
           <el-button size="small" :disabled="!list.length" @click="handleMarkAllRead">
-            全部已读
+            {{ t("page.notification.markAllRead") }}
           </el-button>
         </div>
       </div>
     </template>
 
     <el-table v-loading="loading" :data="list" style="width: 100%">
-      <el-table-column label="状态" width="90">
+      <el-table-column :label="t('common.status')" width="90">
         <template #default="{ row }">
           <el-tag :type="row.read ? 'info' : 'danger'">
-            {{ row.read ? "已读" : "未读" }}
+            {{ row.read ? t("status.notification.read") : t("status.notification.unread") }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="scene" label="场景" width="140" />
-      <el-table-column prop="title" label="标题" width="180" />
-      <el-table-column prop="content" label="内容" show-overflow-tooltip />
-      <el-table-column label="时间" width="180">
+      <el-table-column prop="scene" :label="t('page.notification.scene')" width="140" />
+      <el-table-column prop="title" :label="t('page.notification.titleColumn')" width="180" />
+      <el-table-column prop="content" :label="t('page.notification.content')" show-overflow-tooltip />
+      <el-table-column :label="t('common.time')" width="180">
         <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="110">
+      <el-table-column :label="t('common.actions')" width="110">
         <template #default="{ row }">
           <el-button size="small" :disabled="row.read" @click="handleMarkRead(row)">
-            已读
+            {{ t("page.notification.markRead") }}
           </el-button>
         </template>
       </el-table-column>
@@ -57,6 +57,7 @@ import {
 } from "@/api/notification";
 import { useAppConfigStore } from "@/stores/appConfig";
 import { useNotificationStore } from "@/stores/notification";
+import { t } from "@/locales";
 
 const list = ref<NotificationItem[]>([]);
 const total = ref(0);

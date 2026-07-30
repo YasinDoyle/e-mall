@@ -1,10 +1,10 @@
 <template>
   <el-card>
-    <template #header>我的收藏</template>
+    <template #header>{{ t("favorite.title") }}</template>
     <el-skeleton v-if="loading" :rows="4" animated />
-    <el-empty v-else-if="!list.length" description="收藏夹是空的">
+    <el-empty v-else-if="!list.length" :description="t('favorite.empty')">
       <el-button type="primary" @click="$router.push('/products')"
-        >去逛逛</el-button
+        >{{ t("favorite.browse") }}</el-button
       >
     </el-empty>
     <div v-else class="fav-grid">
@@ -33,7 +33,7 @@
             type="danger"
             size="small"
             @click.stop="handleRemove(item.id)"
-            >取消收藏</el-button
+            >{{ t("favorite.remove") }}</el-button
           >
         </div>
       </el-card>
@@ -52,8 +52,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { getFavoriteList, deleteFavorite } from "@/api/favorite";
 
+const { t } = useI18n();
 const list = ref<any[]>([]);
 const page = ref(1);
 const pageSize = 12;
@@ -79,7 +81,7 @@ async function loadList() {
 
 async function handleRemove(id: number) {
   await deleteFavorite({ id });
-  ElMessage.success("已取消收藏");
+  ElMessage.success(t("favorite.removeSuccess"));
   loadList();
 }
 

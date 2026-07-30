@@ -11,7 +11,7 @@
     </el-carousel>
 
     <!-- 分类导航 -->
-    <div class="section-title">商品分类</div>
+    <div class="section-title">{{ $t("home.categoryTitle") }}</div>
     <div class="category-list">
       <el-tag
         v-for="cat in categories"
@@ -27,24 +27,24 @@
 
     <!-- 秒杀预告 -->
     <div class="section-title">
-      秒杀专场
+      {{ $t("home.flashSaleSection") }}
       <el-button link type="danger" @click="$router.push('/flash-sale')"
-        >进入专场</el-button
+        >{{ $t("home.enterFlashSale") }}</el-button
       >
     </div>
     <div class="flash-entry" @click="$router.push('/flash-sale')">
       <div>
-        <div class="flash-title">限时秒杀</div>
-        <div class="flash-subtitle">好价商品限量开抢，先到先得</div>
+        <div class="flash-title">{{ $t("home.flashTitle") }}</div>
+        <div class="flash-subtitle">{{ $t("home.flashSubtitle") }}</div>
       </div>
-      <el-button type="danger">立即查看</el-button>
+      <el-button type="danger">{{ $t("home.viewNow") }}</el-button>
     </div>
 
     <!-- 商品列表 -->
     <div class="section-title">
-      热门商品
+      {{ $t("home.hotProducts") }}
       <el-button link type="primary" @click="$router.push('/products')"
-        >查看全部</el-button
+        >{{ $t("home.viewAll") }}</el-button
       >
     </div>
     <div class="product-grid">
@@ -54,7 +54,7 @@
         :product="product"
       />
     </div>
-    <el-empty v-if="!loading && !products.length" description="暂无商品" />
+    <el-empty v-if="!loading && !products.length" :description="$t('home.noProducts')" />
   </div>
 </template>
 

@@ -2,85 +2,90 @@
   <el-card>
     <template #header>
       <div class="header">
-        <span>订单管理</span>
-        <el-button :loading="loading" @click="reloadAll">刷新</el-button>
+        <span>{{ t("sellerCenter.order.title") }}</span>
+        <el-button :loading="loading" @click="reloadAll">{{ t("common.refresh") }}</el-button>
       </div>
     </template>
 
     <div class="summary-grid">
       <div class="summary-item account">
-        <span class="summary-label">可提现余额</span>
+        <span class="summary-label">{{ t("sellerCenter.order.availableBalance") }}</span>
         <b>¥{{ money(accountSummary.available_balance) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">待结算</span>
+        <span class="summary-label">{{ t("sellerCenter.order.pendingSettlement") }}</span>
         <b>¥{{ money(settlementSummary.pending_amount) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">可结算</span>
+        <span class="summary-label">{{ t("sellerCenter.order.generatedSettlement") }}</span>
         <b>¥{{ money(settlementSummary.generated_amount) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">已打款</span>
+        <span class="summary-label">{{ t("sellerCenter.order.paidSettlement") }}</span>
         <b>¥{{ money(settlementSummary.paid_amount) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">已退款</span>
+        <span class="summary-label">{{ t("sellerCenter.order.refundedSettlement") }}</span>
         <b>¥{{ money(settlementSummary.refunded_amount) }}</b>
       </div>
     </div>
 
     <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane label="全部" name="0" />
-      <el-tab-pane label="待发货" name="2" />
-      <el-tab-pane label="已发货" name="3" />
-      <el-tab-pane label="已完成" name="4" />
-      <el-tab-pane label="退款中" name="5" />
-      <el-tab-pane label="已退款" name="6" />
+      <el-tab-pane :label="t('common.all')" name="0" />
+      <el-tab-pane :label="t('sellerCenter.order.pendingShipment')" name="2" />
+      <el-tab-pane :label="t('sellerCenter.order.shipped')" name="3" />
+      <el-tab-pane :label="t('sellerCenter.order.completed')" name="4" />
+      <el-tab-pane :label="t('sellerCenter.order.refunding')" name="5" />
+      <el-tab-pane :label="t('sellerCenter.order.refunded')" name="6" />
     </el-tabs>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
-      <el-table-column prop="order_num" label="订单号" min-width="150" />
-      <el-table-column label="商品" min-width="240">
+      <el-table-column prop="order_num" :label="t('sellerCenter.order.orderNo')" min-width="150" />
+      <el-table-column :label="t('sellerCenter.order.product')" min-width="240">
         <template #default="{ row }">
           <div class="product-cell">
             <img v-if="row.img_path" :src="row.img_path" class="product-img" />
             <div>
-              <div class="name">{{ row.name || "商品" }}</div>
-              <div class="muted">买家ID：{{ row.user_id }}</div>
+              <div class="name">{{ row.name || t("sellerCenter.order.product") }}</div>
+              <div class="muted">{{ t("sellerCenter.order.buyerId", { id: row.user_id }) }}</div>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="交易信息" min-width="210">
+      <el-table-column :label="t('sellerCenter.order.tradeInfo')" min-width="210">
         <template #default="{ row }">
-          <div>订单 ¥{{ totalAmount(row) }}</div>
+          <div>{{ t("sellerCenter.order.orderAmount", { amount: totalAmount(row) }) }}</div>
           <div class="muted">
-            佣金 ¥{{ money(row.commission_amount) }} / 收入 ¥{{ money(row.settlement_amount) }}
+            {{
+              t("sellerCenter.order.commissionIncome", {
+                commission: money(row.commission_amount),
+                income: money(row.settlement_amount),
+              })
+            }}
           </div>
           <el-tag size="small" :type="settlementTag(row.settlement_status)">
             {{ settlementText(row.settlement_status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="num" label="数量" width="80" />
-      <el-table-column label="状态" width="110">
+      <el-table-column prop="num" :label="t('sellerCenter.order.quantity')" width="80" />
+      <el-table-column :label="t('sellerCenter.order.status')" width="110">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.type)">
             {{ statusText(row.type) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="收货信息" min-width="260">
+      <el-table-column :label="t('sellerCenter.order.address')" min-width="260">
         <template #default="{ row }">
           <div>{{ row.address_name }} {{ row.address_phone }}</div>
           <div class="muted">{{ row.address }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="tracking_no" label="物流单号" min-width="150">
+      <el-table-column prop="tracking_no" :label="t('sellerCenter.order.trackingNo')" min-width="150">
         <template #default="{ row }">{{ row.tracking_no || "-" }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column :label="t('sellerCenter.order.actions')" width="120" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="row.type === 2"
@@ -88,7 +93,7 @@
             type="primary"
             @click="openShip(row)"
           >
-            发货
+            {{ t("sellerCenter.order.ship") }}
           </el-button>
         </template>
       </el-table-column>
@@ -103,19 +108,23 @@
       @current-change="loadList"
     />
 
-    <el-dialog v-model="shipDialogVisible" title="订单发货" width="420px">
+    <el-dialog v-model="shipDialogVisible" :title="t('sellerCenter.order.shipDialog')" width="420px">
       <el-form label-width="80px">
-        <el-form-item label="订单号">
+        <el-form-item :label="t('sellerCenter.order.orderNo')">
           <span>{{ currentOrder?.order_num }}</span>
         </el-form-item>
-        <el-form-item label="物流单号">
-          <el-input v-model="trackingNo" maxlength="64" placeholder="请输入物流单号" />
+        <el-form-item :label="t('sellerCenter.order.trackingNo')">
+          <el-input
+            v-model="trackingNo"
+            maxlength="64"
+            :placeholder="t('sellerCenter.order.trackingNoPlaceholder')"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="shipDialogVisible = false">取消</el-button>
+        <el-button @click="shipDialogVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="shipping" @click="handleShip">
-          确认发货
+          {{ t("sellerCenter.order.confirmShip") }}
         </el-button>
       </template>
     </el-dialog>
@@ -125,6 +134,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import {
   getSellerOrderList,
   getSellerSettlementSummary,
@@ -135,6 +145,7 @@ import { useSellerStore } from "@/stores/seller";
 import { orderStatusText } from "@/utils/status-labels";
 
 const sellerStore = useSellerStore();
+const { t } = useI18n();
 const accountSummary = ref({
   available_balance: 0,
   frozen_balance: 0,
@@ -182,12 +193,12 @@ function money(value: number) {
 function settlementText(status?: string) {
   return (
     {
-      pending: "待结算",
-      generated: "可结算",
-      paid: "已打款",
-      refunded: "已退款",
+      pending: t("sellerCenter.order.settlementPending"),
+      generated: t("sellerCenter.order.settlementGenerated"),
+      paid: t("sellerCenter.order.settlementPaid"),
+      refunded: t("sellerCenter.order.settlementRefunded"),
     } as any
-  )[status || ""] ?? "未生成";
+  )[status || ""] ?? t("sellerCenter.order.settlementNone");
 }
 
 function settlementTag(status?: string) {
@@ -251,14 +262,16 @@ function openShip(row: any) {
 
 async function handleShip() {
   if (!currentOrder.value) return;
-  if (!trackingNo.value.trim()) return ElMessage.warning("请输入物流单号");
+  if (!trackingNo.value.trim()) {
+    return ElMessage.warning(t("sellerCenter.order.trackingNoPlaceholder"));
+  }
   shipping.value = true;
   try {
     await shipOrder({
       order_id: currentOrder.value.id,
       tracking_no: trackingNo.value.trim(),
     });
-    ElMessage.success("已发货");
+    ElMessage.success(t("sellerCenter.order.shippedSuccess"));
     shipDialogVisible.value = false;
     await reloadAll();
   } finally {

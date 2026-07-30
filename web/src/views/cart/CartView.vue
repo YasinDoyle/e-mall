@@ -1,10 +1,10 @@
 <template>
   <div class="cart-wrap">
-    <h2 class="page-title">购物车</h2>
+    <h2 class="page-title">{{ t("cart.title") }}</h2>
 
-    <el-empty v-if="!cartList.length" description="购物车是空的">
+    <el-empty v-if="!cartList.length" :description="t('cart.empty')">
       <el-button type="primary" @click="$router.push('/products')"
-        >去逛逛</el-button
+        >{{ t("cart.browse") }}</el-button
       >
     </el-empty>
 
@@ -15,7 +15,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" />
-        <el-table-column label="商品" min-width="260">
+        <el-table-column :label="t('cart.product')" min-width="260">
           <template #default="{ row }">
             <div
               class="cart-product"
@@ -26,12 +26,12 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="单价" width="110">
+        <el-table-column :label="t('cart.unitPrice')" width="110">
           <template #default="{ row }">
             <span class="price">¥{{ unitPrice(row) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="数量" width="160">
+        <el-table-column :label="t('cart.quantity')" width="160">
           <template #default="{ row }">
             <el-input-number
               v-model="row.num"
@@ -42,17 +42,17 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="小计" width="110">
+        <el-table-column :label="t('cart.subtotal')" width="110">
           <template #default="{ row }">
             <span class="price"
               >¥{{ (unitPriceValue(row) * row.num).toFixed(2) }}</span
             >
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80">
+        <el-table-column :label="t('cart.actions')" width="80">
           <template #default="{ row }">
             <el-button link type="danger" @click="handleDelete(row)"
-              >删除</el-button
+              >{{ t("cart.delete") }}</el-button
             >
           </template>
         </el-table-column>
@@ -61,7 +61,7 @@
       <div class="cart-footer">
         <div class="footer-left">
           <el-checkbox :model-value="allChecked" @change="toggleAll"
-            >全选</el-checkbox
+            >{{ t("cart.selectAll") }}</el-checkbox
           >
           <el-button
             link
@@ -69,12 +69,12 @@
             :disabled="!selected.length"
             @click="handleBatchDelete"
           >
-            删除选中
+            {{ t("cart.deleteSelected") }}
           </el-button>
         </div>
         <div class="footer-right">
           <span
-            >已选 <b>{{ selected.length }}</b> 件，合计：</span
+            >{{ t("cart.selectedSummary", { count: selected.length }) }}</span
           >
           <span class="total-price">¥{{ totalPrice }}</span>
           <el-button
@@ -83,7 +83,7 @@
             :disabled="!selected.length"
             @click="goCheckout"
           >
-            结算 ({{ selected.length }})
+            {{ t("cart.checkout", { count: selected.length }) }}
           </el-button>
         </div>
       </div>
@@ -95,12 +95,14 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { getCartList, updateCart, deleteCart } from "@/api/cart";
 import { useUserStore } from "@/stores/user";
 import { activeUserSessionStorageKey } from "@/utils/session";
 
 const router = useRouter();
 const userStore = useUserStore();
+const { t } = useI18n();
 
 const cartList = ref<any[]>([]);
 const selected = ref<any[]>([]);
@@ -157,26 +159,28 @@ async function handleNumChange(row: any, val: number) {
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm("确认删除该商品？", "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("cart.confirmDelete"), t("dialog.warningTitle"), {
+    type: "warning",
+  });
   await deleteCart({ id: row.id });
-  ElMessage.success("已删除");
+  ElMessage.success(t("cart.deleted"));
   loadCart();
 }
 
 async function handleBatchDelete() {
   await ElMessageBox.confirm(
-    `确认删除选中的 ${selected.value.length} 件商品？`,
-    "提示",
+    t("cart.confirmBatchDelete", { count: selected.value.length }),
+    t("dialog.warningTitle"),
     { type: "warning" },
   );
   await Promise.all(selected.value.map((item) => deleteCart({ id: item.id })));
-  ElMessage.success("已删除");
+  ElMessage.success(t("cart.deleted"));
   loadCart();
 }
 
 function goCheckout() {
   if (!selected.value.length) return;
-  // 将选中商品存入 sessionStorage，结算页读取
+  // Checkout reads the selected items from tab-scoped sessionStorage.
   sessionStorage.setItem(
     activeUserSessionStorageKey("checkout_items"),
     JSON.stringify(selected.value),

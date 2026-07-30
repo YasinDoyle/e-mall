@@ -85,10 +85,17 @@ async function handleLogin() {
   try {
     const res: any = await userLogin(form);
     beginUserLoginSession();
-    // 后端返回字段为 access_token / refresh_token
-    userStore.setToken(res.data.access_token);
-    userStore.setRefreshToken(res.data.refresh_token);
-    const infoRes: any = await getUserInfo();
+    const accessToken = res.data.access_token;
+    const refreshToken = res.data.refresh_token;
+    userStore.setToken(accessToken);
+    userStore.setRefreshToken(refreshToken);
+    let infoRes: any;
+    try {
+      infoRes = await getUserInfo();
+    } catch (error) {
+      userStore.logout();
+      throw error;
+    }
     userStore.setUserInfo(infoRes.data);
     ElMessage.success(t("auth.loginSuccess"));
     const redirect = (route.query.redirect as string) || "/";

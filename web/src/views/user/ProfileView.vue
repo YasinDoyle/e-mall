@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <template #header>个人资料</template>
+    <template #header>{{ t("profile.title") }}</template>
 
     <div class="avatar-section">
       <el-avatar :size="80" :src="form.avatar" />
@@ -10,7 +10,7 @@
         :before-upload="handleAvatarUpload"
       >
         <el-button size="small" :loading="uploading" style="margin-top: 8px"
-          >更换头像</el-button
+          >{{ t("profile.changeAvatar") }}</el-button
         >
       </el-upload>
     </div>
@@ -20,18 +20,18 @@
       label-width="80px"
       style="max-width: 400px; margin-top: 20px"
     >
-      <el-form-item label="用户名">
+      <el-form-item :label="t('profile.username')">
         <el-input :value="form.user_name" disabled />
       </el-form-item>
-      <el-form-item label="昵称">
+      <el-form-item :label="t('profile.nickname')">
         <el-input v-model="form.nick_name" />
       </el-form-item>
-      <el-form-item label="邮箱">
-        <el-input :value="form.email || '未绑定'" disabled />
+      <el-form-item :label="t('profile.email')">
+        <el-input :value="form.email || t('profile.unbound')" disabled />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="saving" @click="handleSave"
-          >保存修改</el-button
+          >{{ t("profile.saveChanges") }}</el-button
         >
       </el-form-item>
     </el-form>
@@ -41,10 +41,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { getUserInfo, updateUserInfo, uploadAvatar } from "@/api/user";
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
+const { t } = useI18n();
 const saving = ref(false);
 const uploading = ref(false);
 const form = reactive({
@@ -66,14 +68,14 @@ async function loadProfile() {
 }
 
 async function handleSave() {
-  if (!form.nick_name.trim()) return ElMessage.warning("昵称不能为空");
+  if (!form.nick_name.trim()) return ElMessage.warning(t("profile.nicknameRequired"));
   saving.value = true;
   try {
     await updateUserInfo({ nick_name: form.nick_name.trim() });
     const res: any = await getUserInfo();
     userStore.setUserInfo(res.data);
     form.nick_name = res.data.nick_name || res.data.nickname || res.data.user_name;
-    ElMessage.success("保存成功");
+    ElMessage.success(t("profile.saveSuccess"));
   } finally {
     saving.value = false;
   }
@@ -81,11 +83,11 @@ async function handleSave() {
 
 async function handleAvatarUpload(file: File) {
   if (!file.type.startsWith("image/")) {
-    ElMessage.warning("请选择图片文件");
+    ElMessage.warning(t("profile.selectImage"));
     return false;
   }
   if (file.size > 2 * 1024 * 1024) {
-    ElMessage.warning("头像大小不能超过 2MB");
+    ElMessage.warning(t("profile.avatarTooLarge"));
     return false;
   }
   const fd = new FormData();
@@ -96,7 +98,7 @@ async function handleAvatarUpload(file: File) {
     const res: any = await getUserInfo();
     form.avatar = res.data.avatar;
     userStore.setUserInfo(res.data);
-    ElMessage.success("头像已更新");
+    ElMessage.success(t("profile.avatarUpdated"));
   } catch {}
   finally {
     uploading.value = false;

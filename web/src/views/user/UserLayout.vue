@@ -9,14 +9,14 @@
         router
         style="border: none; height: 100%"
       >
-        <el-menu-item index="/user/profile">个人资料</el-menu-item>
-        <el-menu-item index="/user/orders">我的订单</el-menu-item>
-        <el-menu-item index="/user/addresses">收货地址</el-menu-item>
-        <el-menu-item index="/user/favorites">我的收藏</el-menu-item>
-        <el-menu-item index="/user/coupons">我的优惠券</el-menu-item>
-        <el-menu-item index="/user/wallet">我的钱包</el-menu-item>
-        <el-menu-item index="/user/notifications">消息通知</el-menu-item>
-        <el-menu-item index="/seller/apply">卖家中心</el-menu-item>
+        <el-menu-item index="/user/profile">{{ $t("userMenu.profile") }}</el-menu-item>
+        <el-menu-item index="/user/orders">{{ $t("userMenu.orders") }}</el-menu-item>
+        <el-menu-item index="/user/addresses">{{ $t("userMenu.addresses") }}</el-menu-item>
+        <el-menu-item index="/user/favorites">{{ $t("userMenu.favorites") }}</el-menu-item>
+        <el-menu-item index="/user/coupons">{{ $t("userMenu.coupons") }}</el-menu-item>
+        <el-menu-item index="/user/wallet">{{ $t("userMenu.wallet") }}</el-menu-item>
+        <el-menu-item index="/user/notifications">{{ $t("userMenu.notifications") }}</el-menu-item>
+        <el-menu-item index="/seller/apply">{{ $t("userMenu.sellerCenter") }}</el-menu-item>
       </el-menu>
     </el-aside>
     <el-main>

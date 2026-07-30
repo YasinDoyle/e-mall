@@ -3,11 +3,11 @@
     <div class="search-bar">
       <el-input
         v-model="keyword"
-        placeholder="搜索商品"
+        :placeholder="t('search.placeholder')"
         @keyup.enter="doSearch(true)"
       >
         <template #append
-          ><el-button @click="doSearch(true)">搜索</el-button></template
+          ><el-button @click="doSearch(true)">{{ t('search.search') }}</el-button></template
         >
       </el-input>
     </div>
@@ -16,7 +16,7 @@
     </div>
     <el-empty
       v-if="!loading && !products.length && searched"
-      description="未找到相关商品"
+      :description="t('search.noResults')"
     />
     <Pagination
       v-model:page="page"
@@ -34,6 +34,7 @@ import ProductCard from "@/components/common/ProductCard.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import { searchProducts } from "@/api/product";
 import type { Product } from "@/types";
+import { t } from "@/locales";
 
 const route = useRoute();
 const router = useRouter();

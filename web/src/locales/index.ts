@@ -52,8 +52,10 @@ export function getCurrentLocale() {
   return currentLocale.value;
 }
 
-export function t(key: string, fallback = key) {
+export function t(key: string, paramsOrFallback?: Record<string, unknown> | string, fallback = key) {
   currentLocale.value;
   const global = i18n.global as any;
-  return global.te(key) ? global.t(key) : fallback;
+  const params = typeof paramsOrFallback === "object" ? paramsOrFallback : undefined;
+  const fallbackText = typeof paramsOrFallback === "string" ? paramsOrFallback : fallback;
+  return global.te(key) ? global.t(key, params ?? {}) : fallbackText;
 }

@@ -1,12 +1,12 @@
 <template>
   <el-card>
-    <template #header>我的钱包</template>
+    <template #header>{{ t("wallet.title") }}</template>
     <div class="balance-section">
-      <div class="balance-label">账户余额</div>
+      <div class="balance-label">{{ t("wallet.balance") }}</div>
       <div class="balance-amount">{{ balanceText }}</div>
       <div v-if="!payKeySet" class="set-key-box">
         <el-alert
-          title="使用余额前需要先设置6位支付密码"
+          :title="t('wallet.setPayPasswordTip')"
           type="warning"
           :closable="false"
           show-icon
@@ -17,17 +17,17 @@
             type="password"
             maxlength="6"
             show-password
-            placeholder="请输入6位支付密码"
+            :placeholder="t('wallet.payPasswordPlaceholder')"
           />
           <el-input
             v-model="setKeyForm.key_confirm"
             type="password"
             maxlength="6"
             show-password
-            placeholder="请再次输入支付密码"
+            :placeholder="t('wallet.payPasswordConfirmPlaceholder')"
           />
           <el-button type="primary" :loading="settingPayKey" @click="handleSetPayKey">
-            设置支付密码
+            {{ t("wallet.setPayPassword") }}
           </el-button>
         </div>
       </div>
@@ -37,7 +37,7 @@
           type="password"
           maxlength="6"
           show-password
-          placeholder="请输入6位支付密码"
+          :placeholder="t('wallet.payPasswordPlaceholder')"
         />
         <el-button
           type="primary"
@@ -45,24 +45,24 @@
           :disabled="payKey.length !== 6"
           @click="loadBalance"
         >
-          查看余额
+          {{ t("wallet.viewBalance") }}
         </el-button>
       </div>
     </div>
     <el-divider />
     <div class="wallet-actions">
-      <el-button type="primary" @click="openRechargeDialog">充值</el-button>
+      <el-button type="primary" @click="openRechargeDialog">{{ t("wallet.recharge") }}</el-button>
       <el-button :loading="pendingLoading" @click="loadPendingCredit"
-        >刷新待入账</el-button
+        >{{ t("wallet.refreshPending") }}</el-button
       >
       <span v-if="pendingCredit > 0" class="pending-text">
-        待入账：¥{{ pendingCredit.toFixed(2) }}
+        {{ t("wallet.pendingCredit", { amount: pendingCredit.toFixed(2) }) }}
       </span>
     </div>
 
-    <el-dialog v-model="rechargeVisible" title="钱包充值" width="520px">
+    <el-dialog v-model="rechargeVisible" :title="t('wallet.rechargeTitle')" width="520px">
       <el-form label-width="86px">
-        <el-form-item label="充值金额">
+        <el-form-item :label="t('wallet.rechargeAmount')">
           <el-input-number
             v-model="rechargeAmount"
             :min="0.01"
@@ -71,25 +71,25 @@
             style="width: 220px"
           />
         </el-form-item>
-        <el-form-item label="充值方式">
+        <el-form-item :label="t('wallet.rechargeChannel')">
           <el-radio-group v-model="rechargeChannel">
-            <el-radio value="wechat">微信</el-radio>
-            <el-radio value="alipay">支付宝</el-radio>
+            <el-radio value="wechat">{{ t("wallet.wechat") }}</el-radio>
+            <el-radio value="alipay">{{ t("wallet.alipay") }}</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
 
       <div v-if="rechargeOrderNum" class="recharge-result">
         <div class="result-row">
-          <span>充值单号</span>
+          <span>{{ t("wallet.rechargeOrderNo") }}</span>
           <b>{{ rechargeOrderNum }}</b>
         </div>
         <div class="result-row">
-          <span>支付状态</span>
+          <span>{{ t("wallet.payStatus") }}</span>
           <el-tag :type="rechargeStatusTag">{{ rechargeStatusText }}</el-tag>
         </div>
         <div v-if="wechatQrUrl" class="qr-wrap">
-          <img :src="qrImageUrl" alt="微信支付二维码" />
+          <img :src="qrImageUrl" :alt="t('wallet.qrAlt')" />
           <div class="qr-link">{{ wechatQrUrl }}</div>
         </div>
         <div v-if="pendingCredit > 0" class="apply-box">
@@ -98,7 +98,7 @@
             type="password"
             maxlength="6"
             show-password
-            placeholder="输入6位支付密码确认入账"
+            :placeholder="t('wallet.confirmCreditPlaceholder')"
           />
           <el-button
             type="success"
@@ -106,19 +106,19 @@
             :disabled="payKey.length !== 6"
             @click="handleApplyCredit"
           >
-            确认入账
+            {{ t("wallet.confirmCredit") }}
           </el-button>
         </div>
       </div>
 
       <template #footer>
-        <el-button @click="rechargeVisible = false">关闭</el-button>
+        <el-button @click="rechargeVisible = false">{{ t("wallet.close") }}</el-button>
         <el-button
           type="primary"
           :loading="rechargeLoading"
           @click="startRecharge"
         >
-          发起充值
+          {{ t("wallet.startRecharge") }}
         </el-button>
       </template>
     </el-dialog>
@@ -128,6 +128,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { getMoney, setPayKey } from "@/api/flashSale";
 import { getUserInfo } from "@/api/user";
 import {
@@ -140,6 +141,7 @@ import {
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
+const { t } = useI18n();
 const balance = ref("0.00");
 const loaded = ref(false);
 const loading = ref(false);
@@ -162,20 +164,20 @@ const payKeySet = computed(() => userStore.userInfo?.pay_key_set ?? false);
 
 const balanceText = computed(() =>
   !payKeySet.value
-    ? "请先设置支付密码"
+    ? t("wallet.setPayPasswordFirst")
     : loaded.value
       ? `¥${balance.value}`
-      : "输入支付密码后查看",
+      : t("wallet.viewAfterPassword"),
 );
 
 const rechargeStatusText = computed(
   () =>
     ({
-      pending: "待支付",
-      paid: "已支付，待入账",
-      credited: "已入账",
-      failed: "已失败",
-    })[rechargeStatus.value] ?? "待发起",
+      pending: t("wallet.statusPending"),
+      paid: t("wallet.statusPaid"),
+      credited: t("wallet.statusCredited"),
+      failed: t("wallet.statusFailed"),
+    })[rechargeStatus.value] ?? t("wallet.statusInitial"),
 );
 
 const rechargeStatusTag = computed(
@@ -197,10 +199,10 @@ const qrImageUrl = computed(
 
 async function loadBalance() {
   if (!payKeySet.value) {
-    return ElMessage.warning("请先设置支付密码");
+    return ElMessage.warning(t("wallet.setPayPasswordFirst"));
   }
   if (payKey.value.length !== 6) {
-    return ElMessage.warning("请输入6位支付密码");
+    return ElMessage.warning(t("wallet.payPasswordPlaceholder"));
   }
   loading.value = true;
   try {
@@ -223,15 +225,15 @@ async function refreshUserInfo() {
 
 async function handleSetPayKey() {
   if (setKeyForm.value.key.length !== 6) {
-    return ElMessage.warning("请输入6位支付密码");
+    return ElMessage.warning(t("wallet.payPasswordPlaceholder"));
   }
   if (setKeyForm.value.key !== setKeyForm.value.key_confirm) {
-    return ElMessage.warning("两次支付密码输入不一致");
+    return ElMessage.warning(t("wallet.passwordMismatch"));
   }
   settingPayKey.value = true;
   try {
     await setPayKey(setKeyForm.value);
-    ElMessage.success("支付密码设置成功");
+    ElMessage.success(t("wallet.passwordSetSuccess"));
     payKey.value = setKeyForm.value.key;
     setKeyForm.value = { key: "", key_confirm: "" };
     await refreshUserInfo();
@@ -260,7 +262,7 @@ function startPolling() {
 
 async function startRecharge() {
   if (!rechargeAmount.value || rechargeAmount.value <= 0) {
-    return ElMessage.warning("请输入充值金额");
+    return ElMessage.warning(t("wallet.amountRequired"));
   }
   rechargeLoading.value = true;
   try {
@@ -290,7 +292,7 @@ async function pollRechargeStatus() {
     stopPolling();
   }
   if (rechargeStatus.value === "credited") {
-    ElMessage.success("充值已入账");
+    ElMessage.success(t("wallet.rechargeCredited"));
     if (payKey.value.length === 6) await loadBalance();
   }
 }
@@ -306,12 +308,12 @@ async function loadPendingCredit() {
 }
 
 async function handleApplyCredit() {
-  if (!payKeySet.value) return ElMessage.warning("请先设置支付密码");
-  if (payKey.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
+  if (!payKeySet.value) return ElMessage.warning(t("wallet.setPayPasswordFirst"));
+  if (payKey.value.length !== 6) return ElMessage.warning(t("wallet.payPasswordPlaceholder"));
   applyingCredit.value = true;
   try {
     await applyPendingCredit({ key: payKey.value });
-    ElMessage.success("入账成功");
+    ElMessage.success(t("wallet.creditSuccess"));
     pendingCredit.value = 0;
     rechargeStatus.value = "credited";
     await loadBalance();

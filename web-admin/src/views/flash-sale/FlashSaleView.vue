@@ -2,30 +2,30 @@
   <el-card>
     <template #header>
       <div class="card-header">
-        <span>秒杀管理</span>
-        <el-button type="primary" @click="openCreate">新增秒杀</el-button>
+        <span>{{ t("page.flashSale.title") }}</span>
+        <el-button type="primary" @click="openCreate">{{ t("page.flashSale.create") }}</el-button>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="product_id" label="商品ID" width="100" />
-      <el-table-column prop="boss_id" label="卖家ID" width="100" />
-      <el-table-column prop="title" label="活动标题" min-width="180" />
-      <el-table-column label="秒杀价" width="110">
+      <el-table-column prop="product_id" :label="t('page.flashSale.productId')" width="100" />
+      <el-table-column prop="boss_id" :label="t('page.flashSale.sellerId')" width="100" />
+      <el-table-column prop="title" :label="t('page.flashSale.activityTitle')" min-width="180" />
+      <el-table-column :label="t('page.flashSale.price')" width="110">
         <template #default="{ row }">¥{{ Number(row.money || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column prop="num" label="库存" width="90" />
-      <el-table-column prop="custom_name" label="备注" min-width="140" />
-      <el-table-column label="状态" width="100">
+      <el-table-column prop="num" :label="t('page.flashSale.stock')" width="90" />
+      <el-table-column prop="custom_name" :label="t('page.flashSale.remark')" min-width="140" />
+      <el-table-column :label="t('common.status')" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.num > 0 ? 'success' : 'info'">{{ row.num > 0 ? "进行中" : "售罄" }}</el-tag>
+          <el-tag :type="row.num > 0 ? 'success' : 'info'">{{ row.num > 0 ? t("page.flashSale.active") : t("page.flashSale.soldOut") }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column :label="t('common.actions')" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="remove(row.id)">删除</el-button>
+          <el-button size="small" @click="openEdit(row)">{{ t("common.edit") }}</el-button>
+          <el-button size="small" type="danger" @click="remove(row.id)">{{ t("common.delete") }}</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -39,33 +39,33 @@
       @current-change="loadList"
     />
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑秒杀' : '新增秒杀'" width="540px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? t('page.flashSale.edit') : t('page.flashSale.create')" width="540px">
       <el-form :model="form" label-width="90px">
-        <el-form-item label="商品ID">
+        <el-form-item :label="t('page.flashSale.productId')">
           <el-input-number v-model="form.product_id" :min="1" />
         </el-form-item>
-        <el-form-item label="卖家ID">
+        <el-form-item :label="t('page.flashSale.sellerId')">
           <el-input-number v-model="form.boss_id" :min="1" />
         </el-form-item>
-        <el-form-item label="活动标题">
+        <el-form-item :label="t('page.flashSale.activityTitle')">
           <el-input v-model="form.title" />
         </el-form-item>
-        <el-form-item label="秒杀价">
+        <el-form-item :label="t('page.flashSale.price')">
           <el-input-number v-model="form.money" :min="0" :precision="2" />
         </el-form-item>
-        <el-form-item label="库存">
+        <el-form-item :label="t('page.flashSale.stock')">
           <el-input-number v-model="form.num" :min="0" />
         </el-form-item>
-        <el-form-item label="扩展ID">
+        <el-form-item :label="t('page.flashSale.customId')">
           <el-input-number v-model="form.custom_id" :min="0" />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item :label="t('page.flashSale.remark')">
           <el-input v-model="form.custom_name" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t("common.cancel") }}</el-button>
+        <el-button type="primary" :loading="saving" @click="save">{{ t("common.save") }}</el-button>
       </template>
     </el-dialog>
   </el-card>
@@ -80,6 +80,7 @@ import {
   getAdminFlashSaleList,
   updateAdminFlashSale,
 } from "@/api";
+import { t } from "@/locales";
 
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -137,15 +138,15 @@ async function loadList() {
 }
 
 async function save() {
-  if (!form.title.trim()) return ElMessage.warning("请输入活动标题");
+  if (!form.title.trim()) return ElMessage.warning(t("page.flashSale.titleRequired"));
   saving.value = true;
   try {
     if (editingId.value) {
       await updateAdminFlashSale({ id: editingId.value, ...form });
-      ElMessage.success("更新成功");
+      ElMessage.success(t("common.updateSuccess"));
     } else {
       await createAdminFlashSale({ ...form });
-      ElMessage.success("创建成功");
+      ElMessage.success(t("common.createSuccess"));
     }
     dialogVisible.value = false;
     loadList();
@@ -155,9 +156,9 @@ async function save() {
 }
 
 async function remove(id: number) {
-  await ElMessageBox.confirm("确认删除该秒杀活动？", "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.flashSale.deleteConfirm"), t("common.notice"), { type: "warning" });
   await deleteAdminFlashSale({ id });
-  ElMessage.success("删除成功");
+  ElMessage.success(t("common.deleteSuccess"));
   loadList();
 }
 

@@ -163,7 +163,7 @@ router.beforeEach(async (to) => {
   if (to.meta.auth && !userStore.isLoggedIn) {
     return { path: "/login", query: { redirect: to.fullPath } };
   }
-  if (to.meta.guest && userStore.isLoggedIn) {
+  if (to.meta.guest && userStore.isLoggedIn && to.query.switch !== "1") {
     return { path: "/" };
   }
   if (to.meta.sellerApproved) {

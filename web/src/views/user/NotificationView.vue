@@ -1,16 +1,16 @@
 <template>
   <div class="notification-page">
     <div class="page-head">
-      <h2>消息通知</h2>
+      <h2>{{ t("notificationPage.title") }}</h2>
       <div class="actions">
-        <el-checkbox v-model="unreadOnly">只看未读</el-checkbox>
+        <el-checkbox v-model="unreadOnly">{{ t("notificationPage.unreadOnly") }}</el-checkbox>
         <el-button size="small" :disabled="!list.length" @click="handleMarkAllRead">
-          全部已读
+          {{ t("notificationPage.markAllRead") }}
         </el-button>
       </div>
     </div>
 
-    <el-empty v-if="!loading && !list.length" description="暂无通知" />
+    <el-empty v-if="!loading && !list.length" :description="t('notificationPage.empty')" />
     <el-skeleton v-if="loading" :rows="4" animated />
     <div v-else class="notice-list">
       <div
@@ -23,7 +23,9 @@
         <div class="notice-main">
           <div class="notice-title">
             <span>{{ item.title }}</span>
-            <el-tag v-if="!item.read" size="small" type="danger">未读</el-tag>
+            <el-tag v-if="!item.read" size="small" type="danger">
+              {{ t("notificationPage.unread") }}
+            </el-tag>
           </div>
           <p>{{ item.content }}</p>
         </div>
@@ -43,6 +45,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import Pagination from "@/components/common/Pagination.vue";
 import {
   getNotificationList,
@@ -58,6 +61,7 @@ const total = ref(0);
 const page = ref(1);
 const appConfig = useAppConfigStore();
 const notificationStore = useNotificationStore();
+const { t } = useI18n();
 const pageSize = appConfig.config.default_page_size;
 const loading = ref(false);
 const unreadOnly = ref(false);

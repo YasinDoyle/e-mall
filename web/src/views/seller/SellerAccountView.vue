@@ -2,28 +2,28 @@
   <el-card>
     <template #header>
       <div class="header">
-        <span>资金账户</span>
+        <span>{{ t("sellerCenter.account.title") }}</span>
         <div class="header-actions">
           <el-select
             v-model="statusFilter"
             clearable
-            placeholder="提现状态"
+            :placeholder="t('sellerCenter.account.withdrawStatus')"
             style="width: 140px"
             @change="reload"
           >
-            <el-option label="待审核" value="pending" />
-            <el-option label="已通过" value="approved" />
-            <el-option label="已拒绝" value="rejected" />
-            <el-option label="已打款" value="paid" />
-            <el-option label="打款失败" value="failed" />
+            <el-option :label="t('status.withdraw.pending')" value="pending" />
+            <el-option :label="t('status.withdraw.approved')" value="approved" />
+            <el-option :label="t('status.withdraw.rejected')" value="rejected" />
+            <el-option :label="t('status.withdraw.paid')" value="paid" />
+            <el-option :label="t('status.withdraw.failed')" value="failed" />
           </el-select>
-          <el-button :loading="loading" @click="reloadAll">刷新</el-button>
+          <el-button :loading="loading" @click="reloadAll">{{ t("common.refresh") }}</el-button>
           <el-button
             type="primary"
             :disabled="!sellerStore.isApproved"
             @click="openApply"
           >
-            申请提现
+            {{ t("sellerCenter.account.applyWithdraw") }}
           </el-button>
         </div>
       </div>
@@ -31,7 +31,7 @@
 
     <el-alert
       v-if="!sellerStore.isApproved"
-      title="商家审核通过后才可以查看资金账户并申请提现"
+      :title="t('sellerCenter.account.approvedOnly')"
       type="warning"
       :closable="false"
       show-icon
@@ -40,49 +40,53 @@
 
     <div class="summary-grid">
       <div class="summary-item">
-        <span class="summary-label">可提现余额</span>
+        <span class="summary-label">{{ t("sellerCenter.account.availableBalance") }}</span>
         <b>¥{{ money(summary.available_balance) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">冻结中</span>
+        <span class="summary-label">{{ t("sellerCenter.account.frozenBalance") }}</span>
         <b>¥{{ money(summary.frozen_balance) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">累计收入</span>
+        <span class="summary-label">{{ t("sellerCenter.account.totalIncome") }}</span>
         <b>¥{{ money(summary.total_income) }}</b>
       </div>
       <div class="summary-item">
-        <span class="summary-label">累计提现</span>
+        <span class="summary-label">{{ t("sellerCenter.account.totalWithdrawn") }}</span>
         <b>¥{{ money(summary.total_withdrawn) }}</b>
       </div>
     </div>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column label="金额" width="110">
+      <el-table-column :label="t('sellerCenter.account.amount')" width="110">
         <template #default="{ row }">¥{{ money(row.amount) }}</template>
       </el-table-column>
-      <el-table-column label="收款信息" min-width="220">
+      <el-table-column :label="t('sellerCenter.account.payeeInfo')" min-width="220">
         <template #default="{ row }">
           <div>{{ row.payee_name }}</div>
           <div class="muted">{{ row.payee_account }} · {{ row.payee_channel }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="110">
+      <el-table-column :label="t('sellerCenter.account.status')" width="110">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ row.status_text }}</el-tag>
+          <el-tag :type="statusTag(row.status)">{{ withdrawStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审核结果" min-width="180" show-overflow-tooltip>
+      <el-table-column :label="t('sellerCenter.account.auditResult')" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ row.audit_reason || "-" }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="时间" min-width="190">
+      <el-table-column :label="t('sellerCenter.account.time')" min-width="190">
         <template #default="{ row }">
-          <div>申请：{{ formatTime(row.created_at) }}</div>
-          <div class="muted">审核：{{ formatTime(row.audited_at) }}</div>
-          <div class="muted">打款：{{ formatTime(row.paid_at) }}</div>
+          <div>{{ t("sellerCenter.account.requestedAt", { time: formatTime(row.created_at) }) }}</div>
+          <div class="muted">
+            {{ t("sellerCenter.account.auditedAt", { time: formatTime(row.audited_at) }) }}
+          </div>
+          <div class="muted">
+            {{ t("sellerCenter.account.paidAt", { time: formatTime(row.paid_at) }) }}
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -96,9 +100,9 @@
       @current-change="loadList"
     />
 
-    <el-dialog v-model="applyVisible" title="申请提现" width="520px">
+    <el-dialog v-model="applyVisible" :title="t('sellerCenter.account.applyWithdraw')" width="520px">
       <el-form label-width="88px">
-        <el-form-item label="提现金额">
+        <el-form-item :label="t('sellerCenter.account.withdrawAmount')">
           <div class="amount-row">
             <el-input-number
               v-model="applyForm.amount"
@@ -109,37 +113,41 @@
               style="width: 220px"
             />
             <el-button :disabled="!summary.available_balance" @click="useAllAmount">
-              全部
+              {{ t("sellerCenter.account.useAll") }}
             </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="收款人">
-          <el-input v-model="applyForm.payee_name" maxlength="64" placeholder="请输入收款人姓名" />
+        <el-form-item :label="t('sellerCenter.account.payeeName')">
+          <el-input
+            v-model="applyForm.payee_name"
+            maxlength="64"
+            :placeholder="t('sellerCenter.account.payeeNamePlaceholder')"
+          />
         </el-form-item>
-        <el-form-item label="收款账号">
+        <el-form-item :label="t('sellerCenter.account.payeeAccount')">
           <el-input
             v-model="applyForm.payee_account"
             maxlength="128"
-            placeholder="请输入银行账号、支付宝或微信收款号"
+            :placeholder="t('sellerCenter.account.payeeAccountPlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="收款方式">
+        <el-form-item :label="t('sellerCenter.account.payeeChannel')">
           <el-select
             v-model="applyForm.payee_channel"
-            placeholder="请选择收款方式"
+            :placeholder="t('sellerCenter.account.payeeChannelPlaceholder')"
             style="width: 220px"
           >
-            <el-option label="银行卡" value="bank" />
-            <el-option label="支付宝" value="alipay" />
-            <el-option label="微信" value="wechat" />
-            <el-option label="人工处理" value="manual" />
+            <el-option :label="t('sellerCenter.account.channelBank')" value="bank" />
+            <el-option :label="t('sellerCenter.account.channelAlipay')" value="alipay" />
+            <el-option :label="t('sellerCenter.account.channelWechat')" value="wechat" />
+            <el-option :label="t('sellerCenter.account.channelManual')" value="manual" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="applyVisible = false">取消</el-button>
+        <el-button @click="applyVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="applying" @click="submitApply">
-          提交申请
+          {{ t("sellerCenter.account.submitApply") }}
         </el-button>
       </template>
     </el-dialog>
@@ -149,6 +157,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import {
   applySellerWithdraw,
   getSellerAccountSummary,
@@ -157,6 +166,7 @@ import {
 import { useSellerStore } from "@/stores/seller";
 
 const sellerStore = useSellerStore();
+const { t } = useI18n();
 const loading = ref(false);
 const applying = ref(false);
 const applyVisible = ref(false);
@@ -197,6 +207,18 @@ function statusTag(status: string) {
       failed: "info",
     } as any
   )[status] ?? "info";
+}
+
+function withdrawStatusLabel(status: string) {
+  return (
+    {
+      pending: t("status.withdraw.pending"),
+      approved: t("status.withdraw.approved"),
+      rejected: t("status.withdraw.rejected"),
+      paid: t("status.withdraw.paid"),
+      failed: t("status.withdraw.failed"),
+    } as Record<string, string>
+  )[status] ?? t("common.unknown");
 }
 
 async function loadSummary() {
@@ -256,10 +278,10 @@ function useAllAmount() {
 
 async function submitApply() {
   if (!applyForm.amount || applyForm.amount <= 0) {
-    return ElMessage.warning("请输入提现金额");
+    return ElMessage.warning(t("sellerCenter.account.amountRequired"));
   }
   if (!applyForm.payee_name.trim() || !applyForm.payee_account.trim()) {
-    return ElMessage.warning("请填写收款信息");
+    return ElMessage.warning(t("sellerCenter.account.payeeRequired"));
   }
   applying.value = true;
   try {
@@ -269,7 +291,7 @@ async function submitApply() {
       payee_account: applyForm.payee_account.trim(),
       payee_channel: applyForm.payee_channel.trim() || "bank",
     });
-    ElMessage.success("提现申请已提交");
+    ElMessage.success(t("sellerCenter.account.submitSuccess"));
     applyVisible.value = false;
     await reloadAll();
   } finally {

@@ -45,7 +45,7 @@
           </el-badge>
         </RouterLink>
 
-        <el-dropdown @command="handleCommand">
+        <el-dropdown trigger="click" @command="handleCommand">
           <div class="user-avatar">
             <el-avatar :size="32" :src="userStore.userInfo?.avatar || ''" />
             <span style="margin-left: 6px">{{
@@ -62,6 +62,7 @@
               <el-dropdown-item command="wallet">{{ $t("nav.wallet") }}</el-dropdown-item>
               <el-dropdown-item command="notifications">{{ $t("nav.notifications") }}</el-dropdown-item>
               <el-dropdown-item command="seller">{{ $t("nav.sellerCenter") }}</el-dropdown-item>
+              <el-dropdown-item command="switchAccount">{{ $t("nav.switchAccount") }}</el-dropdown-item>
               <el-dropdown-item divided command="logout"
                 >{{ $t("common.logout") }}</el-dropdown-item
               >
@@ -80,6 +81,35 @@
       </template>
     </div>
   </div>
+
+  <el-dialog v-model="accountSwitchVisible" :title="$t('common.accountSwitchTitle')" width="420px">
+    <div class="account-switch-list">
+      <el-empty v-if="!savedAccounts.length" :description="$t('common.noSavedAccounts')" />
+      <el-card
+        v-for="account in savedAccounts"
+        :key="account.id"
+        class="account-switch-item"
+        :shadow="account.active ? 'always' : 'hover'"
+      >
+        <div class="account-meta">
+          <div class="account-title">
+            <b>{{ account.title }}</b>
+            <el-tag v-if="account.active" size="small" type="success">
+              {{ $t('common.currentAccount') }}
+            </el-tag>
+          </div>
+          <div class="account-subtitle">{{ account.subtitle }}</div>
+        </div>
+        <el-button type="primary" size="small" :disabled="account.active" @click="handleSelectAccount(account.id)">
+          {{ $t('common.useAccount') }}
+        </el-button>
+      </el-card>
+    </div>
+    <template #footer>
+      <el-button @click="accountSwitchVisible = false">{{ $t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="handleAddAccount">{{ $t('common.addAccount') }}</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -92,7 +122,12 @@ import { useAppConfigStore } from "@/stores/appConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { getCartList } from "@/api/cart";
 import { getUserInfo } from "@/api/user";
-import { getActiveUserRefreshToken, getActiveUserToken } from "@/utils/session";
+import {
+  activateUserSession,
+  getActiveUserRefreshToken,
+  getActiveUserToken,
+  listSavedUserSessions,
+} from "@/utils/session";
 import {
   currentLocale,
   getCurrentLocale,
@@ -106,6 +141,7 @@ const sellerStore = useSellerStore();
 const appConfig = useAppConfigStore();
 const notificationStore = useNotificationStore();
 const searchKeyword = ref("");
+const accountSwitchVisible = ref(false);
 const selectedLocale = computed({
   get: () => currentLocale.value,
   set: (locale: string) => setLocale(locale),
@@ -128,11 +164,29 @@ function handleCommand(command: string) {
     sellerStore.clearProfile();
     notificationStore.clearUnreadCount();
     router.push("/login");
+  } else if (command === "switchAccount") {
+    accountSwitchVisible.value = true;
   } else if (command === "seller") {
     router.push("/seller");
   } else {
     router.push(`/user/${command}`);
   }
+}
+
+const savedAccounts = computed(() => listSavedUserSessions());
+
+function handleSelectAccount(id: string) {
+  if (!activateUserSession(id)) return;
+  accountSwitchVisible.value = false;
+  window.location.reload();
+}
+
+function handleAddAccount() {
+  accountSwitchVisible.value = false;
+  userStore.logout();
+  sellerStore.clearProfile();
+  notificationStore.clearUnreadCount();
+  router.push({ path: "/login", query: { switch: "1" } });
 }
 
 async function syncUserSession() {
@@ -144,7 +198,6 @@ async function syncUserSession() {
     ]);
     userStore.setUserInfo(userRes.data);
     userStore.setCartCount(cartRes.data?.item?.length ?? 0);
-    refreshUnreadCount();
   } catch {
     userStore.logout();
     router.push("/login");
@@ -182,7 +235,15 @@ function stopNotificationStream() {
 
 async function startNotificationStream() {
   stopNotificationStream();
-  if (!userStore.isLoggedIn || !appConfig.config.feature_flags.notification_sse) return;
+  window.clearInterval(unreadTimer);
+  if (!userStore.isLoggedIn) {
+    notificationStore.clearUnreadCount();
+    return;
+  }
+  if (!appConfig.config.feature_flags.notification_sse) {
+    startNotificationPolling();
+    return;
+  }
   const token = getActiveUserToken();
   if (!token) return;
 
@@ -199,7 +260,10 @@ async function startNotificationStream() {
       },
       signal: controller.signal,
     });
-    if (!response.body) return;
+    if (!response.body) {
+      startNotificationPolling();
+      return;
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -228,7 +292,6 @@ async function startNotificationStream() {
 
 onMounted(() => {
   syncUserSession();
-  startNotificationPolling();
   startNotificationStream();
 });
 
@@ -241,7 +304,6 @@ watch(
   () => userStore.token,
   () => {
     syncUserSession();
-    startNotificationPolling();
     startNotificationStream();
   },
 );
@@ -287,5 +349,29 @@ watch(currentLocale, () => {
   display: flex;
   align-items: center;
   cursor: pointer;
+}
+.account-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.account-switch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.account-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.account-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-subtitle {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

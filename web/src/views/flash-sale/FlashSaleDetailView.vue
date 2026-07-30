@@ -1,41 +1,44 @@
 <template>
   <div class="detail-wrap" v-if="item">
     <div class="detail-header">
-      <el-button link @click="$router.push('/flash-sale')">返回秒杀列表</el-button>
-      <span>距本场结束 {{ countdownText }}</span>
+      <el-button link @click="$router.push('/flash-sale')">
+        {{ t("flashSale.backToList") }}
+      </el-button>
+      <span>{{ t("flashSale.endsIn", { time: countdownText }) }}</span>
     </div>
 
     <el-row :gutter="32">
       <el-col :span="12">
-        <div class="flash-badge-large">秒杀专场</div>
+        <div class="flash-badge-large">{{ t("flashSale.title") }}</div>
         <el-card class="info-card">
           <h2 class="item-title">{{ titleText }}</h2>
 
           <div class="price-row">
             <span class="flash-price">¥{{ moneyText }}</span>
             <el-tag type="danger" effect="dark" style="margin-left: 12px"
-              >限时特惠</el-tag
+              >{{ t("flashSale.dealTag") }}</el-tag
             >
           </div>
 
           <div class="stock-section">
-            <span class="stock-label">剩余库存</span>
+            <span class="stock-label">{{ t("flashSale.stockLabel") }}</span>
             <el-progress
               :percentage="stockPercent"
               :stroke-width="12"
               status="exception"
               style="margin-top: 8px"
             />
-            <span class="stock-num">{{ remainStock ?? item.num }} 件</span>
+            <span class="stock-num">
+              {{ t("flashSale.stockLeft", { count: remainStock ?? item.num }) }}
+            </span>
           </div>
 
           <el-divider />
 
-          <!-- 选择收货地址 -->
-          <el-form-item label="收货地址" style="margin-bottom: 12px">
+          <el-form-item :label="t('flashSale.address')" style="margin-bottom: 12px">
             <el-select
               v-model="selectedAddressId"
-              placeholder="请选择收货地址"
+              :placeholder="t('flashSale.addressPlaceholder')"
               style="width: 100%"
               :loading="addressLoading"
             >
@@ -52,16 +55,15 @@
               type="primary"
               @click="$router.push('/user/addresses')"
             >
-              去新增地址
+              {{ t("flashSale.addAddress") }}
             </el-button>
           </el-form-item>
 
-          <!-- 支付密码 -->
-          <el-form-item label="支付密码">
+          <el-form-item :label="t('flashSale.payPassword')">
             <el-input
               v-model="payKey"
               type="password"
-              placeholder="请输入6位支付密码"
+              :placeholder="t('flashSale.payPasswordPlaceholder')"
               maxlength="6"
               show-password
             />
@@ -75,12 +77,12 @@
             :disabled="!canGrab"
             @click="handleGrab"
           >
-            <template v-if="grabbed">已抢购成功</template>
+            <template v-if="grabbed">{{ t("flashSale.grabbed") }}</template>
             <template v-else-if="remainStock !== null && remainStock <= 0"
-              >已售罄</template
+              >{{ t("flashSale.soldOut") }}</template
             >
-            <template v-else-if="!userStore.isLoggedIn">登录后抢购</template>
-            <template v-else>立即抢购</template>
+            <template v-else-if="!userStore.isLoggedIn">{{ t("flashSale.loginToBuy") }}</template>
+            <template v-else>{{ t("flashSale.buyNow") }}</template>
           </el-button>
 
           <el-button
@@ -89,19 +91,19 @@
             style="width: 100%; margin-top: 10px"
             @click="$router.push('/user/orders')"
           >
-            查看我的订单
+            {{ t("flashSale.myOrders") }}
           </el-button>
         </el-card>
       </el-col>
 
       <el-col :span="12">
         <el-card>
-          <template #header>活动说明</template>
+          <template #header>{{ t("flashSale.rulesTitle") }}</template>
           <ul class="rules">
-            <li>每人限购 1 件，先到先得</li>
-            <li>抢购时会直接按秒杀价扣减余额</li>
-            <li>请提前确认收货地址和支付密码</li>
-            <li>重复提交会被系统拦截</li>
+            <li>{{ t("flashSale.ruleLimit") }}</li>
+            <li>{{ t("flashSale.rulePay") }}</li>
+            <li>{{ t("flashSale.rulePrepare") }}</li>
+            <li>{{ t("flashSale.ruleDuplicate") }}</li>
           </ul>
         </el-card>
       </el-col>
@@ -112,10 +114,10 @@
     <el-icon class="is-loading" size="48"><Loading /></el-icon>
   </div>
 
-  <el-result v-else icon="warning" title="活动不存在或已结束">
+  <el-result v-else icon="warning" :title="t('flashSale.notFound')">
     <template #extra>
       <el-button type="primary" @click="$router.push('/flash-sale')"
-        >返回秒杀列表</el-button
+        >{{ t("flashSale.backToList") }}</el-button
       >
     </template>
   </el-result>
@@ -126,6 +128,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Loading } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
 import { getFlashSaleDetail, doFlashSale } from "@/api/flashSale";
 import { getAddressList } from "@/api/address";
 import { useUserStore } from "@/stores/user";
@@ -133,6 +136,7 @@ import { useUserStore } from "@/stores/user";
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const { t } = useI18n();
 
 const item = ref<any>(null);
 const loading = ref(true);
@@ -183,7 +187,7 @@ const titleText = computed(
   () =>
     item.value?.title ??
     item.value?.Title ??
-    `秒杀商品 #${productId.value || ""}`,
+    t("flashSale.detailFallback", { id: productId.value || "" }),
 );
 const moneyValue = computed(() => Number(item.value?.money ?? item.value?.Money ?? 0));
 const moneyText = computed(() => moneyValue.value.toFixed(2));
@@ -225,8 +229,10 @@ async function handleGrab() {
   if (!userStore.isLoggedIn) {
     return router.push({ path: "/login", query: { redirect: route.fullPath } });
   }
-  if (!selectedAddressId.value) return ElMessage.warning("请选择收货地址");
-  if (payKey.value.length !== 6) return ElMessage.warning("请输入6位支付密码");
+  if (!selectedAddressId.value) return ElMessage.warning(t("flashSale.addressRequired"));
+  if (payKey.value.length !== 6) {
+    return ElMessage.warning(t("flashSale.payPasswordPlaceholder"));
+  }
   if (grabbing.value || grabbed.value) return;
 
   grabbing.value = true;
@@ -242,9 +248,9 @@ async function handleGrab() {
     });
     grabbed.value = true;
     remainStock.value = res.data?.remaining_stock ?? Math.max(0, (remainStock.value ?? 1) - 1);
-    ElMessage.success("抢购成功，订单生成中");
+    ElMessage.success(t("flashSale.success"));
   } catch {
-    ElMessage.error("抢购失败，可能已售罄或您已购买过");
+    ElMessage.error(t("flashSale.failed"));
   } finally {
     grabbing.value = false;
   }

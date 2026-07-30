@@ -8,19 +8,19 @@
           align-items: center;
         "
       >
-        <span>分类管理</span>
-        <el-button type="primary" @click="openCreate">新增分类</el-button>
+        <span>{{ t("page.category.title") }}</span>
+        <el-button type="primary" @click="openCreate">{{ t("page.category.create") }}</el-button>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="category_name" label="分类名称" />
-      <el-table-column label="操作" width="160">
+      <el-table-column prop="category_name" :label="t('page.category.name')" />
+      <el-table-column :label="t('common.actions')" width="160">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" @click="openEdit(row)">{{ t("common.edit") }}</el-button>
           <el-button size="small" type="danger" @click="handleDelete(row.id)"
-            >删除</el-button
+            >{{ t("common.delete") }}</el-button
           >
         </template>
       </el-table-column>
@@ -28,18 +28,18 @@
 
     <el-dialog
       v-model="dialogVisible"
-      :title="form.id ? '编辑分类' : '新增分类'"
+      :title="form.id ? t('page.category.edit') : t('page.category.create')"
       width="400px"
     >
       <el-form :model="form" label-width="80px">
-        <el-form-item label="分类名称">
+        <el-form-item :label="t('page.category.name')">
           <el-input v-model="form.category_name" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave"
-          >保存</el-button
+          >{{ t("common.save") }}</el-button
         >
       </template>
     </el-dialog>
@@ -55,6 +55,7 @@ import {
   updateCategory,
   deleteCategory,
 } from "@/api";
+import { t } from "@/locales";
 
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
@@ -79,7 +80,7 @@ function openEdit(row: any) {
 }
 
 async function handleSave() {
-  if (!form.category_name.trim()) return ElMessage.warning("请输入分类名称");
+  if (!form.category_name.trim()) return ElMessage.warning(t("page.category.nameRequired"));
   saving.value = true;
   try {
     if (form.id) {
@@ -87,7 +88,7 @@ async function handleSave() {
     } else {
       await createCategory({ category_name: form.category_name });
     }
-    ElMessage.success("保存成功");
+    ElMessage.success(t("common.saveSuccess"));
     dialogVisible.value = false;
     loadList();
   } finally {
@@ -96,9 +97,9 @@ async function handleSave() {
 }
 
 async function handleDelete(id: number) {
-  await ElMessageBox.confirm("确认删除该分类？", "提示", { type: "warning" });
+  await ElMessageBox.confirm(t("page.category.deleteConfirm"), t("common.notice"), { type: "warning" });
   await deleteCategory({ id });
-  ElMessage.success("删除成功");
+  ElMessage.success(t("common.deleteSuccess"));
   loadList();
 }
 

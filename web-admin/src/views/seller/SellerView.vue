@@ -2,41 +2,41 @@
   <el-card>
     <template #header>
       <div class="card-header">
-        <span>商家审核</span>
+        <span>{{ t("page.seller.title") }}</span>
         <div class="filters">
           <el-radio-group v-model="statusFilter" @change="reload">
-            <el-radio-button :value="undefined">全部</el-radio-button>
-            <el-radio-button :value="0">待审核</el-radio-button>
-            <el-radio-button :value="1">已通过</el-radio-button>
-            <el-radio-button :value="2">已拒绝</el-radio-button>
-            <el-radio-button :value="3">已封禁</el-radio-button>
+            <el-radio-button :value="undefined">{{ t("common.all") }}</el-radio-button>
+            <el-radio-button :value="0">{{ t("status.seller.pending") }}</el-radio-button>
+            <el-radio-button :value="1">{{ t("status.seller.approved") }}</el-radio-button>
+            <el-radio-button :value="2">{{ t("status.seller.rejected") }}</el-radio-button>
+            <el-radio-button :value="3">{{ t("status.seller.banned") }}</el-radio-button>
           </el-radio-group>
-          <el-button :loading="loading" @click="loadList">刷新</el-button>
+          <el-button :loading="loading" @click="loadList">{{ t("common.refresh") }}</el-button>
         </div>
       </div>
     </template>
 
     <el-table :data="list" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column label="店铺" min-width="220">
+      <el-table-column :label="t('page.seller.shop')" min-width="220">
         <template #default="{ row }">
           <div class="shop-name">{{ row.shop_name }}</div>
-          <div class="muted">{{ row.description || "暂无简介" }}</div>
+          <div class="muted">{{ row.description || t("page.seller.noDescription") }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="申请人" min-width="180">
+      <el-table-column :label="t('page.seller.applicant')" min-width="180">
         <template #default="{ row }">
           <div>{{ row.nick_name || row.user_name }}</div>
-          <div class="muted">用户ID: {{ row.user_id }} · {{ row.email || "-" }}</div>
+          <div class="muted">{{ t("page.seller.userId", { id: row.user_id }) }} / {{ row.email || "-" }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="110">
+      <el-table-column :label="t('common.status')" width="110">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ row.status_text }}</el-tag>
+          <el-tag :type="statusTag(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="reject_reason" label="拒绝原因" min-width="160" show-overflow-tooltip />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column prop="reject_reason" :label="t('page.seller.rejectReason')" min-width="160" show-overflow-tooltip />
+      <el-table-column :label="t('common.actions')" width="220" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="row.status !== 1"
@@ -44,7 +44,7 @@
             type="success"
             @click="audit(row, 1)"
           >
-            通过
+            {{ t("page.seller.approve") }}
           </el-button>
           <el-button
             v-if="row.status !== 2"
@@ -52,7 +52,7 @@
             type="warning"
             @click="openReject(row)"
           >
-            拒绝
+            {{ t("page.seller.reject") }}
           </el-button>
           <el-button
             v-if="row.status !== 3"
@@ -60,7 +60,7 @@
             type="danger"
             @click="audit(row, 3)"
           >
-            封禁
+            {{ t("page.seller.ban") }}
           </el-button>
         </template>
       </el-table-column>
@@ -75,26 +75,26 @@
       @current-change="loadList"
     />
 
-    <el-dialog v-model="rejectVisible" title="拒绝商家申请" width="520px">
+    <el-dialog v-model="rejectVisible" :title="t('page.seller.rejectDialogTitle')" width="520px">
       <el-form label-width="86px">
-        <el-form-item label="店铺">
+        <el-form-item :label="t('page.seller.shop')">
           {{ rejectRow?.shop_name }}
         </el-form-item>
-        <el-form-item label="拒绝原因" required>
+        <el-form-item :label="t('page.seller.rejectReason')" required>
           <el-input
             v-model="rejectReason"
             type="textarea"
             :rows="4"
             maxlength="500"
             show-word-limit
-            placeholder="请填写明确原因，便于用户修改后重新提交"
+            :placeholder="t('page.seller.rejectPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
+        <el-button @click="rejectVisible = false">{{ t("common.cancel") }}</el-button>
         <el-button type="primary" :loading="auditing" @click="submitReject">
-          确认拒绝
+          {{ t("page.seller.confirmReject") }}
         </el-button>
       </template>
     </el-dialog>
@@ -105,6 +105,8 @@
 import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { auditAdminSeller, getAdminSellerList } from "@/api/seller";
+import { t } from "@/locales";
+import { requestAdminPendingCountsRefresh } from "@/utils/adminPending";
 
 const list = ref<any[]>([]);
 const page = ref(1);
@@ -121,6 +123,17 @@ function statusTag(status: number) {
   return ({ 0: "warning", 1: "success", 2: "danger", 3: "info" } as any)[
     status
   ] ?? "info";
+}
+
+function statusText(status: number) {
+  return (
+    {
+      0: t("status.seller.pending"),
+      1: t("status.seller.approved"),
+      2: t("status.seller.rejected"),
+      3: t("status.seller.banned"),
+    } as any
+  )[status] ?? t("common.unknown");
 }
 
 function reload() {
@@ -144,14 +157,15 @@ async function loadList() {
 }
 
 async function audit(row: any, status: number) {
-  const label = status === 1 ? "通过" : "封禁";
-  await ElMessageBox.confirm(`确认${label}店铺「${row.shop_name}」？`, "提示", {
+  const label = status === 1 ? t("page.seller.approve") : t("page.seller.ban");
+  await ElMessageBox.confirm(t("page.seller.confirmAudit", { action: label, name: row.shop_name }), t("common.notice"), {
     type: "warning",
   });
   auditing.value = true;
   try {
     await auditAdminSeller({ id: row.id, status });
-    ElMessage.success(`已${label}`);
+    ElMessage.success(t("page.seller.auditSuccess", { action: label }));
+    requestAdminPendingCountsRefresh();
     loadList();
   } finally {
     auditing.value = false;
@@ -166,7 +180,7 @@ function openReject(row: any) {
 
 async function submitReject() {
   if (!rejectReason.value.trim()) {
-    return ElMessage.warning("请填写拒绝原因");
+    return ElMessage.warning(t("page.seller.rejectReasonRequired"));
   }
   auditing.value = true;
   try {
@@ -175,7 +189,8 @@ async function submitReject() {
       status: 2,
       reject_reason: rejectReason.value.trim(),
     });
-    ElMessage.success("已拒绝");
+    ElMessage.success(t("status.seller.rejected"));
+    requestAdminPendingCountsRefresh();
     rejectVisible.value = false;
     loadList();
   } finally {
