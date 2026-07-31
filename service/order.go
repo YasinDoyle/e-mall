@@ -15,7 +15,6 @@ import (
 	"github.com/YasinDoyle/e-mall/application"
 	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
-	domainevent "github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/repository/cache"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
@@ -315,67 +314,11 @@ func (s *OrderSrv) OrderDelete(ctx context.Context, req *types.OrderDeleteReq) (
 }
 
 func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp interface{}, err error) {
-	u, err := ctl.GetUserInfo(ctx)
-	if err != nil {
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-
-	err = dao.NewOrderDao(ctx).UpdateOrderShippingByBoss(req.OrderId, u.Id, req.TrackingNo)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("订单状态不允许发货")
-		}
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-	order, loadErr := dao.NewOrderDao(ctx).GetOrderByID(req.OrderId)
-	if loadErr == nil {
-		domainevent.Publish(ctx, domainevent.OrderShipped{
-			OrderID:    order.ID,
-			OrderNum:   order.OrderNum,
-			BuyerID:    order.UserID,
-			TrackingNo: order.TrackingNo,
-		})
-	}
-
-	return
+	return application.NewOrderUsecase().Ship(ctx, req)
 }
 
 func (s *OrderSrv) OrderRefundRequest(ctx context.Context, req *types.OrderRefundRequestReq) (resp interface{}, err error) {
-	u, err := ctl.GetUserInfo(ctx)
-	if err != nil {
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-
-	if err = dao.NewOrderDao(ctx).RequestRefundByUser(req.OrderId, u.Id, req.Reason); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("订单状态不允许申请退款")
-		}
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-
-	order, err := dao.NewOrderDao(ctx).GetOrderById(req.OrderId, u.Id)
-	if err != nil {
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-	domainevent.Publish(ctx, domainevent.RefundRequested{
-		OrderID:  order.ID,
-		OrderNum: order.OrderNum,
-		SellerID: order.BossID,
-	})
-
-	resp = &types.OrderRefundResp{
-		OrderId:      order.ID,
-		OrderNum:     order.OrderNum,
-		RefundAmount: order.Money * float64(order.Num),
-		RefundStatus: order.RefundStatus,
-		Type:         order.Type,
-	}
-	return
+	return application.NewOrderUsecase().RefundRequest(ctx, req)
 }
 
 func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.AdminOrderRefundApproveReq) (resp interface{}, err error) {
@@ -383,42 +326,13 @@ func (s *OrderSrv) AdminOrderRefundApprove(ctx context.Context, req *types.Admin
 }
 
 func (s *OrderSrv) OrderReceive(ctx context.Context, req *types.OrderReceiveReq) (resp interface{}, err error) {
-	u, err := ctl.GetUserInfo(ctx)
-	if err != nil {
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
+	return application.NewOrderUsecase().Receive(ctx, req)
+}
 
-	var orderNum uint64
-	var sellerID uint
-	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
-		orderDao := dao.NewOrderDaoByDB(tx)
-		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
-		if txErr != nil {
-			return txErr
-		}
-		if order.UserID != u.Id || order.Type != consts.OrderTypeShipping {
-			return gorm.ErrRecordNotFound
-		}
-		orderNum = order.OrderNum
-		sellerID = order.BossID
-		if txErr = orderDao.UpdateOrderTypeByUser(req.OrderId, u.Id, consts.OrderTypeShipping, consts.OrderTypeReceipt); txErr != nil {
-			return txErr
-		}
-		return dao.NewSettlementDaoByDB(tx).GenerateCompletedForOrder(req.OrderId)
-	})
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("订单状态不允许收货")
-		}
-		util.LogrusObj.Error(err)
-		return nil, err
-	}
-	domainevent.Publish(ctx, domainevent.OrderReceived{
-		OrderID:  req.OrderId,
-		OrderNum: orderNum,
-		SellerID: sellerID,
-	})
+func (s *OrderSrv) OrderCancel(ctx context.Context, req *types.OrderDeleteReq) (resp interface{}, err error) {
+	return application.NewOrderUsecase().CancelUnpaid(ctx, req.OrderId)
+}
 
-	return
+func (s *OrderSrv) OrderLogs(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
+	return application.NewOrderUsecase().Logs(ctx, req.OrderId)
 }

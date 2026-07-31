@@ -36,20 +36,25 @@ func (u *PaymentUsecase) PayDown(ctx context.Context, req *types.PaymentDownReq)
 	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
 		userID := userInfo.Id
 
-		order, txErr := dao.NewOrderDaoByDB(tx).GetOrderById(req.OrderId, userID)
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
 		if txErr != nil {
 			log.LogrusObj.Error(txErr)
 			return txErr
 		}
-		if order.Type != consts.OrderTypeUnPaid {
+		if order.UserID != userID || order.Type != consts.OrderTypeUnPaid {
 			return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
 		}
 		if txErr = ensureNotBuyingOwnProduct(order.UserID, order.BossID); txErr != nil {
 			return txErr
 		}
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionPay, order.Type, consts.OrderTypePendingShipping, "buyer", userID, consts.OrderPaymentChannelBalance)
+		if txErr != nil {
+			return txErr
+		}
 
 		paidAt := time.Now()
-		if txErr = dao.NewOrderDaoByDB(tx).UpdateOrderPaidById(req.OrderId, userID, paidAt); txErr != nil {
+		if txErr = orderDao.UpdateOrderPaidById(req.OrderId, userID, paidAt); txErr != nil {
 			if errors.Is(txErr, gorm.ErrRecordNotFound) {
 				return e.NewBusinessError(e.ErrorOrderPayStatusInvalid)
 			}
@@ -117,6 +122,10 @@ func (u *PaymentUsecase) PayDown(ctx context.Context, req *types.PaymentDownReq)
 				return e.NewBusinessError(e.ErrorPaymentStockInsufficient)
 			}
 			log.LogrusObj.Error(txErr)
+			return txErr
+		}
+
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
 			return txErr
 		}
 

@@ -9,8 +9,11 @@ import (
 
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/domain/event"
+	"github.com/YasinDoyle/e-mall/domain/orderstate"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
+	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
+	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/e"
 	"github.com/YasinDoyle/e-mall/utils/log"
 )
@@ -21,13 +24,281 @@ func NewOrderUsecase() *OrderUsecase {
 	return &OrderUsecase{}
 }
 
+func buildOrderLog(orderID uint, orderNum uint64, action string, fromType, toType uint, operatorType string, operatorID uint, remark string) (*model.OrderLog, error) {
+	if err := orderstate.EnsureOrderStatusTransition(fromType, toType); err != nil {
+		return nil, err
+	}
+	return &model.OrderLog{
+		OrderID:      orderID,
+		OrderNum:     orderNum,
+		Action:       action,
+		FromType:     fromType,
+		ToType:       toType,
+		OperatorType: operatorType,
+		OperatorID:   operatorID,
+		Remark:       remark,
+	}, nil
+}
+
+func (u *OrderUsecase) CancelUnpaid(ctx context.Context, orderID uint) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	var orderNum uint64
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(orderID)
+		if txErr != nil {
+			return txErr
+		}
+		if order.UserID != userInfo.Id || order.Type != consts.OrderTypeUnPaid {
+			return gorm.ErrRecordNotFound
+		}
+		orderNum = order.OrderNum
+
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionCancel, order.Type, consts.OrderTypeCanceled, "buyer", userInfo.Id, "cancel unpaid order")
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = orderDao.UpdateOrderTypeByUser(order.ID, userInfo.Id, order.Type, consts.OrderTypeCanceled); txErr != nil {
+			return txErr
+		}
+		return dao.NewOrderLogDaoByDB(tx).Create(orderLog)
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorOrderStatusTransitionInvalid)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"order_id":  orderID,
+		"order_num": orderNum,
+		"type":      consts.OrderTypeCanceled,
+	}, nil
+}
+
+func (u *OrderUsecase) Ship(ctx context.Context, req *types.OrderShipReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	var shipped event.OrderShipped
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.BossID != userInfo.Id || order.Type != consts.OrderTypePendingShipping {
+			return gorm.ErrRecordNotFound
+		}
+
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionShip, order.Type, consts.OrderTypeShipping, "seller", userInfo.Id, req.TrackingNo)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = orderDao.UpdateOrderShippingByBoss(order.ID, userInfo.Id, req.TrackingNo); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		shipped = event.OrderShipped{
+			OrderID:    order.ID,
+			OrderNum:   order.OrderNum,
+			BuyerID:    order.UserID,
+			TrackingNo: req.TrackingNo,
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorOrderStatusTransitionInvalid)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	event.Publish(ctx, shipped)
+	return nil, nil
+}
+
+func (u *OrderUsecase) Receive(ctx context.Context, req *types.OrderReceiveReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	var received event.OrderReceived
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.UserID != userInfo.Id || order.Type != consts.OrderTypeShipping {
+			return gorm.ErrRecordNotFound
+		}
+
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionReceive, order.Type, consts.OrderTypeReceipt, "buyer", userInfo.Id, "confirm receipt")
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = orderDao.UpdateOrderTypeByUser(order.ID, userInfo.Id, order.Type, consts.OrderTypeReceipt); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewSettlementDaoByDB(tx).GenerateCompletedForOrder(order.ID); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		received = event.OrderReceived{
+			OrderID:  order.ID,
+			OrderNum: order.OrderNum,
+			SellerID: order.BossID,
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorOrderStatusTransitionInvalid)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	event.Publish(ctx, received)
+	return nil, nil
+}
+
+func (u *OrderUsecase) RefundRequest(ctx context.Context, req *types.OrderRefundRequestReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	var refundRequested event.RefundRequested
+	var resp *types.OrderRefundResp
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		orderDao := dao.NewOrderDaoByDB(tx)
+		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.UserID != userInfo.Id || order.RefundStatus != consts.OrderRefundStatusNone {
+			return gorm.ErrRecordNotFound
+		}
+
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionRefundRequest, order.Type, consts.OrderTypeRefundRequested, "buyer", userInfo.Id, req.Reason)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = orderDao.RequestRefundByUser(order.ID, userInfo.Id, req.Reason); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		refundRequested = event.RefundRequested{
+			OrderID:  order.ID,
+			OrderNum: order.OrderNum,
+			SellerID: order.BossID,
+		}
+		resp = &types.OrderRefundResp{
+			OrderId:      order.ID,
+			OrderNum:     order.OrderNum,
+			RefundAmount: order.Money * float64(order.Num),
+			RefundStatus: consts.OrderRefundStatusRequested,
+			Type:         consts.OrderTypeRefundRequested,
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorOrderStatusTransitionInvalid)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	event.Publish(ctx, refundRequested)
+	return resp, nil
+}
+
+func (u *OrderUsecase) Logs(ctx context.Context, orderID uint) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	order, err := dao.NewOrderDao(ctx).GetOrderByID(orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	if order.UserID != userInfo.Id && order.BossID != userInfo.Id {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	logs, err := dao.NewOrderLogDao(ctx).ListByOrderID(orderID)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	resp := make([]*types.OrderLogResp, 0, len(logs))
+	for _, item := range logs {
+		resp = append(resp, &types.OrderLogResp{
+			ID:           item.ID,
+			OrderID:      item.OrderID,
+			OrderNum:     item.OrderNum,
+			Action:       item.Action,
+			FromType:     item.FromType,
+			ToType:       item.ToType,
+			OperatorType: item.OperatorType,
+			OperatorID:   item.OperatorID,
+			Remark:       item.Remark,
+			CreatedAt:    item.CreatedAt.Unix(),
+		})
+	}
+	return resp, nil
+}
+
 func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminOrderRefundApproveReq) (interface{}, error) {
+	adminInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
 	refundAmount := float64(0)
 	var orderNum uint64
 	var buyerID uint
 	var sellerID uint
 
-	err := dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		admin, txErr := dao.NewUserDaoByDB(tx).GetUserById(adminInfo.Id)
+		if txErr != nil {
+			return txErr
+		}
+		if !admin.IsAdmin {
+			return e.NewBusinessError(e.ErrorAuthInsufficientAuthority)
+		}
+
 		orderDao := dao.NewOrderDaoByDB(tx)
 		order, txErr := orderDao.GetOrderByIdForUpdate(req.OrderId)
 		if txErr != nil {
@@ -35,6 +306,10 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 		}
 		if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
 			return e.NewBusinessError(e.ErrorRefundStatusInvalid)
+		}
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionRefundApprove, order.Type, consts.OrderTypeRefunded, "admin", adminInfo.Id, "approve refund")
+		if txErr != nil {
+			return txErr
 		}
 
 		refundAmount = order.Money * float64(order.Num)
@@ -72,7 +347,10 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 			return txErr
 		}
 
-		return orderDao.MarkOrderRefunded(order.ID)
+		if txErr = orderDao.MarkOrderRefunded(order.ID); txErr != nil {
+			return txErr
+		}
+		return dao.NewOrderLogDaoByDB(tx).Create(orderLog)
 	})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
