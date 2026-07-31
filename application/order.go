@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -19,6 +21,12 @@ import (
 )
 
 type OrderUsecase struct{}
+
+const (
+	orderLogisticsNodeManualShipped  = "manual_shipped"
+	orderLogisticsNodeManualReceived = "manual_received"
+	shipmentInfoMaxLen               = 64
+)
 
 func NewOrderUsecase() *OrderUsecase {
 	return &OrderUsecase{}
@@ -63,7 +71,7 @@ func (u *OrderUsecase) CancelUnpaid(ctx context.Context, orderID uint) (interfac
 		if txErr != nil {
 			return txErr
 		}
-		if txErr = orderDao.UpdateOrderTypeByUser(order.ID, userInfo.Id, order.Type, consts.OrderTypeCanceled); txErr != nil {
+		if txErr = orderDao.CancelUnpaidOrderByUser(order.ID, userInfo.Id, time.Now()); txErr != nil {
 			return txErr
 		}
 		return dao.NewOrderLogDaoByDB(tx).Create(orderLog)
@@ -89,6 +97,12 @@ func (u *OrderUsecase) Ship(ctx context.Context, req *types.OrderShipReq) (inter
 		log.LogrusObj.Error(err)
 		return nil, err
 	}
+	req.LogisticsCompany = strings.TrimSpace(req.LogisticsCompany)
+	req.TrackingNo = strings.TrimSpace(req.TrackingNo)
+	if req.LogisticsCompany == "" || req.TrackingNo == "" ||
+		len(req.LogisticsCompany) > shipmentInfoMaxLen || len(req.TrackingNo) > shipmentInfoMaxLen {
+		return nil, e.NewBusinessError(e.InvalidParams)
+	}
 
 	var shipped event.OrderShipped
 	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
@@ -101,14 +115,24 @@ func (u *OrderUsecase) Ship(ctx context.Context, req *types.OrderShipReq) (inter
 			return gorm.ErrRecordNotFound
 		}
 
+		shippedAt := time.Now()
 		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionShip, order.Type, consts.OrderTypeShipping, "seller", userInfo.Id, req.TrackingNo)
 		if txErr != nil {
 			return txErr
 		}
-		if txErr = orderDao.UpdateOrderShippingByBoss(order.ID, userInfo.Id, req.TrackingNo); txErr != nil {
+		if txErr = orderDao.UpdateOrderShippingByBoss(order.ID, userInfo.Id, req.LogisticsCompany, req.TrackingNo, shippedAt); txErr != nil {
 			return txErr
 		}
 		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogisticsDaoByDB(tx).Create(&model.OrderLogistics{
+			OrderID:     order.ID,
+			OrderNum:    order.OrderNum,
+			NodeType:    orderLogisticsNodeManualShipped,
+			Description: req.LogisticsCompany + " " + req.TrackingNo,
+			OccurredAt:  shippedAt.Unix(),
+		}); txErr != nil {
 			return txErr
 		}
 		shipped = event.OrderShipped{
@@ -149,17 +173,27 @@ func (u *OrderUsecase) Receive(ctx context.Context, req *types.OrderReceiveReq) 
 			return gorm.ErrRecordNotFound
 		}
 
+		receivedAt := time.Now()
 		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionReceive, order.Type, consts.OrderTypeReceipt, "buyer", userInfo.Id, "confirm receipt")
 		if txErr != nil {
 			return txErr
 		}
-		if txErr = orderDao.UpdateOrderTypeByUser(order.ID, userInfo.Id, order.Type, consts.OrderTypeReceipt); txErr != nil {
+		if txErr = orderDao.UpdateOrderReceivedByUser(order.ID, userInfo.Id, receivedAt); txErr != nil {
 			return txErr
 		}
 		if txErr = dao.NewSettlementDaoByDB(tx).GenerateCompletedForOrder(order.ID); txErr != nil {
 			return txErr
 		}
 		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogisticsDaoByDB(tx).Create(&model.OrderLogistics{
+			OrderID:     order.ID,
+			OrderNum:    order.OrderNum,
+			NodeType:    orderLogisticsNodeManualReceived,
+			Description: "buyer confirmed receipt",
+			OccurredAt:  receivedAt.Unix(),
+		}); txErr != nil {
 			return txErr
 		}
 		received = event.OrderReceived{

@@ -314,6 +314,12 @@ func (s *OrderSrv) OrderDelete(ctx context.Context, req *types.OrderDeleteReq) (
 }
 
 func (s *OrderSrv) OrderShip(ctx context.Context, req *types.OrderShipReq) (resp interface{}, err error) {
+	shipmentInfo, err := NormalizeShipmentInfo(req.LogisticsCompany, req.TrackingNo)
+	if err != nil {
+		return nil, err
+	}
+	req.LogisticsCompany = shipmentInfo.LogisticsCompany
+	req.TrackingNo = shipmentInfo.TrackingNo
 	return application.NewOrderUsecase().Ship(ctx, req)
 }
 
