@@ -82,6 +82,7 @@ var MsgFlags = map[int]string{
 	ErrorSellerWithdrawStatusInvalid:       "提现单状态不允许操作",
 	ErrorSellerWithdrawReasonMissing:       "拒绝原因不能为空",
 	ErrorSellerWithdrawNotFound:            "提现单不存在",
+	ErrorOrderStatusTransitionInvalid:      "订单状态不允许该操作",
 }
 
 var LocaleMsgFlags = map[string]map[int]string{
@@ -165,6 +166,7 @@ var LocaleMsgFlags = map[string]map[int]string{
 		ErrorSellerWithdrawStatusInvalid:       "Withdrawal status does not allow this operation",
 		ErrorSellerWithdrawReasonMissing:       "Rejection reason is required",
 		ErrorSellerWithdrawNotFound:            "Withdrawal request does not exist",
+		ErrorOrderStatusTransitionInvalid:      "Order status does not allow this operation",
 	},
 }
 
@@ -245,6 +247,7 @@ var MsgKeys = map[int]string{
 	ErrorSellerWithdrawStatusInvalid:       "seller_withdraw.status_invalid",
 	ErrorSellerWithdrawReasonMissing:       "seller_withdraw.reason_missing",
 	ErrorSellerWithdrawNotFound:            "seller_withdraw.not_found",
+	ErrorOrderStatusTransitionInvalid:      "order.status_transition_invalid",
 }
 
 // GetMsg 获取状态码对应信息

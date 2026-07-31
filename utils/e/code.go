@@ -84,4 +84,13 @@ const (
 	ErrorSellerWithdrawStatusInvalid       = 60033
 	ErrorSellerWithdrawReasonMissing       = 60034
 	ErrorSellerWithdrawNotFound            = 60035
+	ErrorOrderStatusTransitionInvalid      = 60036
 )
+
+func BusinessCode(err error) int {
+	code, ok := CodeFromError(err)
+	if !ok {
+		return ERROR
+	}
+	return code
+}
