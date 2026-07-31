@@ -109,3 +109,16 @@ type OrderListResp struct {
 	SettlementAmount float64 `json:"settlement_amount"`
 	SettlementStatus string  `json:"settlement_status"`
 }
+
+type OrderLogResp struct {
+	ID           uint   `json:"id"`
+	OrderID      uint   `json:"order_id"`
+	OrderNum     uint64 `json:"order_num"`
+	Action       string `json:"action"`
+	FromType     uint   `json:"from_type"`
+	ToType       uint   `json:"to_type"`
+	OperatorType string `json:"operator_type"`
+	OperatorID   uint   `json:"operator_id"`
+	Remark       string `json:"remark"`
+	CreatedAt    int64  `json:"created_at"`
+}
