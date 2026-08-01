@@ -174,7 +174,9 @@ func CancelOrderHandler() gin.HandlerFunc {
 	}
 }
 
-func OrderLogsHandler() gin.HandlerFunc {
+// OrderOperationLogsHandler returns the P2 fulfillment operation audit trail for
+// an order. These are business status-transition records, not runtime logs.
+func OrderOperationLogsHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req types.OrderShowReq
 		if err := ctx.ShouldBind(&req); err != nil {
@@ -184,7 +186,7 @@ func OrderLogsHandler() gin.HandlerFunc {
 		}
 
 		l := service.GetOrderSrv()
-		resp, err := l.OrderLogs(ctx.Request.Context(), &req)
+		resp, err := l.OrderOperationLogs(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

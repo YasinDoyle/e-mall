@@ -339,6 +339,6 @@ func (s *OrderSrv) OrderCancel(ctx context.Context, req *types.OrderDeleteReq) (
 	return application.NewOrderUsecase().CancelUnpaid(ctx, req.OrderId)
 }
 
-func (s *OrderSrv) OrderLogs(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
+func (s *OrderSrv) OrderOperationLogs(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
 	return application.NewOrderUsecase().Logs(ctx, req.OrderId)
 }

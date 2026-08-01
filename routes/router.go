@@ -90,7 +90,7 @@ func NewRouter() *gin.Engine {
 			authed.GET("orders/show", api.ShowOrderHandler())
 			authed.POST("orders/delete", api.DeleteOrderHandler())
 			authed.POST("orders/cancel", api.CancelOrderHandler())
-			authed.GET("orders/logs", api.OrderLogsHandler())
+			authed.GET("orders/logs", api.OrderOperationLogsHandler())
 			authed.POST("orders/ship", api.ShipOrderHandler())
 			authed.POST("orders/receive", api.ReceiveOrderHandler())
 			authed.POST("orders/refund/request", api.RefundRequestOrderHandler())

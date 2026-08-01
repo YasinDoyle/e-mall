@@ -121,6 +121,7 @@ type OrderListResp struct {
 	SettlementStatus string  `json:"settlement_status"`
 }
 
+// OrderLogResp is an order fulfillment operation audit record.
 type OrderLogResp struct {
 	ID           uint   `json:"id"`
 	OrderID      uint   `json:"order_id"`

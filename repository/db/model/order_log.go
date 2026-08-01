@@ -2,6 +2,8 @@ package model
 
 import "gorm.io/gorm"
 
+// OrderLog records immutable business operation history for order fulfillment
+// status transitions, such as pay, ship, receive, cancel, and refund approval.
 type OrderLog struct {
 	gorm.Model
 	OrderID      uint   `gorm:"not null;index" json:"order_id"`
