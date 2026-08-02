@@ -67,6 +67,8 @@ func NewRouter() *gin.Engine {
 			authed.GET("boss/product/list", api.BossProductListHandler())
 			authed.POST("boss/product/on_sale", api.BossProductOnSaleHandler())
 			authed.GET("boss/order/list", api.SellerListOrdersHandler())
+			authed.GET("boss/after-sales/list", api.SellerAfterSaleListHandler())
+			authed.POST("boss/after-sales/handle", api.SellerAfterSaleHandleHandler())
 			authed.GET("boss/settlement/summary", api.SellerSettlementSummaryHandler())
 			authed.GET("seller/account/summary", api.SellerAccountSummaryHandler())
 			authed.GET("seller/withdraw/list", api.SellerWithdrawListHandler())
@@ -94,6 +96,8 @@ func NewRouter() *gin.Engine {
 			authed.POST("orders/ship", api.ShipOrderHandler())
 			authed.POST("orders/receive", api.ReceiveOrderHandler())
 			authed.POST("orders/refund/request", api.RefundRequestOrderHandler())
+			authed.POST("after-sales/request", api.AfterSaleRequestHandler())
+			authed.GET("after-sales/list", api.AfterSaleListHandler())
 
 			// 购物车
 			authed.POST("carts/create", api.CreateCartHandler())
@@ -208,6 +212,8 @@ func NewRouter() *gin.Engine {
 			// 订单管理/售后
 			admin.GET("orders/list", api.AdminListOrdersHandler())
 			admin.POST("orders/refund/approve", api.AdminRefundApproveOrderHandler())
+			admin.GET("after-sales/list", api.AdminAfterSaleListHandler())
+			admin.POST("after-sales/handle", api.AdminAfterSaleHandleHandler())
 
 			// 结算管理
 			admin.GET("settlement/list", api.AdminSettlementListHandler())

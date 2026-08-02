@@ -796,6 +796,10 @@ git commit -m "feat: add product order payment channels"
 
 ## Task 6: Independent After-Sale Workflow
 
+**Status:** Partial.
+- Backend implementation is complete and targeted tests pass.
+- Commit step is intentionally skipped per current instruction.
+
 **Files:**
 - Create: `consts/after_sale.go`
 - Create: `repository/db/model/after_sale.go`
@@ -808,7 +812,7 @@ git commit -m "feat: add product order payment channels"
 - Create: `domain/aftersale/state.go`
 - Test: `domain/aftersale/state_test.go`
 
-- [ ] **Step 1: Write failing after-sale state tests**
+- [x] **Step 1: Write failing after-sale state tests**
 
 Add `domain/aftersale/state_test.go`:
 
@@ -846,7 +850,7 @@ func TestEnsureTransitionRejectsIllegalFlow(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -856,7 +860,7 @@ env GOCACHE=/private/tmp/e-mall-go-cache go test ./domain/aftersale -run TestEns
 
 Expected: FAIL because constants and helper do not exist.
 
-- [ ] **Step 3: Add after-sale constants, model, DAO, DTOs, and domain state helper**
+- [x] **Step 3: Add after-sale constants, model, DAO, DTOs, and domain state helper**
 
 Create constants:
 
@@ -960,7 +964,7 @@ func EnsureTransition(from, to string) error {
 }
 ```
 
-- [ ] **Step 4: Add application use cases and routes**
+- [x] **Step 4: Add application use cases and routes**
 
 Implement:
 
@@ -984,7 +988,7 @@ admin.GET("after-sales/list", api.AdminAfterSaleListHandler())
 admin.POST("after-sales/handle", api.AdminAfterSaleHandleHandler())
 ```
 
-- [ ] **Step 5: Run targeted tests**
+- [x] **Step 5: Run targeted tests**
 
 Run:
 
@@ -1005,6 +1009,10 @@ git commit -m "feat: add after-sale workflow"
 
 ## Task 7: Refund Reversal and Idempotent Money Flow
 
+**Status:** Partial.
+- Backend implementation is complete and targeted tests pass.
+- Commit step is intentionally skipped per current instruction.
+
 **Files:**
 - Modify: `application/finance.go`
 - Modify: `application/order.go`
@@ -1013,7 +1021,7 @@ git commit -m "feat: add after-sale workflow"
 - Test: `application/refund_reversal_test.go`
 - Test: `service/settlement_test.go`
 
-- [ ] **Step 1: Write failing refund idempotency tests**
+- [x] **Step 1: Write failing refund idempotency tests**
 
 Add `application/refund_reversal_test.go`:
 
@@ -1042,7 +1050,7 @@ func TestBuildRefundFlowNosAreStablePerOrder(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -1052,7 +1060,7 @@ env GOCACHE=/private/tmp/e-mall-go-cache go test ./application -run TestBuildRef
 
 Expected: FAIL because `buildRefundAccountFlows` is missing or returns incomplete flows.
 
-- [ ] **Step 3: Make refund reversal explicit**
+- [x] **Step 3: Make refund reversal explicit**
 
 Update refund handling to:
 
@@ -1067,7 +1075,7 @@ Update refund handling to:
 
 For wechat/alipay product orders, P2 should create refund request records and expose status, but actual high-security risk control and automatic reconciliation stay in A1/A4. Gateway refund methods must still validate amount and idempotency.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run:
 

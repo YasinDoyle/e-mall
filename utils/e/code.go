@@ -86,6 +86,10 @@ const (
 	ErrorSellerWithdrawNotFound            = 60035
 	ErrorOrderStatusTransitionInvalid      = 60036
 	ErrorPaymentAmountMismatch             = 60037
+	ErrorAfterSaleStatusInvalid            = 60038
+	ErrorAfterSaleNotFound                 = 60039
+	ErrorAfterSaleActionInvalid            = 60040
+	ErrorAfterSalePermissionDenied         = 60041
 )
 
 func BusinessCode(err error) int {

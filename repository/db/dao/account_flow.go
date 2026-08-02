@@ -24,6 +24,12 @@ func (dao *AccountFlowDao) Create(flow *model.AccountFlow) error {
 	return dao.DB.Create(flow).Error
 }
 
+func (dao *AccountFlowDao) GetByFlowNo(flowNo string) (*model.AccountFlow, error) {
+	var flow model.AccountFlow
+	err := dao.DB.Where("flow_no = ?", flowNo).First(&flow).Error
+	return &flow, err
+}
+
 func (dao *AccountFlowDao) ListByOrderID(orderID uint) ([]*model.AccountFlow, error) {
 	flows := make([]*model.AccountFlow, 0)
 	err := dao.DB.Where("order_id = ?", orderID).Order("created_at ASC").Find(&flows).Error

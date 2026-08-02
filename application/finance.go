@@ -79,13 +79,40 @@ func handleOrderPaid(tx *gorm.DB, order *model.Order) error {
 }
 
 func handleOrderRefunded(tx *gorm.DB, order *model.Order) error {
-	if err := dao.NewSettlementDaoByDB(tx).MarkRefundedByOrderID(order.ID); err != nil {
+	settlementDao := dao.NewSettlementDaoByDB(tx)
+	settlement, err := settlementDao.GetByOrderIDForUpdate(order.ID)
+	if err != nil {
 		return err
 	}
-	amount := roundMoney(order.Money * float64(order.Num))
-	return dao.NewAccountFlowDaoByDB(tx).Create(
-		newOrderAccountFlow(order, order.UserID, order.BossID, model.AccountFlowTypeRefund, "in", amount, "订单退款"),
-	)
+	if settlement.Status == model.SettlementStatusRefunded {
+		return e.NewBusinessError(e.ErrorRefundStatusInvalid)
+	}
+	if settlement.Status != model.SettlementStatusPending && settlement.Status != model.SettlementStatusGenerated {
+		return e.NewBusinessError(e.ErrorRefundStatusInvalid)
+	}
+
+	flows := buildRefundAccountFlows(order, roundMoney(order.Money*float64(order.Num)))
+	if len(flows) != 3 {
+		return e.NewBusinessError(e.ErrorDatabase)
+	}
+	if settlement.SettlementAmount > 0 {
+		flows[1].Amount = settlement.SettlementAmount
+		flows[1].Remark = "卖家待结算冲正"
+	}
+	if settlement.CommissionAmount > 0 {
+		flows[2].Amount = settlement.CommissionAmount
+		flows[2].Remark = "平台佣金冲正"
+	}
+	flowDao := dao.NewAccountFlowDaoByDB(tx)
+	for _, flow := range flows {
+		if err := flowDao.Create(flow); err != nil {
+			return err
+		}
+	}
+	if err := settlementDao.MarkRefundedByOrderID(order.ID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func creditSettlement(tx *gorm.DB, settlement *model.Settlement) error {
@@ -130,6 +157,30 @@ func ensureNotBuyingOwnProduct(userID, bossID uint) error {
 func newOrderAccountFlow(order *model.Order, userID, sellerID uint, flowType, direction string, amount float64, remark string) *model.AccountFlow {
 	return &model.AccountFlow{
 		FlowNo:      fmt.Sprintf("%s-%d-%d", flowType, order.ID, time.Now().UnixNano()),
+		OrderID:     order.ID,
+		OrderNum:    order.OrderNum,
+		UserID:      userID,
+		SellerID:    sellerID,
+		RelatedType: "order",
+		RelatedID:   order.ID,
+		FlowType:    flowType,
+		Direction:   direction,
+		Amount:      amount,
+		Remark:      remark,
+	}
+}
+
+func buildRefundAccountFlows(order *model.Order, amount float64) []*model.AccountFlow {
+	return []*model.AccountFlow{
+		newStableOrderAccountFlow(order, order.UserID, order.BossID, model.AccountFlowTypeRefund, "in", amount, "订单退款", "buyer"),
+		newStableOrderAccountFlow(order, order.BossID, order.BossID, model.AccountFlowTypeSellerPending, "out", 0, "卖家待结算冲正", "seller"),
+		newStableOrderAccountFlow(order, 0, order.BossID, model.AccountFlowTypePlatformCommission, "out", 0, "平台佣金冲正", "platform"),
+	}
+}
+
+func newStableOrderAccountFlow(order *model.Order, userID, sellerID uint, flowType, direction string, amount float64, remark, suffix string) *model.AccountFlow {
+	return &model.AccountFlow{
+		FlowNo:      fmt.Sprintf("%s-%d-%s", flowType, order.ID, suffix),
 		OrderID:     order.ID,
 		OrderNum:    order.OrderNum,
 		UserID:      userID,

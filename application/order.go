@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	aftersalestate "github.com/YasinDoyle/e-mall/domain/aftersale"
 	"github.com/YasinDoyle/e-mall/domain/event"
 	"github.com/YasinDoyle/e-mall/domain/orderstate"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
@@ -26,6 +27,7 @@ const (
 	orderLogisticsNodeManualShipped  = "manual_shipped"
 	orderLogisticsNodeManualReceived = "manual_received"
 	shipmentInfoMaxLen               = 64
+	afterSaleReasonMaxLen            = 255
 )
 
 func NewOrderUsecase() *OrderUsecase {
@@ -341,6 +343,13 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 		if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
 			return e.NewBusinessError(e.ErrorRefundStatusInvalid)
 		}
+		if afterSale, txErr := dao.NewAfterSaleDaoByDB(tx).GetByOrderIDForUpdate(order.ID); txErr == nil {
+			if afterSale.Status == consts.AfterSaleStatusRefunded {
+				return e.NewBusinessError(e.ErrorRefundStatusInvalid)
+			}
+		} else if !errors.Is(txErr, gorm.ErrRecordNotFound) {
+			return txErr
+		}
 		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionRefundApprove, order.Type, consts.OrderTypeRefunded, "admin", adminInfo.Id, "approve refund")
 		if txErr != nil {
 			return txErr
@@ -359,22 +368,28 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 		if txErr != nil {
 			return txErr
 		}
-		if !buyer.HasPayKey() {
-			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
+		paymentChannel := order.PaymentChannel
+		if paymentChannel == "" {
+			paymentChannel = consts.OrderPaymentChannelBalance
 		}
+		if paymentChannel == consts.OrderPaymentChannelBalance {
+			if !buyer.HasPayKey() {
+				return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
+			}
 
-		buyerMoney, txErr := buyer.DecryptMoney(req.Key)
-		if txErr != nil {
-			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
-		}
+			buyerMoney, txErr := buyer.DecryptMoney(req.Key)
+			if txErr != nil {
+				return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
+			}
 
-		buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
-		buyer.Money, txErr = buyer.EncryptMoney(req.Key)
-		if txErr != nil {
-			return txErr
-		}
-		if txErr = userDao.UpdateUserById(order.UserID, buyer); txErr != nil {
-			return txErr
+			buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
+			buyer.Money, txErr = buyer.EncryptMoney(req.Key)
+			if txErr != nil {
+				return txErr
+			}
+			if txErr = userDao.UpdateUserById(order.UserID, buyer); txErr != nil {
+				return txErr
+			}
 		}
 
 		if txErr = handleOrderRefunded(tx, order); txErr != nil {
@@ -408,4 +423,389 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 		RefundStatus: consts.OrderRefundStatusRefunded,
 		Type:         consts.OrderTypeRefunded,
 	}, nil
+}
+
+func (u *OrderUsecase) RequestAfterSale(ctx context.Context, req *types.AfterSaleRequestReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	req.Type = strings.TrimSpace(req.Type)
+	req.Reason = strings.TrimSpace(req.Reason)
+	if err := validateAfterSaleRequest(req.Type, req.Reason); err != nil {
+		return nil, err
+	}
+
+	var resp *types.AfterSaleListResp
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		order, txErr := dao.NewOrderDaoByDB(tx).GetOrderByIdForUpdate(req.OrderId)
+		if txErr != nil {
+			return txErr
+		}
+		if order.UserID != userInfo.Id {
+			return gorm.ErrRecordNotFound
+		}
+		if order.RefundStatus != consts.OrderRefundStatusNone {
+			return e.NewBusinessError(e.ErrorAfterSaleStatusInvalid)
+		}
+		if !isAfterSaleOrderTypeAllowed(order.Type, req.Type) {
+			return e.NewBusinessError(e.ErrorAfterSaleStatusInvalid)
+		}
+
+		hasActive, txErr := dao.NewAfterSaleDaoByDB(tx).HasActiveByOrderID(order.ID)
+		if txErr != nil {
+			return txErr
+		}
+		if hasActive {
+			return e.NewBusinessError(e.ErrorAfterSaleStatusInvalid)
+		}
+
+		afterSale := &model.AfterSale{
+			OrderID:      order.ID,
+			OrderNum:     order.OrderNum,
+			BuyerID:      order.UserID,
+			SellerID:     order.BossID,
+			Type:         req.Type,
+			Status:       consts.AfterSaleStatusRequested,
+			Reason:       req.Reason,
+			RefundAmount: order.Money * float64(order.Num),
+		}
+		if txErr = dao.NewAfterSaleDaoByDB(tx).Create(afterSale); txErr != nil {
+			return txErr
+		}
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionAfterSale, order.Type, order.Type, "buyer", userInfo.Id, req.Type+": "+req.Reason)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		resp = buildAfterSaleResp(afterSale)
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorAfterSaleNotFound)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (u *OrderUsecase) SellerHandleAfterSale(ctx context.Context, req *types.SellerAfterSaleHandleReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	req.Action = strings.TrimSpace(req.Action)
+	req.Reason = strings.TrimSpace(req.Reason)
+	if req.Action != consts.AfterSaleActionApprove && req.Action != consts.AfterSaleActionReject {
+		return nil, e.NewBusinessError(e.ErrorAfterSaleActionInvalid)
+	}
+	if req.Action == consts.AfterSaleActionReject && req.Reason == "" {
+		return nil, e.NewBusinessError(e.InvalidParams)
+	}
+	if len(req.Reason) > afterSaleReasonMaxLen {
+		return nil, e.NewBusinessError(e.InvalidParams)
+	}
+
+	var resp *types.AfterSaleListResp
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		afterSale, txErr := dao.NewAfterSaleDaoByDB(tx).GetByIDForUpdate(req.AfterSaleID)
+		if txErr != nil {
+			return txErr
+		}
+		if afterSale.SellerID != userInfo.Id {
+			return gorm.ErrRecordNotFound
+		}
+
+		nextStatus, txErr := sellerAfterSaleNextStatus(req.Action)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = aftersalestate.EnsureTransition(afterSale.Status, nextStatus); txErr != nil {
+			return txErr
+		}
+
+		updates := map[string]interface{}{
+			"status": nextStatus,
+		}
+		if req.Reason != "" {
+			updates["seller_reason"] = req.Reason
+		}
+		if txErr = dao.NewAfterSaleDaoByDB(tx).UpdateByID(afterSale.ID, updates); txErr != nil {
+			return txErr
+		}
+		order, txErr := dao.NewOrderDaoByDB(tx).GetOrderByID(afterSale.OrderID)
+		if txErr != nil {
+			return txErr
+		}
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionAfterSale, order.Type, order.Type, "seller", userInfo.Id, req.Action)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		afterSale.Status = nextStatus
+		afterSale.UpdatedAt = time.Now()
+		if req.Reason != "" {
+			afterSale.SellerReason = req.Reason
+		}
+		resp = buildAfterSaleResp(afterSale)
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorAfterSaleNotFound)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (u *OrderUsecase) AdminHandleAfterSale(ctx context.Context, req *types.AdminAfterSaleHandleReq) (interface{}, error) {
+	adminInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	req.Action = strings.TrimSpace(req.Action)
+	req.Note = strings.TrimSpace(req.Note)
+	if len(req.Note) > afterSaleReasonMaxLen {
+		return nil, e.NewBusinessError(e.InvalidParams)
+	}
+
+	var resp *types.AfterSaleListResp
+	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
+		admin, txErr := dao.NewUserDaoByDB(tx).GetUserById(adminInfo.Id)
+		if txErr != nil {
+			return txErr
+		}
+		if !admin.IsAdmin {
+			return e.NewBusinessError(e.ErrorAuthInsufficientAuthority)
+		}
+
+		afterSale, txErr := dao.NewAfterSaleDaoByDB(tx).GetByIDForUpdate(req.AfterSaleID)
+		if txErr != nil {
+			return txErr
+		}
+
+		nextStatus, txErr := adminAfterSaleNextStatus(req.Action)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = aftersalestate.EnsureTransition(afterSale.Status, nextStatus); txErr != nil {
+			return txErr
+		}
+
+		updates := map[string]interface{}{
+			"status": nextStatus,
+		}
+		switch nextStatus {
+		case consts.AfterSaleStatusPlatformIntervening:
+			if req.Note != "" {
+				updates["platform_note"] = req.Note
+			}
+		case consts.AfterSaleStatusRefunded:
+			now := time.Now().Unix()
+			updates["refunded_at"] = &now
+			afterSale.RefundedAt = &now
+			if req.Note != "" {
+				updates["platform_note"] = req.Note
+			}
+		case consts.AfterSaleStatusClosed:
+			now := time.Now().Unix()
+			updates["closed_at"] = &now
+			afterSale.ClosedAt = &now
+			if req.Note != "" {
+				updates["platform_note"] = req.Note
+			}
+		}
+		if txErr = dao.NewAfterSaleDaoByDB(tx).UpdateByID(afterSale.ID, updates); txErr != nil {
+			return txErr
+		}
+		order, txErr := dao.NewOrderDaoByDB(tx).GetOrderByID(afterSale.OrderID)
+		if txErr != nil {
+			return txErr
+		}
+		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionAfterSale, order.Type, order.Type, "admin", adminInfo.Id, req.Action)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = dao.NewOrderLogDaoByDB(tx).Create(orderLog); txErr != nil {
+			return txErr
+		}
+		afterSale.Status = nextStatus
+		afterSale.UpdatedAt = time.Now()
+		if note, ok := updates["platform_note"]; ok {
+			afterSale.PlatformNote = note.(string)
+		}
+		resp = buildAfterSaleResp(afterSale)
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, e.NewBusinessError(e.ErrorAfterSaleNotFound)
+		}
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (u *OrderUsecase) ListBuyerAfterSales(ctx context.Context, req *types.AfterSaleListReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	normalizeAfterSaleListReq(req)
+
+	items, total, err := dao.NewAfterSaleDao(ctx).ListByBuyer(userInfo.Id, req)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return &types.DataListResp{Item: buildAfterSaleRespList(items), Total: total}, nil
+}
+
+func (u *OrderUsecase) ListSellerAfterSales(ctx context.Context, req *types.AfterSaleListReq) (interface{}, error) {
+	userInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	normalizeAfterSaleListReq(req)
+
+	items, total, err := dao.NewAfterSaleDao(ctx).ListBySeller(userInfo.Id, req)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return &types.DataListResp{Item: buildAfterSaleRespList(items), Total: total}, nil
+}
+
+func (u *OrderUsecase) ListAdminAfterSales(ctx context.Context, req *types.AfterSaleListReq) (interface{}, error) {
+	adminInfo, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	normalizeAfterSaleListReq(req)
+
+	admin, err := dao.NewUserDao(ctx).GetUserById(adminInfo.Id)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	if !admin.IsAdmin {
+		return nil, e.NewBusinessError(e.ErrorAuthInsufficientAuthority)
+	}
+
+	items, total, err := dao.NewAfterSaleDao(ctx).ListAdmin(req)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, err
+	}
+	return &types.DataListResp{Item: buildAfterSaleRespList(items), Total: total}, nil
+}
+
+func validateAfterSaleRequest(afterSaleType, reason string) error {
+	if reason == "" || len(reason) > afterSaleReasonMaxLen {
+		return e.NewBusinessError(e.InvalidParams)
+	}
+	switch afterSaleType {
+	case consts.AfterSaleTypeRefundOnly, consts.AfterSaleTypeReturnRefund:
+		return nil
+	default:
+		return e.NewBusinessError(e.InvalidParams)
+	}
+}
+
+func isAfterSaleOrderTypeAllowed(orderType uint, afterSaleType string) bool {
+	switch orderType {
+	case consts.OrderTypePendingShipping, consts.OrderTypeShipping:
+		return true
+	case consts.OrderTypeReceipt:
+		return afterSaleType == consts.AfterSaleTypeReturnRefund || afterSaleType == consts.AfterSaleTypeRefundOnly
+	default:
+		return false
+	}
+}
+
+func sellerAfterSaleNextStatus(action string) (string, error) {
+	switch action {
+	case consts.AfterSaleActionApprove:
+		return consts.AfterSaleStatusSellerApproved, nil
+	case consts.AfterSaleActionReject:
+		return consts.AfterSaleStatusSellerRejected, nil
+	default:
+		return "", e.NewBusinessError(e.ErrorAfterSaleActionInvalid)
+	}
+}
+
+func adminAfterSaleNextStatus(action string) (string, error) {
+	switch action {
+	case consts.AfterSaleActionIntervene:
+		return consts.AfterSaleStatusPlatformIntervening, nil
+	case consts.AfterSaleActionRefund:
+		return consts.AfterSaleStatusRefunded, nil
+	case consts.AfterSaleActionClose:
+		return consts.AfterSaleStatusClosed, nil
+	default:
+		return "", e.NewBusinessError(e.ErrorAfterSaleActionInvalid)
+	}
+}
+
+func buildAfterSaleResp(afterSale *model.AfterSale) *types.AfterSaleListResp {
+	resp := &types.AfterSaleListResp{
+		ID:           afterSale.ID,
+		OrderID:      afterSale.OrderID,
+		OrderNum:     afterSale.OrderNum,
+		BuyerID:      afterSale.BuyerID,
+		SellerID:     afterSale.SellerID,
+		Type:         afterSale.Type,
+		Status:       afterSale.Status,
+		Reason:       afterSale.Reason,
+		RefundAmount: afterSale.RefundAmount,
+		SellerReason: afterSale.SellerReason,
+		PlatformNote: afterSale.PlatformNote,
+		CreatedAt:    afterSale.CreatedAt.Unix(),
+		UpdatedAt:    afterSale.UpdatedAt.Unix(),
+	}
+	if afterSale.RefundedAt != nil {
+		resp.RefundedAt = *afterSale.RefundedAt
+	}
+	if afterSale.ClosedAt != nil {
+		resp.ClosedAt = *afterSale.ClosedAt
+	}
+	return resp
+}
+
+func buildAfterSaleRespList(items []*model.AfterSale) []*types.AfterSaleListResp {
+	resp := make([]*types.AfterSaleListResp, 0, len(items))
+	for _, item := range items {
+		resp = append(resp, buildAfterSaleResp(item))
+	}
+	return resp
+}
+
+func normalizeAfterSaleListReq(req *types.AfterSaleListReq) {
+	if req.PageNum <= 0 {
+		req.PageNum = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = consts.BasePageSize
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
@@ -60,6 +61,14 @@ func (dao *SettlementDao) List(req *types.AdminSettlementListReq) ([]*model.Sett
 func (dao *SettlementDao) GetByID(id uint) (*model.Settlement, error) {
 	var settlement model.Settlement
 	err := dao.DB.Where("id = ?", id).First(&settlement).Error
+	return &settlement, err
+}
+
+func (dao *SettlementDao) GetByOrderIDForUpdate(orderID uint) (*model.Settlement, error) {
+	var settlement model.Settlement
+	err := dao.DB.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("order_id = ?", orderID).
+		First(&settlement).Error
 	return &settlement, err
 }
 

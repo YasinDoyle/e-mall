@@ -20,7 +20,7 @@ func migrate() (err error) {
 			&model.Settlement{}, &model.SellerAccount{},
 			&model.SellerWithdraw{}, &model.Notification{},
 			&model.OrderLog{}, &model.OrderLogistics{},
-			&model.OrderPayment{},
+			&model.OrderPayment{}, &model.AfterSale{},
 		)
 	if err != nil {
 		return
