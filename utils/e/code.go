@@ -85,6 +85,7 @@ const (
 	ErrorSellerWithdrawReasonMissing       = 60034
 	ErrorSellerWithdrawNotFound            = 60035
 	ErrorOrderStatusTransitionInvalid      = 60036
+	ErrorPaymentAmountMismatch             = 60037
 )
 
 func BusinessCode(err error) int {

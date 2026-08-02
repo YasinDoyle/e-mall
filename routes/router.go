@@ -110,6 +110,10 @@ func NewRouter() *gin.Engine {
 
 			// 支付功能
 			authed.POST("paydown", api.OrderPaymentHandler())
+			authed.POST("orders/pay/balance", api.OrderBalancePayHandler())
+			authed.POST("orders/pay/wechat", api.OrderWechatPayHandler())
+			authed.POST("orders/pay/alipay", api.OrderAlipayPayHandler())
+			authed.GET("orders/pay/status", api.OrderPaymentStatusHandler())
 
 			// 显示金额
 			authed.POST("money", api.ShowMoneyHandler())

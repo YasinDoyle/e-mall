@@ -16,6 +16,7 @@
 - 手工编辑文件使用 `apply_patch`。
 - 不要回滚用户已有改动。工作区可能是脏的，先用 `git status --short` 看清楚。
 - 大功能先拆 plan，再按小任务实现。P1 后续优先按 `docs/superpowers/plans/2026-07-24-p1-platform-business-loop.md` 执行。
+- 阶段性任务或 plan task 实现并验收通过后，不要立即执行 `git add`/`git commit` 提交；先停在待用户审查状态，汇报改动、验证结果和已知限制。只有用户明确说可以提交或要求提交时，才执行暂存和提交。
 - Review 时必须注意未跟踪文件。`git diff <base>` 不会显示 untracked 文件，若代码引用了 untracked 新文件，提交后可能编译失败。
 - 不在运行时代码里做旧版兼容处理，不写隐式读取旧 key、旧字段、旧存储结构并自动迁移的兼容补丁。旧版升级需要额外做数据迁移脚本、一次性升级脚本或明确的升级任务；业务代码保持当前版本模型纯净。
 
@@ -84,6 +85,7 @@
 
 ## Git 和敏感文件
 
+- 未经用户明确指令，不要主动执行 `git add`、`git commit`、`git push`、创建 PR 或其它会把当前改动固化到 Git 历史/远端的操作。即使测试和验收已经通过，也必须等待用户审查后明确要求提交。
 - 不要提交本地配置、密钥、日志、数据库/缓存数据。
 - `config/locales/config.yaml` 是本地配置，已经进入 `.gitignore` 后仍可能因为被 Git 跟踪而出现在状态里；需要用 `git rm --cached config/locales/config.yaml` 停止跟踪。
 - `data/redis` 是 Redis 本地数据，若已经被跟踪，需要用 `git rm -r --cached data/redis` 停止跟踪。

@@ -15,6 +15,36 @@ type PaymentDownReq struct {
 	Key       string  `form:"key" json:"key"`
 }
 
+type OrderGatewayPayReq struct {
+	OrderID uint `form:"order_id" json:"order_id" binding:"required"`
+}
+
+type OrderPaymentStatusReq struct {
+	PaymentNo string `form:"payment_no" json:"payment_no" binding:"required"`
+}
+
+type OrderPaymentResp struct {
+	OrderID     uint    `json:"order_id"`
+	OrderNum    uint64  `json:"order_num"`
+	PaymentNo   string  `json:"payment_no"`
+	Channel     string  `json:"channel"`
+	Amount      float64 `json:"amount"`
+	Status      string  `json:"status"`
+	QRCodeURL   string  `json:"qr_code_url,omitempty"`
+	PayURL      string  `json:"pay_url,omitempty"`
+	PaidAt      int64   `json:"paid_at,omitempty"`
+	ClosedAt    int64   `json:"closed_at,omitempty"`
+	OrderStatus uint    `json:"order_status,omitempty"`
+}
+
+type OrderPaymentCallbackReq struct {
+	PaymentNo       string
+	ProviderTradeNo string
+	ExpectedChannel string
+	PaidAt          time.Time
+	PaidAmount      float64
+}
+
 type OrderPaidEvent struct {
 	OrderID     uint      `json:"order_id"`
 	OrderNum    uint64    `json:"order_num"`

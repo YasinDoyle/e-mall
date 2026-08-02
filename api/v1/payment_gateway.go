@@ -6,11 +6,79 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/YasinDoyle/e-mall/application"
 	"github.com/YasinDoyle/e-mall/service"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
 	"github.com/YasinDoyle/e-mall/utils/log"
 )
+
+func OrderBalancePayHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.PaymentDownReq
+		if err := c.ShouldBind(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := application.NewPaymentUsecase().PayOrderByBalance(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func OrderWechatPayHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.OrderGatewayPayReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetPayGatewaySrv().WechatOrderPay(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func OrderAlipayPayHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req types.OrderGatewayPayReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		resp, err := service.GetPayGatewaySrv().AlipayOrderPay(c.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Error(err)
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
+
+func OrderPaymentStatusHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		paymentNo := c.Query("payment_no")
+		if paymentNo == "" {
+			c.JSON(http.StatusOK, ErrorResponse(c, errors.New("payment_no不能为空")))
+			return
+		}
+		resp, err := service.GetPayGatewaySrv().OrderPaymentStatus(c.Request.Context(), paymentNo)
+		if err != nil {
+			c.JSON(http.StatusOK, ErrorResponse(c, err))
+			return
+		}
+		c.JSON(http.StatusOK, ctl.RespSuccess(c, resp))
+	}
+}
 
 // WechatRechargeHandler 微信充值发起
 func WechatRechargeHandler() gin.HandlerFunc {

@@ -83,6 +83,7 @@ var MsgFlags = map[int]string{
 	ErrorSellerWithdrawReasonMissing:       "拒绝原因不能为空",
 	ErrorSellerWithdrawNotFound:            "提现单不存在",
 	ErrorOrderStatusTransitionInvalid:      "订单状态不允许该操作",
+	ErrorPaymentAmountMismatch:             "支付回调金额不匹配",
 }
 
 var LocaleMsgFlags = map[string]map[int]string{
@@ -167,6 +168,7 @@ var LocaleMsgFlags = map[string]map[int]string{
 		ErrorSellerWithdrawReasonMissing:       "Rejection reason is required",
 		ErrorSellerWithdrawNotFound:            "Withdrawal request does not exist",
 		ErrorOrderStatusTransitionInvalid:      "Order status does not allow this operation",
+		ErrorPaymentAmountMismatch:             "Payment callback amount does not match",
 	},
 }
 
@@ -248,6 +250,7 @@ var MsgKeys = map[int]string{
 	ErrorSellerWithdrawReasonMissing:       "seller_withdraw.reason_missing",
 	ErrorSellerWithdrawNotFound:            "seller_withdraw.not_found",
 	ErrorOrderStatusTransitionInvalid:      "order.status_transition_invalid",
+	ErrorPaymentAmountMismatch:             "payment.amount_mismatch",
 }
 
 // GetMsg 获取状态码对应信息

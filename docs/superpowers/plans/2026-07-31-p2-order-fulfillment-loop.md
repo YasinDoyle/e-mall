@@ -660,6 +660,15 @@ git commit -m "feat: add local order logistics timeline"
 
 ## Task 5: Product Order Payment Records and Channels
 
+**Status:** Completed for backend implementation and automated verification. Commit is intentionally deferred until user review, per `AGENTS.md`.
+
+**Post-review decisions:**
+- External product-order callbacks validate expected provider channel, amount, status, and idempotency.
+- Callback processing locks `order_payment` first so duplicate callbacks for the same `payment_no` return idempotently.
+- Only one active external pending payment is allowed per order: same-channel repeat requests reuse the existing `payment_no`; cross-channel repeat requests are rejected until the pending payment is resolved.
+- Balance payment is rejected while an external pending payment exists, because P2 does not yet close provider-side QR/pay URLs or auto-refund duplicate external payments.
+- Provider order creation errors leave the internal payment `pending` so same-channel retries and late provider callbacks can recover.
+
 **Files:**
 - Create: `repository/db/model/order_payment.go`
 - Create: `repository/db/dao/order_payment.go`
@@ -671,7 +680,7 @@ git commit -m "feat: add local order logistics timeline"
 - Modify: `routes/router.go`
 - Test: `application/order_payment_test.go`
 
-- [ ] **Step 1: Write failing payment idempotency tests**
+- [x] **Step 1: Write failing payment idempotency tests**
 
 Add `application/order_payment_test.go` with pure tests for payment callback decisions:
 
@@ -701,7 +710,7 @@ func TestValidateOrderPaymentCallbackIsIdempotentForPaid(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -711,7 +720,7 @@ env GOCACHE=/private/tmp/e-mall-go-cache go test ./application -run TestValidate
 
 Expected: FAIL because `model.OrderPayment` or helper functions do not exist.
 
-- [ ] **Step 3: Add `OrderPayment` model and DAO**
+- [x] **Step 3: Add `OrderPayment` model and DAO**
 
 Create `repository/db/model/order_payment.go`:
 
@@ -749,7 +758,7 @@ func (dao *OrderPaymentDao) MarkFailed(paymentNo string) error
 func (dao *OrderPaymentDao) ClosePendingByOrderID(orderID uint) error
 ```
 
-- [ ] **Step 4: Split payment entrypoints**
+- [x] **Step 4: Split payment entrypoints**
 
 Keep current `/api/v1/paydown` working for balance payment, but add explicit channel routes:
 
@@ -764,7 +773,7 @@ For balance payments, create an `OrderPayment` row with `channel=balance`, pay i
 
 For wechat/alipay product-order payments, create an `OrderPayment` row and return QR code/pay URL. Callback handler must route by `payment_no` to product-order payment, verify signature, verify amount, verify pending order status, mark payment paid idempotently, then run the same order-paid application flow as balance payment.
 
-- [ ] **Step 5: Run targeted tests**
+- [x] **Step 5: Run targeted tests**
 
 Run:
 
@@ -774,7 +783,9 @@ env GOCACHE=/private/tmp/e-mall-go-cache go test ./application ./repository/db/d
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit after user review**
+
+Deferred by user rule: do not run `git add`/`git commit` until the user reviews and explicitly asks to submit.
 
 ```bash
 git add repository/db/model/order_payment.go repository/db/dao/order_payment.go repository/db/dao/migrate.go types/payment.go application/payment.go application/order_payment_test.go service/payment_gateway.go api/v1/payment_gateway.go routes/router.go

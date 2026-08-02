@@ -289,12 +289,16 @@ func (dao *OrderDao) UpdateOrderById(id, uId uint, order *model.Order) error {
 }
 
 func (dao *OrderDao) UpdateOrderPaidById(id, uId uint, paidAt time.Time) error {
+	return dao.UpdateOrderPaidByChannel(id, uId, paidAt, consts.OrderPaymentChannelBalance)
+}
+
+func (dao *OrderDao) UpdateOrderPaidByChannel(id, uId uint, paidAt time.Time, channel string) error {
 	result := dao.DB.Model(&model.Order{}).
-		Where("id = ? AND user_id = ? AND type = ?", id, uId, 1).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, consts.OrderTypeUnPaid).
 		Updates(map[string]interface{}{
 			"type":            2,
 			"paid_at":         paidAt,
-			"payment_channel": consts.OrderPaymentChannelBalance,
+			"payment_channel": channel,
 		})
 	if result.Error != nil {
 		return result.Error
