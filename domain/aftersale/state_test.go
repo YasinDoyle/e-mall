@@ -24,8 +24,14 @@ func TestEnsureTransitionAllowsP2Flow(t *testing.T) {
 }
 
 func TestEnsureTransitionRejectsIllegalFlow(t *testing.T) {
-	err := EnsureTransition(consts.AfterSaleStatusRefunded, consts.AfterSaleStatusRequested)
-	if e.BusinessCode(err) != e.ErrorAfterSaleStatusInvalid {
-		t.Fatalf("expected after-sale status error, got %d (%v)", e.BusinessCode(err), err)
+	tests := [][2]string{
+		{consts.AfterSaleStatusRefunded, consts.AfterSaleStatusRequested},
+		{consts.AfterSaleStatusSellerApproved, consts.AfterSaleStatusClosed},
+	}
+	for _, tt := range tests {
+		err := EnsureTransition(tt[0], tt[1])
+		if e.BusinessCode(err) != e.ErrorAfterSaleStatusInvalid {
+			t.Fatalf("expected after-sale status error for %s -> %s, got %d (%v)", tt[0], tt[1], e.BusinessCode(err), err)
+		}
 	}
 }

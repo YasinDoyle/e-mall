@@ -78,8 +78,7 @@ type OrderRefundRequestReq struct {
 }
 
 type AdminOrderRefundApproveReq struct {
-	OrderId uint   `json:"order_id" form:"order_id" binding:"required"`
-	Key     string `json:"key" form:"key" binding:"required"`
+	OrderId uint `json:"order_id" form:"order_id" binding:"required"`
 }
 
 type OrderRefundResp struct {

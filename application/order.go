@@ -363,31 +363,12 @@ func (u *OrderUsecase) AdminRefundApprove(ctx context.Context, req *types.AdminO
 		buyerID = order.UserID
 		sellerID = order.BossID
 
-		userDao := dao.NewUserDaoByDB(tx)
-		buyer, txErr := userDao.GetUserById(order.UserID)
-		if txErr != nil {
-			return txErr
-		}
 		paymentChannel := order.PaymentChannel
 		if paymentChannel == "" {
 			paymentChannel = consts.OrderPaymentChannelBalance
 		}
 		if paymentChannel == consts.OrderPaymentChannelBalance {
-			if !buyer.HasPayKey() {
-				return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
-			}
-
-			buyerMoney, txErr := buyer.DecryptMoney(req.Key)
-			if txErr != nil {
-				return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
-			}
-
-			buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
-			buyer.Money, txErr = buyer.EncryptMoney(req.Key)
-			if txErr != nil {
-				return txErr
-			}
-			if txErr = userDao.UpdateUserById(order.UserID, buyer); txErr != nil {
+			if txErr = refundBuyerBalanceInTx(tx, order.UserID, refundAmount); txErr != nil {
 				return txErr
 			}
 		}
@@ -586,6 +567,8 @@ func (u *OrderUsecase) AdminHandleAfterSale(ctx context.Context, req *types.Admi
 	}
 
 	var resp *types.AfterSaleListResp
+	var refundedEvent *event.OrderRefunded
+	var closedEvent *event.AfterSaleClosed
 	err = dao.NewOrderDao(ctx).Transaction(func(tx *gorm.DB) error {
 		admin, txErr := dao.NewUserDaoByDB(tx).GetUserById(adminInfo.Id)
 		if txErr != nil {
@@ -623,13 +606,25 @@ func (u *OrderUsecase) AdminHandleAfterSale(ctx context.Context, req *types.Admi
 			if req.Note != "" {
 				updates["platform_note"] = req.Note
 			}
+			order, refundAmount, txErr := completeAfterSaleRefundInTx(tx, afterSale, adminInfo.Id)
+			if txErr != nil {
+				return txErr
+			}
+			refundedEvent = &event.OrderRefunded{
+				OrderID:      order.ID,
+				OrderNum:     order.OrderNum,
+				BuyerID:      order.UserID,
+				SellerID:     order.BossID,
+				RefundAmount: refundAmount,
+			}
 		case consts.AfterSaleStatusClosed:
+			if req.Note == "" {
+				return e.NewBusinessError(e.InvalidParams)
+			}
 			now := time.Now().Unix()
 			updates["closed_at"] = &now
 			afterSale.ClosedAt = &now
-			if req.Note != "" {
-				updates["platform_note"] = req.Note
-			}
+			updates["platform_note"] = req.Note
 		}
 		if txErr = dao.NewAfterSaleDaoByDB(tx).UpdateByID(afterSale.ID, updates); txErr != nil {
 			return txErr
@@ -637,6 +632,15 @@ func (u *OrderUsecase) AdminHandleAfterSale(ctx context.Context, req *types.Admi
 		order, txErr := dao.NewOrderDaoByDB(tx).GetOrderByID(afterSale.OrderID)
 		if txErr != nil {
 			return txErr
+		}
+		if nextStatus == consts.AfterSaleStatusClosed {
+			closedEvent = &event.AfterSaleClosed{
+				OrderID:  order.ID,
+				OrderNum: order.OrderNum,
+				BuyerID:  order.UserID,
+				SellerID: order.BossID,
+				Note:     req.Note,
+			}
 		}
 		orderLog, txErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionAfterSale, order.Type, order.Type, "admin", adminInfo.Id, req.Action)
 		if txErr != nil {
@@ -661,7 +665,90 @@ func (u *OrderUsecase) AdminHandleAfterSale(ctx context.Context, req *types.Admi
 		return nil, err
 	}
 
+	if refundedEvent != nil {
+		event.Publish(ctx, *refundedEvent)
+	}
+	if closedEvent != nil {
+		event.Publish(ctx, *closedEvent)
+	}
 	return resp, nil
+}
+
+func completeAfterSaleRefundInTx(tx *gorm.DB, afterSale *model.AfterSale, operatorID uint) (*model.Order, float64, error) {
+	orderDao := dao.NewOrderDaoByDB(tx)
+	order, err := orderDao.GetOrderByIdForUpdate(afterSale.OrderID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if order.Type == consts.OrderTypeRefunded || order.RefundStatus == consts.OrderRefundStatusRefunded {
+		return nil, 0, e.NewBusinessError(e.ErrorRefundStatusInvalid)
+	}
+	if order.Type != consts.OrderTypeRefundRequested || order.RefundStatus != consts.OrderRefundStatusRequested {
+		orderLog, logErr := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionAfterSale, order.Type, consts.OrderTypeRefundRequested, "admin", operatorID, afterSale.Type+": "+afterSale.Reason)
+		if logErr != nil {
+			return nil, 0, logErr
+		}
+		if err = orderDao.RequestRefundForAfterSale(order.ID, afterSale.Reason); err != nil {
+			return nil, 0, err
+		}
+		if err = dao.NewOrderLogDaoByDB(tx).Create(orderLog); err != nil {
+			return nil, 0, err
+		}
+		order.Type = consts.OrderTypeRefundRequested
+		order.RefundStatus = consts.OrderRefundStatusRequested
+		order.RefundReason = afterSale.Reason
+	}
+
+	refundAmount := order.Money * float64(order.Num)
+	if refundAmount <= 0 {
+		return nil, 0, e.NewBusinessError(e.ErrorRefundAmountInvalid)
+	}
+	paymentChannel := order.PaymentChannel
+	if paymentChannel == "" {
+		paymentChannel = consts.OrderPaymentChannelBalance
+	}
+	if paymentChannel == consts.OrderPaymentChannelBalance {
+		if err = refundBuyerBalanceInTx(tx, order.UserID, refundAmount); err != nil {
+			return nil, 0, err
+		}
+	}
+	if err = handleOrderRefunded(tx, order); err != nil {
+		return nil, 0, err
+	}
+	orderLog, err := buildOrderLog(order.ID, order.OrderNum, consts.OrderActionRefundApprove, order.Type, consts.OrderTypeRefunded, "admin", operatorID, "after-sale refund")
+	if err != nil {
+		return nil, 0, err
+	}
+	if err = orderDao.MarkOrderRefunded(order.ID); err != nil {
+		return nil, 0, err
+	}
+	if err = dao.NewOrderLogDaoByDB(tx).Create(orderLog); err != nil {
+		return nil, 0, err
+	}
+	order.Type = consts.OrderTypeRefunded
+	order.RefundStatus = consts.OrderRefundStatusRefunded
+	return order, refundAmount, nil
+}
+
+func refundBuyerBalanceInTx(tx *gorm.DB, buyerID uint, refundAmount float64) error {
+	userDao := dao.NewUserDaoByDB(tx)
+	buyer, err := userDao.GetUserById(buyerID)
+	if err != nil {
+		return err
+	}
+	if !buyer.HasPayKey() {
+		return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
+	}
+	buyerMoney, err := buyer.DecryptMoney()
+	if err != nil {
+		return err
+	}
+	buyer.Money = fmt.Sprintf("%f", buyerMoney+refundAmount)
+	buyer.Money, err = buyer.EncryptMoney()
+	if err != nil {
+		return err
+	}
+	return userDao.UpdateUserById(buyerID, buyer)
 }
 
 func (u *OrderUsecase) ListBuyerAfterSales(ctx context.Context, req *types.AfterSaleListReq) (interface{}, error) {

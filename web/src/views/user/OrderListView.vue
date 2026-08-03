@@ -8,6 +8,7 @@
       <el-tab-pane :label="t('status.order.pendingShipment')" name="2" />
       <el-tab-pane :label="t('status.order.shipped')" name="3" />
       <el-tab-pane :label="t('status.order.completed')" name="4" />
+      <el-tab-pane :label="t('status.order.canceled')" name="7" />
     </el-tabs>
 
     <el-skeleton v-if="loading" :rows="4" animated />
@@ -21,9 +22,12 @@
             <el-tag :type="statusTagType(order.type)">
               {{ statusText(order.type) }}
             </el-tag>
-            <el-tag v-if="order.refund_status" type="danger">
-              {{ refundText(order.refund_status) }}
-            </el-tag>
+          <el-tag v-if="order.refund_status" type="danger">
+            {{ refundStatusText(order.refund_status) }}
+          </el-tag>
+          <el-tag v-if="activeAfterSaleByOrderId[order.id]" type="warning">
+            {{ t("orderList.afterSalePending") }}
+          </el-tag>
           </div>
         </div>
         <div
@@ -35,14 +39,27 @@
             <div class="order-name">{{ order.name || t("orderList.product") }}</div>
             <div class="order-meta">
               {{ t("orderList.quantity", { count: order.num }) }}
+              <span v-if="order.payment_channel">
+                · {{ paymentChannelText(order.payment_channel) }}
+              </span>
               <span v-if="order.tracking_no">
                 · {{ t("orderList.trackingNo", { no: order.tracking_no }) }}
               </span>
+            </div>
+            <div v-if="refundStateText(order)" class="order-substate">
+              {{ refundStateText(order) }}
             </div>
           </div>
           <div class="order-money">¥{{ totalAmount(order) }}</div>
         </div>
         <div class="order-actions">
+          <el-button
+            v-if="order.type === 1"
+            size="small"
+            type="primary"
+            @click="startUnpaidOrderPayment(router, order)"
+            >{{ t("orderList.payUnpaid") }}</el-button
+          >
           <el-button
             v-if="order.type === 3"
             size="small"
@@ -51,7 +68,14 @@
             >{{ t("orderList.confirmReceive") }}</el-button
           >
           <el-button
-            v-if="order.type === 1 || order.type === 4 || order.type === 6"
+            v-if="order.type === 1"
+            size="small"
+            type="warning"
+            @click="handleCancel(order.id)"
+            >{{ t("orderList.cancelUnpaid") }}</el-button
+          >
+          <el-button
+            v-if="order.type === 4 || order.type === 6 || order.type === 7"
             size="small"
             type="danger"
             @click="handleDelete(order.id)"
@@ -80,11 +104,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useI18n } from "vue-i18n";
-import { getOrderList, deleteOrder, receiveOrder } from "@/api/order";
-import { orderStatusText } from "@/utils/status-labels";
+import {
+  cancelOrder,
+  deleteOrder,
+  getAfterSaleList,
+  getOrderList,
+  receiveOrder,
+} from "@/api/order";
+import {
+  orderStatusTagType,
+  orderStatusText,
+  paymentChannelText,
+  refundStatusText,
+} from "@/utils/status-labels";
+import { startUnpaidOrderPayment } from "@/utils/order-payment";
 
+const router = useRouter();
 const { t } = useI18n();
 const activeTab = ref("0");
 const orders = ref<any[]>([]);
@@ -92,23 +130,22 @@ const page = ref(1);
 const pageSize = 10;
 const total = ref(0);
 const loading = ref(false);
+const activeAfterSaleByOrderId = ref<Record<number, boolean>>({});
 
 const statusText = orderStatusText;
-const statusTagType = (type: number) =>
-  (({
-    1: "warning",
-    2: "primary",
-    3: "warning",
-    4: "success",
-    5: "danger",
-    6: "info",
-  })[type] ?? "info") as any;
-const refundText = (status: number) =>
-  ({ 1: t("orderList.refundRequested"), 2: t("status.refund.refunded") })[status] ??
-  t("orderList.refundProcessing");
+const statusTagType = orderStatusTagType;
 
 function totalAmount(order: any) {
   return (Number(order.money || 0) * Number(order.num || 0)).toFixed(2);
+}
+
+function refundStateText(order: any) {
+  if (!order.refund_status) {
+    return "";
+  }
+  return t("orderList.refundState", {
+    status: refundStatusText(order.refund_status),
+  });
 }
 
 async function loadOrders() {
@@ -119,12 +156,43 @@ async function loadOrders() {
     const res: any = await getOrderList(params);
     orders.value = res.data?.item ?? [];
     total.value = res.data?.total ?? 0;
+    await loadActiveAfterSales();
   } catch {
     orders.value = [];
     total.value = 0;
+    activeAfterSaleByOrderId.value = {};
   } finally {
     loading.value = false;
   }
+}
+
+async function loadActiveAfterSales() {
+  if (!orders.value.length) {
+    activeAfterSaleByOrderId.value = {};
+    return;
+  }
+  const activeStatuses = [
+    "requested",
+    "seller_approved",
+    "seller_rejected",
+    "platform_intervening",
+  ];
+  const results: any[] = await Promise.all(
+    activeStatuses.map((status) =>
+      getAfterSaleList({ status, page_num: 1, page_size: 100 }).catch(() => null),
+    ),
+  );
+  const visibleOrderIds = new Set(orders.value.map((order) => Number(order.id)));
+  const next: Record<number, boolean> = {};
+  for (const result of results) {
+    for (const item of result?.data?.item ?? []) {
+      const orderId = Number(item.order_id);
+      if (visibleOrderIds.has(orderId)) {
+        next[orderId] = true;
+      }
+    }
+  }
+  activeAfterSaleByOrderId.value = next;
 }
 
 function handleTabChange() {
@@ -150,6 +218,17 @@ async function handleDelete(id: number) {
     });
     await deleteOrder({ order_id: id });
     ElMessage.success(t("orderList.deleteSuccess"));
+    loadOrders();
+  } catch {}
+}
+
+async function handleCancel(id: number) {
+  try {
+    await ElMessageBox.confirm(t("orderList.cancelConfirm"), t("dialog.warningTitle"), {
+      type: "warning",
+    });
+    await cancelOrder({ order_id: id });
+    ElMessage.success(t("orderList.cancelSuccess"));
     loadOrders();
   } catch {}
 }
@@ -201,6 +280,11 @@ onMounted(loadOrders);
 .order-meta {
   margin-top: 6px;
   color: #999;
+  font-size: 12px;
+}
+.order-substate {
+  margin-top: 6px;
+  color: #409eff;
   font-size: 12px;
 }
 .order-money {

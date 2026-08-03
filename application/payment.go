@@ -93,17 +93,20 @@ func (u *PaymentUsecase) PayOrderByBalance(ctx context.Context, req *types.Payme
 			return e.NewBusinessError(e.ErrorPaymentPayKeyRequired)
 		}
 
-		balance, txErr := buyer.DecryptMoney(req.Key)
+		if !buyer.CheckPayKey(req.Key) {
+			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
+		}
+		balance, txErr := buyer.DecryptMoney()
 		if txErr != nil {
 			log.LogrusObj.Error(txErr)
-			return e.NewBusinessError(e.ErrorPaymentPayKeyInvalid)
+			return txErr
 		}
 		if balance-totalAmount < 0 {
 			return e.NewBusinessError(e.ErrorPaymentBalanceInsufficient)
 		}
 
 		buyer.Money = fmt.Sprintf("%f", balance-totalAmount)
-		buyer.Money, txErr = buyer.EncryptMoney(req.Key)
+		buyer.Money, txErr = buyer.EncryptMoney()
 		if txErr != nil {
 			log.LogrusObj.Error(txErr)
 			return txErr

@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
 	"github.com/YasinDoyle/e-mall/types"
 )
@@ -78,6 +79,10 @@ func (dao *AfterSaleDao) HasActiveByOrderID(orderID uint) (bool, error) {
 	var afterSale model.AfterSale
 	err := dao.DB.Select("id").
 		Where("order_id = ?", orderID).
+		Where("status NOT IN ?", []string{
+			consts.AfterSaleStatusRefunded,
+			consts.AfterSaleStatusClosed,
+		}).
 		Order("id DESC").
 		Take(&afterSale).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -211,6 +211,8 @@ func NewRouter() *gin.Engine {
 
 			// 订单管理/售后
 			admin.GET("orders/list", api.AdminListOrdersHandler())
+			admin.GET("orders/show", api.AdminShowOrderHandler())
+			admin.GET("orders/logs", api.AdminOrderOperationLogsHandler())
 			admin.POST("orders/refund/approve", api.AdminRefundApproveOrderHandler())
 			admin.GET("after-sales/list", api.AdminAfterSaleListHandler())
 			admin.POST("after-sales/handle", api.AdminAfterSaleHandleHandler())

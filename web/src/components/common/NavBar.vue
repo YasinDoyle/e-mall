@@ -178,7 +178,7 @@ const savedAccounts = computed(() => listSavedUserSessions());
 function handleSelectAccount(id: string) {
   if (!activateUserSession(id)) return;
   accountSwitchVisible.value = false;
-  window.location.reload();
+  window.location.assign("/");
 }
 
 function handleAddAccount() {

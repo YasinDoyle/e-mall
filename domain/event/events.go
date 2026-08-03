@@ -60,6 +60,14 @@ type OrderRefunded struct {
 	RefundAmount float64
 }
 
+type AfterSaleClosed struct {
+	OrderID  uint
+	OrderNum uint64
+	BuyerID  uint
+	SellerID uint
+	Note     string
+}
+
 type OrderReceived struct {
 	OrderID  uint
 	OrderNum uint64

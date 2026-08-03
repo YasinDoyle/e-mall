@@ -17,7 +17,6 @@ var allowedTransitions = map[string]map[string]struct{}{
 	},
 	consts.AfterSaleStatusSellerApproved: {
 		consts.AfterSaleStatusRefunded: {},
-		consts.AfterSaleStatusClosed:   {},
 	},
 	consts.AfterSaleStatusPlatformIntervening: {
 		consts.AfterSaleStatusRefunded: {},

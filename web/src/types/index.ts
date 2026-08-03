@@ -151,6 +151,13 @@ export interface Order {
   address_name?: string;
   address_phone?: string;
   address?: string;
+  payment_channel?: string;
+  logistics_company?: string;
+  shipped_at?: number;
+  received_at?: number;
+  canceled_at?: number;
+  created_at?: number;
+  updated_at?: number;
   paid_at: string;
 }
 
@@ -161,6 +168,43 @@ export interface OrderCreateReq {
   boss_id: number;
   money: number;
   coupon_id?: number;
+}
+
+export interface OrderLog {
+  id: number;
+  order_id: number;
+  order_num: number;
+  action: string;
+  from_type: number;
+  to_type: number;
+  operator_type: string;
+  operator_id: number;
+  remark: string;
+  created_at: number;
+}
+
+export interface AfterSaleRequestReq {
+  order_id: number;
+  type: string;
+  reason: string;
+}
+
+export interface AfterSaleItem {
+  id: number;
+  order_id: number;
+  order_num: number;
+  buyer_id: number;
+  seller_id: number;
+  type: string;
+  status: string;
+  reason: string;
+  refund_amount: number;
+  seller_reason: string;
+  platform_note: string;
+  created_at: number;
+  updated_at: number;
+  refunded_at?: number;
+  closed_at?: number;
 }
 
 // ===== 收货地址 =====

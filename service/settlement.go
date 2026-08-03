@@ -98,13 +98,7 @@ func (s *SettlementSrv) HandleOrderPaid(ctx context.Context, tx *gorm.DB, order 
 }
 
 func (s *SettlementSrv) HandleOrderRefunded(ctx context.Context, tx *gorm.DB, order *model.Order) error {
-	if err := dao.NewSettlementDaoByDB(tx).MarkRefundedByOrderID(order.ID); err != nil {
-		return err
-	}
-	amount := roundMoney(order.Money * float64(order.Num))
-	return dao.NewAccountFlowDaoByDB(tx).Create(
-		newAccountFlow(order, order.UserID, order.BossID, model.AccountFlowTypeRefund, "in", amount, "订单退款"),
-	)
+	return application.HandleOrderRefunded(tx, order)
 }
 
 func (s *SettlementSrv) AdminList(ctx context.Context, req *types.AdminSettlementListReq) (interface{}, error) {
@@ -115,8 +109,23 @@ func (s *SettlementSrv) AdminList(ctx context.Context, req *types.AdminSettlemen
 		return nil, err
 	}
 	resp := make([]*types.AdminSettlementResp, 0, len(list))
+	orderDao := dao.NewOrderDao(ctx)
+	afterSaleDao := dao.NewAfterSaleDao(ctx)
 	for _, settlement := range list {
-		resp = append(resp, buildSettlementResp(settlement))
+		item := buildSettlementResp(settlement)
+		order, orderErr := orderDao.GetOrderByID(settlement.OrderID)
+		if orderErr == nil {
+			item.OrderType = order.Type
+			item.OrderRefundStatus = order.RefundStatus
+			activeAfterSale, activeErr := afterSaleDao.HasActiveByOrderID(order.ID)
+			if activeErr != nil {
+				return nil, activeErr
+			}
+			item.CanMarkPaid = canMarkSettlementPaid(settlement, order, activeAfterSale)
+		} else if !errors.Is(orderErr, gorm.ErrRecordNotFound) {
+			return nil, orderErr
+		}
+		resp = append(resp, item)
 	}
 	return &types.DataListResp{Item: resp, Total: total}, nil
 }
@@ -259,4 +268,13 @@ func buildSettlementResp(settlement *model.Settlement) *types.AdminSettlementRes
 		PaidAt:           paidAt,
 		CreatedAt:        settlement.CreatedAt.Unix(),
 	}
+}
+
+func canMarkSettlementPaid(settlement *model.Settlement, order *model.Order, activeAfterSale bool) bool {
+	return settlement != nil &&
+		order != nil &&
+		settlement.Status == model.SettlementStatusGenerated &&
+		order.Type == consts.OrderTypeReceipt &&
+		order.RefundStatus == consts.OrderRefundStatusNone &&
+		!activeAfterSale
 }

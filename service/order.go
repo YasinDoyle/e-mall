@@ -298,6 +298,32 @@ func (s *OrderSrv) OrderShow(ctx context.Context, req *types.OrderShowReq) (resp
 	return
 }
 
+func (s *OrderSrv) AdminOrderShow(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	admin, err := dao.NewUserDao(ctx).GetUserById(u.Id)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if !admin.IsAdmin {
+		return nil, e.NewBusinessError(e.ErrorAuthInsufficientAuthority)
+	}
+	order, err := dao.NewOrderDao(ctx).ShowOrderByIdForAdmin(req.OrderId)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if conf.Config.System.UploadModel == consts.UploadModelLocal {
+		order.ImgPath = conf.Config.PhotoPath.PhotoHost + conf.Config.System.HttpPort + conf.Config.PhotoPath.ProductPath + order.ImgPath
+	}
+
+	return order, nil
+}
+
 func (s *OrderSrv) OrderDelete(ctx context.Context, req *types.OrderDeleteReq) (resp interface{}, err error) {
 	u, err := ctl.GetUserInfo(ctx)
 	if err != nil {
@@ -341,4 +367,41 @@ func (s *OrderSrv) OrderCancel(ctx context.Context, req *types.OrderDeleteReq) (
 
 func (s *OrderSrv) OrderOperationLogs(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
 	return application.NewOrderUsecase().Logs(ctx, req.OrderId)
+}
+
+func (s *OrderSrv) AdminOrderOperationLogs(ctx context.Context, req *types.OrderShowReq) (resp interface{}, err error) {
+	u, err := ctl.GetUserInfo(ctx)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	admin, err := dao.NewUserDao(ctx).GetUserById(u.Id)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	if !admin.IsAdmin {
+		return nil, e.NewBusinessError(e.ErrorAuthInsufficientAuthority)
+	}
+	logs, err := dao.NewOrderLogDao(ctx).ListByOrderID(req.OrderId)
+	if err != nil {
+		util.LogrusObj.Error(err)
+		return nil, err
+	}
+	respItems := make([]*types.OrderLogResp, 0, len(logs))
+	for _, item := range logs {
+		respItems = append(respItems, &types.OrderLogResp{
+			ID:           item.ID,
+			OrderID:      item.OrderID,
+			OrderNum:     item.OrderNum,
+			Action:       item.Action,
+			FromType:     item.FromType,
+			ToType:       item.ToType,
+			OperatorType: item.OperatorType,
+			OperatorID:   item.OperatorID,
+			Remark:       item.Remark,
+			CreatedAt:    item.CreatedAt.Unix(),
+		})
+	}
+	return respItems, nil
 }

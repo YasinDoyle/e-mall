@@ -33,16 +33,25 @@
       </div>
       <div v-else class="balance-form">
         <el-input
+          v-if="!canViewBalanceWithoutPassword"
           v-model="payKey"
           type="password"
           maxlength="6"
           show-password
           :placeholder="t('wallet.payPasswordPlaceholder')"
         />
+        <el-alert
+          v-else
+          class="balance-auth-hint"
+          type="success"
+          show-icon
+          :closable="false"
+          :title="t('wallet.balanceRecentAuthHint')"
+        />
         <el-button
           type="primary"
           :loading="loading"
-          :disabled="payKey.length !== 6"
+          :disabled="!canViewBalanceWithoutPassword && payKey.length !== 6"
           @click="loadBalance"
         >
           {{ t("wallet.viewBalance") }}
@@ -139,6 +148,7 @@ import {
   wechatRecharge,
 } from "@/api/recharge";
 import { useUserStore } from "@/stores/user";
+import { activeUserSessionStorageKey } from "@/utils/session";
 
 const userStore = useUserStore();
 const { t } = useI18n();
@@ -159,8 +169,12 @@ const pendingCredit = ref(0);
 const pendingLoading = ref(false);
 const applyingCredit = ref(false);
 let pollTimer: number | undefined;
+const balanceAuthUntil = ref(
+  Number(sessionStorage.getItem(activeUserSessionStorageKey("wallet_balance_auth_until")) || 0),
+);
 
 const payKeySet = computed(() => userStore.userInfo?.pay_key_set ?? false);
+const canViewBalanceWithoutPassword = computed(() => Date.now() < balanceAuthUntil.value);
 
 const balanceText = computed(() =>
   !payKeySet.value
@@ -197,9 +211,36 @@ const qrImageUrl = computed(
     )}`,
 );
 
+function rememberBalanceAuth() {
+  balanceAuthUntil.value = Date.now() + 10 * 60 * 1000;
+  sessionStorage.setItem(
+    activeUserSessionStorageKey("wallet_balance_auth_until"),
+    String(balanceAuthUntil.value),
+  );
+}
+
+async function loadBalanceWithoutPassword() {
+  const res: any = await getMoney();
+  balance.value = Number(res.data?.user_money ?? 0).toFixed(2);
+  loaded.value = true;
+}
+
 async function loadBalance() {
   if (!payKeySet.value) {
     return ElMessage.warning(t("wallet.setPayPasswordFirst"));
+  }
+  if (canViewBalanceWithoutPassword.value && payKey.value.length !== 6) {
+    loading.value = true;
+    try {
+      await loadBalanceWithoutPassword();
+    } catch {
+      loaded.value = false;
+      balanceAuthUntil.value = 0;
+      sessionStorage.removeItem(activeUserSessionStorageKey("wallet_balance_auth_until"));
+    } finally {
+      loading.value = false;
+    }
+    return;
   }
   if (payKey.value.length !== 6) {
     return ElMessage.warning(t("wallet.payPasswordPlaceholder"));
@@ -209,6 +250,7 @@ async function loadBalance() {
     const res: any = await getMoney({ key: payKey.value });
     balance.value = Number(res.data?.user_money ?? 0).toFixed(2);
     loaded.value = true;
+    rememberBalanceAuth();
   } catch {
     loaded.value = false;
   } finally {
@@ -354,6 +396,9 @@ onUnmounted(stopPolling);
   margin-top: 18px;
 }
 .balance-form .el-input {
+  flex: 1;
+}
+.balance-auth-hint {
   flex: 1;
 }
 .set-key-box {

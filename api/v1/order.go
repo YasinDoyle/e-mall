@@ -133,6 +133,26 @@ func ShowOrderHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminShowOrderHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderShowReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.AdminOrderShow(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
 func DeleteOrderHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req types.OrderDeleteReq
@@ -187,6 +207,26 @@ func OrderOperationLogsHandler() gin.HandlerFunc {
 
 		l := service.GetOrderSrv()
 		resp, err := l.OrderOperationLogs(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminOrderOperationLogsHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderShowReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.AdminOrderOperationLogs(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

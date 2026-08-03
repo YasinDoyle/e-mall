@@ -335,13 +335,16 @@ func (s *PayGatewaySrv) ApplyPendingCredit(ctx context.Context, key string) (res
 			return errors.New("请先设置支付密码")
 		}
 
-		current, txErr := user.DecryptMoney(key)
-		if txErr != nil {
+		if !user.CheckPayKey(key) {
 			return errors.New("支付密码错误")
+		}
+		current, txErr := user.DecryptMoney()
+		if txErr != nil {
+			return txErr
 		}
 
 		user.Money = fmt.Sprintf("%f", current+pending)
-		user.Money, txErr = user.EncryptMoney(key)
+		user.Money, txErr = user.EncryptMoney()
 		if txErr != nil {
 			return txErr
 		}

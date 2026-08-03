@@ -35,6 +35,11 @@
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="seller_id" :label="t('page.settlement.sellerId')" width="90" />
       <el-table-column prop="order_num" :label="t('page.settlement.orderNo')" min-width="170" />
+      <el-table-column :label="t('page.settlement.orderStatus')" width="130">
+        <template #default="{ row }">
+          {{ orderStatusText(row.order_type) }}
+        </template>
+      </el-table-column>
       <el-table-column :label="t('page.settlement.grossAmount')" width="110">
         <template #default="{ row }">¥{{ money(row.gross_amount) }}</template>
       </el-table-column>
@@ -67,6 +72,8 @@
             v-if="row.status === 'generated'"
             size="small"
             type="primary"
+            :disabled="!row.can_mark_paid"
+            :title="!row.can_mark_paid ? t('page.settlement.notReadyToPay') : ''"
             @click="markPaid(row)"
           >
             {{ t("page.settlement.markPaid") }}
@@ -110,6 +117,7 @@ import {
   markAdminSettlementPaid,
 } from "@/api/settlement";
 import { getStatsOverview } from "@/api";
+import { orderStatusText } from "@/utils/status-labels";
 import { t } from "@/locales";
 import { requestAdminPendingCountsRefresh } from "@/utils/adminPending";
 

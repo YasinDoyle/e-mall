@@ -16,7 +16,6 @@ type AdminAfterSaleHandleReq struct {
 	AfterSaleID uint   `json:"after_sale_id" form:"after_sale_id" binding:"required"`
 	Action      string `json:"action" form:"action" binding:"required"`
 	Note        string `json:"note" form:"note"`
-	Key         string `json:"key" form:"key"`
 }
 
 type AfterSaleListReq struct {

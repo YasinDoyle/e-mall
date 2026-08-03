@@ -87,7 +87,9 @@ func handleOrderRefunded(tx *gorm.DB, order *model.Order) error {
 	if settlement.Status == model.SettlementStatusRefunded {
 		return e.NewBusinessError(e.ErrorRefundStatusInvalid)
 	}
-	if settlement.Status != model.SettlementStatusPending && settlement.Status != model.SettlementStatusGenerated {
+	if settlement.Status != model.SettlementStatusPending &&
+		settlement.Status != model.SettlementStatusGenerated &&
+		settlement.Status != model.SettlementStatusPaid {
 		return e.NewBusinessError(e.ErrorRefundStatusInvalid)
 	}
 
@@ -109,10 +111,19 @@ func handleOrderRefunded(tx *gorm.DB, order *model.Order) error {
 			return err
 		}
 	}
+	if settlement.Status == model.SettlementStatusPaid {
+		if err := debitPaidSettlementForRefund(tx, settlement); err != nil {
+			return err
+		}
+	}
 	if err := settlementDao.MarkRefundedByOrderID(order.ID); err != nil {
 		return err
 	}
 	return nil
+}
+
+func HandleOrderRefunded(tx *gorm.DB, order *model.Order) error {
+	return handleOrderRefunded(tx, order)
 }
 
 func creditSettlement(tx *gorm.DB, settlement *model.Settlement) error {
@@ -144,6 +155,35 @@ func applySellerSettlementCredit(account *model.SellerAccount, amount float64) e
 	}
 	account.AvailableBalance = roundMoney(account.AvailableBalance + amount)
 	account.TotalIncome = roundMoney(account.TotalIncome + amount)
+	return nil
+}
+
+func debitPaidSettlementForRefund(tx *gorm.DB, settlement *model.Settlement) error {
+	accountDao := dao.NewSellerAccountDaoByDB(tx)
+	account, err := accountDao.GetOrCreateBySellerID(settlement.SellerID)
+	if err != nil {
+		return err
+	}
+	if err = applySellerSettlementRefundDebit(account, settlement.SettlementAmount); err != nil {
+		return err
+	}
+	if err = accountDao.Save(account); err != nil {
+		return err
+	}
+	return dao.NewAccountFlowDaoByDB(tx).Create(
+		newStableSellerRelatedAccountFlow(settlement.SellerID, "settlement", settlement.ID, model.AccountFlowTypeSellerSettlementDebit, "out", settlement.SettlementAmount, "结算退款扣回"),
+	)
+}
+
+func applySellerSettlementRefundDebit(account *model.SellerAccount, amount float64) error {
+	if account == nil {
+		return e.NewBusinessError(e.ErrorSellerWithdrawStatusInvalid)
+	}
+	if amount <= 0 {
+		return e.NewBusinessError(e.ErrorSellerWithdrawAmountInvalid)
+	}
+	account.AvailableBalance = roundMoney(account.AvailableBalance - amount)
+	account.TotalIncome = roundMoney(account.TotalIncome - amount)
 	return nil
 }
 
@@ -197,6 +237,20 @@ func newStableOrderAccountFlow(order *model.Order, userID, sellerID uint, flowTy
 func newSellerRelatedAccountFlow(sellerID uint, relatedType string, relatedID uint, flowType, direction string, amount float64, remark string) *model.AccountFlow {
 	return &model.AccountFlow{
 		FlowNo:      fmt.Sprintf("%s-%d-%d", flowType, relatedID, time.Now().UnixNano()),
+		UserID:      sellerID,
+		SellerID:    sellerID,
+		RelatedType: relatedType,
+		RelatedID:   relatedID,
+		FlowType:    flowType,
+		Direction:   direction,
+		Amount:      amount,
+		Remark:      remark,
+	}
+}
+
+func newStableSellerRelatedAccountFlow(sellerID uint, relatedType string, relatedID uint, flowType, direction string, amount float64, remark string) *model.AccountFlow {
+	return &model.AccountFlow{
+		FlowNo:      fmt.Sprintf("%s-%d", flowType, relatedID),
 		UserID:      sellerID,
 		SellerID:    sellerID,
 		RelatedType: relatedType,

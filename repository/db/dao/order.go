@@ -268,6 +268,42 @@ func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err er
 	return
 }
 
+func (dao *OrderDao) ShowOrderByIdForAdmin(id uint) (r *types.OrderListResp, err error) {
+	r = &types.OrderListResp{}
+	err = dao.DB.Table("`order` AS o").
+		Joins("LEFT JOIN product AS p ON p.id = o.product_id").
+		Joins("LEFT JOIN address AS a ON a.id = o.address_id").
+		Where("o.id = ?", id).
+		Where("o.deleted_at IS NULL").
+		Select("o.id AS id," +
+			"o.order_num AS order_num," +
+			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
+			"UNIX_TIMESTAMP(o.updated_at) AS updated_at," +
+			"o.user_id AS user_id," +
+			"o.product_id AS product_id," +
+			"o.boss_id AS boss_id," +
+			"o.num AS num," +
+			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.payment_channel AS payment_channel," +
+			"o.logistics_company AS logistics_company," +
+			"o.tracking_no AS tracking_no," +
+			"IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at," +
+			"p.name AS name," +
+			"p.discount_price AS discount_price," +
+			"p.img_path AS img_path," +
+			"a.name AS address_name," +
+			"a.phone AS address_phone," +
+			"a.address AS address").
+		Take(r).Error
+
+	return
+}
+
 // DeleteOrderById 获取订单详情
 func (dao *OrderDao) DeleteOrderById(id, uId uint) error {
 	result := dao.DB.Model(&model.Order{}).
@@ -394,6 +430,29 @@ func (dao *OrderDao) CancelUnpaidOrderByUser(id, uId uint, canceledAt time.Time)
 func (dao *OrderDao) RequestRefundByUser(id, uId uint, reason string) error {
 	result := dao.DB.Model(&model.Order{}).
 		Where("id = ? AND user_id = ? AND type IN ?", id, uId, []uint{
+			consts.OrderTypePendingShipping,
+			consts.OrderTypeShipping,
+			consts.OrderTypeReceipt,
+		}).
+		Where("refund_status = ?", consts.OrderRefundStatusNone).
+		Updates(map[string]interface{}{
+			"type":          consts.OrderTypeRefundRequested,
+			"refund_status": consts.OrderRefundStatusRequested,
+			"refund_reason": reason,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) RequestRefundForAfterSale(id uint, reason string) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND type IN ?", id, []uint{
 			consts.OrderTypePendingShipping,
 			consts.OrderTypeShipping,
 			consts.OrderTypeReceipt,
