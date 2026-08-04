@@ -133,6 +133,26 @@ func ShowOrderHandler() gin.HandlerFunc {
 	}
 }
 
+func AdminShowOrderHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderShowReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.AdminOrderShow(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
 func DeleteOrderHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req types.OrderDeleteReq
@@ -145,6 +165,68 @@ func DeleteOrderHandler() gin.HandlerFunc {
 
 		l := service.GetOrderSrv()
 		resp, err := l.OrderDelete(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func CancelOrderHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderDeleteReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.OrderCancel(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+// OrderOperationLogsHandler returns the P2 fulfillment operation audit trail for
+// an order. These are business status-transition records, not runtime logs.
+func OrderOperationLogsHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderShowReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.OrderOperationLogs(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminOrderOperationLogsHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.OrderShowReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		l := service.GetOrderSrv()
+		resp, err := l.AdminOrderOperationLogs(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
@@ -205,6 +287,120 @@ func RefundRequestOrderHandler() gin.HandlerFunc {
 
 		l := service.GetOrderSrv()
 		resp, err := l.OrderRefundRequest(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AfterSaleRequestHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AfterSaleRequestReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().RequestAfterSale(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AfterSaleListHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AfterSaleListReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().ListBuyerAfterSales(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func SellerAfterSaleListHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AfterSaleListReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().ListSellerAfterSales(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func SellerAfterSaleHandleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.SellerAfterSaleHandleReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().SellerHandleAfterSale(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminAfterSaleListHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AfterSaleListReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().ListAdminAfterSales(ctx.Request.Context(), &req)
+		if err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+		ctx.JSON(http.StatusOK, ctl.RespSuccess(ctx, resp))
+	}
+}
+
+func AdminAfterSaleHandleHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req types.AdminAfterSaleHandleReq
+		if err := ctx.ShouldBind(&req); err != nil {
+			log.LogrusObj.Infoln(err)
+			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))
+			return
+		}
+
+		resp, err := application.NewOrderUsecase().AdminHandleAfterSale(ctx.Request.Context(), &req)
 		if err != nil {
 			log.LogrusObj.Infoln(err)
 			ctx.JSON(http.StatusOK, ErrorResponse(ctx, err))

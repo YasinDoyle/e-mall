@@ -15,6 +15,7 @@ import (
 	wechat "github.com/go-pay/gopay/wechat/v3"
 	"gorm.io/gorm"
 
+	"github.com/YasinDoyle/e-mall/application"
 	conf "github.com/YasinDoyle/e-mall/config"
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/cache"
@@ -107,6 +108,73 @@ func createRechargeOrder(ctx context.Context, userID uint, channel string, amoun
 	}
 
 	return order, nil
+}
+
+func (s *PayGatewaySrv) WechatOrderPay(ctx context.Context, req *types.OrderGatewayPayReq) (*types.OrderPaymentResp, error) {
+	client, err := newWechatClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := application.NewPaymentUsecase().CreateOrderGatewayPayment(ctx, req.OrderID, consts.OrderPaymentChannelWechat)
+	if err != nil {
+		return nil, err
+	}
+
+	wConf := conf.Config.WechatPay
+	bm := make(gopay.BodyMap)
+	bm.Set("appid", wConf.AppID).
+		Set("mchid", wConf.MchID).
+		Set("description", "E-Mall 商品订单支付").
+		Set("out_trade_no", resp.PaymentNo).
+		Set("notify_url", wConf.NotifyURL).
+		SetBodyMap("amount", func(b gopay.BodyMap) {
+			b.Set("total", amountToFen(resp.Amount)).Set("currency", "CNY")
+		})
+
+	wxRsp, err := client.V3TransactionNative(ctx, bm)
+	if err != nil || wxRsp == nil || wxRsp.Response == nil || wxRsp.Code != wechat.Success {
+		if err != nil {
+			log.LogrusObj.Error(err)
+			return nil, errors.New("微信支付下单失败，请检查配置")
+		}
+		if wxRsp == nil {
+			return nil, errors.New("微信支付下单失败")
+		}
+		return nil, fmt.Errorf("微信支付下单失败: %s", wxRsp.Error)
+	}
+	resp.QRCodeURL = wxRsp.Response.CodeUrl
+	return resp, nil
+}
+
+func (s *PayGatewaySrv) AlipayOrderPay(ctx context.Context, req *types.OrderGatewayPayReq) (*types.OrderPaymentResp, error) {
+	client, err := newAlipayClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := application.NewPaymentUsecase().CreateOrderGatewayPayment(ctx, req.OrderID, consts.OrderPaymentChannelAlipay)
+	if err != nil {
+		return nil, err
+	}
+
+	aConf := conf.Config.Alipay
+	bm := make(gopay.BodyMap)
+	bm.Set("subject", "E-Mall 商品订单支付").
+		Set("out_trade_no", resp.PaymentNo).
+		Set("total_amount", fmt.Sprintf("%.2f", resp.Amount)).
+		Set("return_url", aConf.ReturnURL).
+		Set("notify_url", aConf.NotifyURL)
+
+	payURL, err := client.TradePagePay(ctx, bm)
+	if err != nil {
+		log.LogrusObj.Error(err)
+		return nil, errors.New("支付宝下单失败，请检查配置")
+	}
+	resp.PayURL = payURL
+	return resp, nil
+}
+
+func (s *PayGatewaySrv) OrderPaymentStatus(ctx context.Context, paymentNo string) (*types.OrderPaymentResp, error) {
+	return application.NewPaymentUsecase().OrderPaymentStatus(ctx, paymentNo)
 }
 
 // WechatRecharge 发起微信 Native 充值。
@@ -267,13 +335,16 @@ func (s *PayGatewaySrv) ApplyPendingCredit(ctx context.Context, key string) (res
 			return errors.New("请先设置支付密码")
 		}
 
-		current, txErr := user.DecryptMoney(key)
-		if txErr != nil {
+		if !user.CheckPayKey(key) {
 			return errors.New("支付密码错误")
+		}
+		current, txErr := user.DecryptMoney()
+		if txErr != nil {
+			return txErr
 		}
 
 		user.Money = fmt.Sprintf("%f", current+pending)
-		user.Money, txErr = user.EncryptMoney(key)
+		user.Money, txErr = user.EncryptMoney()
 		if txErr != nil {
 			return txErr
 		}
@@ -334,6 +405,19 @@ func (s *PayGatewaySrv) markRechargePaid(ctx context.Context, orderNum, provider
 	return nil
 }
 
+func (s *PayGatewaySrv) markExternalPaymentPaid(ctx context.Context, outTradeNo, providerTradeNo, expectedChannel string, paidAt time.Time, paidAmount float64) error {
+	if application.IsOrderPaymentNo(outTradeNo) {
+		return application.NewPaymentUsecase().HandleOrderPaymentCallback(ctx, &types.OrderPaymentCallbackReq{
+			PaymentNo:       outTradeNo,
+			ProviderTradeNo: providerTradeNo,
+			ExpectedChannel: expectedChannel,
+			PaidAt:          paidAt,
+			PaidAmount:      paidAmount,
+		})
+	}
+	return s.markRechargePaid(ctx, outTradeNo, providerTradeNo, paidAt, paidAmount)
+}
+
 func refreshPendingCredit(ctx context.Context, userID uint) error {
 	pending, err := dao.NewRechargeDao(ctx).SumPendingCreditByUser(userID)
 	if err != nil {
@@ -355,11 +439,14 @@ func (s *PayGatewaySrv) HandleWechatNotifyRequest(ctx context.Context, req *http
 	notifyReq, err := wechat.V3ParseNotify(req)
 	if err != nil {
 		if wConf.IsSandbox {
-			orderNum := req.URL.Query().Get("order_num")
-			if orderNum == "" {
+			outTradeNo := req.URL.Query().Get("payment_no")
+			if outTradeNo == "" {
+				outTradeNo = req.URL.Query().Get("order_num")
+			}
+			if outTradeNo == "" {
 				return err
 			}
-			return s.markRechargePaid(ctx, orderNum, "wechat-sandbox", time.Now(), mustRechargeAmount(ctx, orderNum))
+			return s.markExternalPaymentPaid(ctx, outTradeNo, "wechat-sandbox", consts.OrderPaymentChannelWechat, time.Now(), mustExternalPaymentAmount(ctx, outTradeNo))
 		}
 		return err
 	}
@@ -395,7 +482,7 @@ func (s *PayGatewaySrv) HandleWechatNotifyRequest(ctx context.Context, req *http
 		amount = fenToYuan(payResult.Amount.PayerTotal)
 	}
 
-	return s.markRechargePaid(ctx, payResult.OutTradeNo, payResult.TransactionId, paidAt, amount)
+	return s.markExternalPaymentPaid(ctx, payResult.OutTradeNo, payResult.TransactionId, consts.OrderPaymentChannelWechat, paidAt, amount)
 }
 
 func mustRechargeAmount(ctx context.Context, orderNum string) float64 {
@@ -404,6 +491,17 @@ func mustRechargeAmount(ctx context.Context, orderNum string) float64 {
 		return 0
 	}
 	return order.Amount
+}
+
+func mustExternalPaymentAmount(ctx context.Context, outTradeNo string) float64 {
+	if application.IsOrderPaymentNo(outTradeNo) {
+		payment, err := dao.NewOrderPaymentDao(ctx).GetByPaymentNo(outTradeNo)
+		if err != nil {
+			return 0
+		}
+		return payment.Amount
+	}
+	return mustRechargeAmount(ctx, outTradeNo)
 }
 
 func (s *PayGatewaySrv) HandleAlipayNotifyRequest(ctx context.Context, req *http.Request) error {
@@ -440,7 +538,7 @@ func (s *PayGatewaySrv) HandleAlipayNotifyRequest(ctx context.Context, req *http
 		}
 	}
 
-	return s.markRechargePaid(ctx, notifyMap.Get("out_trade_no"), notifyMap.Get("trade_no"), paidAt, amount)
+	return s.markExternalPaymentPaid(ctx, notifyMap.Get("out_trade_no"), notifyMap.Get("trade_no"), consts.OrderPaymentChannelAlipay, paidAt, amount)
 }
 
 func (s *PayGatewaySrv) WechatRefund(ctx context.Context, req *types.RechargeRefundReq) (*types.RechargeRefundResp, error) {

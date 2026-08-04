@@ -7,6 +7,15 @@
       </div>
     </template>
 
+    <el-alert
+      v-if="pendingAfterSaleCount > 0"
+      class="pending-after-sale-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="t('sellerCenter.order.pendingAfterSaleNotice', { count: pendingAfterSaleCount })"
+    />
+
     <div class="summary-grid">
       <div class="summary-item account">
         <span class="summary-label">{{ t("sellerCenter.order.availableBalance") }}</span>
@@ -71,9 +80,7 @@
       <el-table-column prop="num" :label="t('sellerCenter.order.quantity')" width="80" />
       <el-table-column :label="t('sellerCenter.order.status')" width="110">
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.type)">
-            {{ statusText(row.type) }}
-          </el-tag>
+          <el-tag :type="statusTagType(row.type)">{{ statusText(row.type) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column :label="t('sellerCenter.order.address')" min-width="260">
@@ -85,15 +92,21 @@
       <el-table-column prop="tracking_no" :label="t('sellerCenter.order.trackingNo')" min-width="150">
         <template #default="{ row }">{{ row.tracking_no || "-" }}</template>
       </el-table-column>
-      <el-table-column :label="t('sellerCenter.order.actions')" width="120" fixed="right">
+      <el-table-column prop="logistics_company" :label="t('sellerCenter.order.logisticsCompany')" min-width="130">
+        <template #default="{ row }">{{ row.logistics_company || "-" }}</template>
+      </el-table-column>
+      <el-table-column :label="t('sellerCenter.order.actions')" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="row.type === 2"
-            size="small"
-            type="primary"
-            @click="openShip(row)"
-          >
+          <el-button v-if="row.type === 2" size="small" type="primary" @click="openShip(row)">
             {{ t("sellerCenter.order.ship") }}
+          </el-button>
+          <el-button
+            v-if="row.type >= 2 && row.type <= 6"
+            size="small"
+            :type="afterSaleActionType(row)"
+            @click="openAfterSale(row)"
+          >
+            {{ t("sellerCenter.order.afterSale") }}
           </el-button>
         </template>
       </el-table-column>
@@ -109,23 +122,73 @@
     />
 
     <el-dialog v-model="shipDialogVisible" :title="t('sellerCenter.order.shipDialog')" width="420px">
-      <el-form label-width="80px">
+      <el-form label-width="90px">
         <el-form-item :label="t('sellerCenter.order.orderNo')">
           <span>{{ currentOrder?.order_num }}</span>
         </el-form-item>
+        <el-form-item :label="t('sellerCenter.order.logisticsCompany')">
+          <el-input v-model="logisticsCompany" maxlength="64" :placeholder="t('sellerCenter.order.logisticsCompanyPlaceholder')" />
+        </el-form-item>
         <el-form-item :label="t('sellerCenter.order.trackingNo')">
-          <el-input
-            v-model="trackingNo"
-            maxlength="64"
-            :placeholder="t('sellerCenter.order.trackingNoPlaceholder')"
-          />
+          <el-input v-model="trackingNo" maxlength="64" :placeholder="t('sellerCenter.order.trackingNoPlaceholder')" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="shipDialogVisible = false">{{ t("common.cancel") }}</el-button>
-        <el-button type="primary" :loading="shipping" @click="handleShip">
-          {{ t("sellerCenter.order.confirmShip") }}
-        </el-button>
+        <el-button type="primary" :loading="shipping" @click="handleShip">{{ t("sellerCenter.order.confirmShip") }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="afterSaleDialogVisible" :title="t('sellerCenter.order.afterSaleDialog')" width="760px">
+      <el-descriptions :column="2" border class="detail-grid">
+        <el-descriptions-item :label="t('sellerCenter.order.orderNo')">
+          {{ currentOrder?.order_num || t("common.none") }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('sellerCenter.order.logisticsCompany')">
+          {{ currentOrder?.logistics_company || t("common.none") }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('sellerCenter.order.trackingNo')">
+          {{ currentOrder?.tracking_no || t("common.none") }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('sellerCenter.order.status')">
+          {{ settlementText(currentOrder?.settlement_status) }}
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <el-empty v-if="!afterSaleList.length && !afterSaleLoading" :description="t('sellerCenter.order.afterSaleEmpty')" />
+      <el-skeleton v-if="afterSaleLoading" :rows="4" animated />
+      <div v-else class="after-sale-list">
+        <div v-for="item in afterSaleList" :key="item.id" class="after-sale-item">
+          <div class="after-sale-head">
+            <div>
+              <b>{{ afterSaleTypeText(item.type) }}</b>
+              <span class="muted"> · {{ afterSaleStatusText(item.status) }}</span>
+            </div>
+            <div class="after-sale-head-right">
+              <el-tag size="small" :type="afterSaleStatusTag(item.status)">{{ afterSaleStatusText(item.status) }}</el-tag>
+              <span class="amount">¥{{ Number(item.refund_amount || 0).toFixed(2) }}</span>
+            </div>
+          </div>
+          <div class="after-sale-line">{{ item.reason }}</div>
+          <div v-if="item.seller_reason" class="after-sale-line muted">
+            {{ t("sellerCenter.order.afterSaleSellerReason") }}: {{ item.seller_reason }}
+          </div>
+          <div v-if="item.platform_note" class="after-sale-line muted">
+            {{ t("sellerCenter.order.afterSalePlatformNote") }}: {{ item.platform_note }}
+          </div>
+          <div v-if="item.status === 'requested'" class="after-sale-actions">
+            <el-button size="small" type="primary" :loading="handlingAfterSaleId === item.id" @click="handleAfterSale(item, 'approve')">
+              {{ t("sellerCenter.order.afterSaleApprove") }}
+            </el-button>
+            <el-button size="small" type="danger" :loading="handlingAfterSaleId === item.id" @click="handleAfterSaleReject(item)">
+              {{ t("sellerCenter.order.afterSaleReject") }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="afterSaleDialogVisible = false">{{ t("common.cancel") }}</el-button>
       </template>
     </el-dialog>
   </el-card>
@@ -133,19 +196,27 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { useI18n } from "vue-i18n";
 import {
+  getSellerAfterSaleList,
   getSellerOrderList,
   getSellerSettlementSummary,
+  handleSellerAfterSale,
   shipOrder,
 } from "@/api/order";
 import { getSellerAccountSummary } from "@/api/seller";
 import { useSellerStore } from "@/stores/seller";
-import { orderStatusText } from "@/utils/status-labels";
+import {
+  afterSaleStatusTagType,
+  afterSaleStatusText,
+  afterSaleTypeText,
+  orderStatusText,
+} from "@/utils/status-labels";
 
 const sellerStore = useSellerStore();
 const { t } = useI18n();
+
 const accountSummary = ref({
   available_balance: 0,
   frozen_balance: 0,
@@ -166,12 +237,18 @@ const pageSize = 10;
 const total = ref(0);
 const loading = ref(false);
 const shipDialogVisible = ref(false);
+const afterSaleDialogVisible = ref(false);
 const shipping = ref(false);
+const afterSaleLoading = ref(false);
+const handlingAfterSaleId = ref(0);
+const pendingAfterSaleCount = ref(0);
+const activeAfterSaleByOrderId = ref<Record<number, boolean>>({});
 const currentOrder = ref<any>(null);
+const afterSaleList = ref<any[]>([]);
+const logisticsCompany = ref("");
 const trackingNo = ref("");
 
 const statusText = orderStatusText;
-
 const statusTagType = (type: number) =>
   (({
     1: "warning",
@@ -180,6 +257,7 @@ const statusTagType = (type: number) =>
     4: "success",
     5: "danger",
     6: "info",
+    7: "info",
   })[type] ?? "info") as any;
 
 function totalAmount(order: any) {
@@ -212,6 +290,14 @@ function settlementTag(status?: string) {
   )[status || ""] ?? "info";
 }
 
+function afterSaleStatusTag(status?: string) {
+  return afterSaleStatusTagType(status || "");
+}
+
+function afterSaleActionType(row: any) {
+  return activeAfterSaleByOrderId.value[Number(row.id)] ? "warning" : "";
+}
+
 async function loadSummary() {
   const [accountRes, settlementRes]: any[] = await Promise.all([
     getSellerAccountSummary(),
@@ -232,6 +318,44 @@ async function loadSummary() {
   };
 }
 
+async function loadPendingAfterSaleCount() {
+  const res: any = await getSellerAfterSaleList({
+    status: "requested",
+    page_num: 1,
+    page_size: 1,
+  });
+  pendingAfterSaleCount.value = Number(res.data?.total ?? (res.data?.item ?? []).length);
+}
+
+async function loadActiveAfterSaleMap() {
+  if (!list.value.length) {
+    activeAfterSaleByOrderId.value = {};
+    return;
+  }
+  const activeStatuses = [
+    "requested",
+    "seller_approved",
+    "seller_rejected",
+    "platform_intervening",
+  ];
+  const results: any[] = await Promise.all(
+    activeStatuses.map((status) =>
+      getSellerAfterSaleList({ status, page_num: 1, page_size: 100 }).catch(() => null),
+    ),
+  );
+  const visibleOrderIds = new Set(list.value.map((order) => Number(order.id)));
+  const next: Record<number, boolean> = {};
+  for (const result of results) {
+    for (const item of result?.data?.item ?? []) {
+      const orderId = Number(item.order_id);
+      if (visibleOrderIds.has(orderId)) {
+        next[orderId] = true;
+      }
+    }
+  }
+  activeAfterSaleByOrderId.value = next;
+}
+
 async function loadList() {
   loading.value = true;
   try {
@@ -240,13 +364,14 @@ async function loadList() {
     const res: any = await getSellerOrderList(params);
     list.value = res.data?.item ?? [];
     total.value = res.data?.total ?? 0;
+    await loadActiveAfterSaleMap();
   } finally {
     loading.value = false;
   }
 }
 
 async function reloadAll() {
-  await Promise.all([loadSummary(), loadList()]);
+  await Promise.all([loadSummary(), loadList(), loadPendingAfterSaleCount()]);
 }
 
 function handleTabChange() {
@@ -256,12 +381,78 @@ function handleTabChange() {
 
 function openShip(row: any) {
   currentOrder.value = row;
+  logisticsCompany.value = row.logistics_company || "";
   trackingNo.value = row.tracking_no || "";
   shipDialogVisible.value = true;
 }
 
+async function loadAfterSales(orderId: number) {
+  afterSaleLoading.value = true;
+  try {
+    const res: any = await getSellerAfterSaleList({
+      order_id: orderId,
+      page_num: 1,
+      page_size: 20,
+    });
+    afterSaleList.value = res.data?.item ?? [];
+  } finally {
+    afterSaleLoading.value = false;
+  }
+}
+
+async function openAfterSale(row: any) {
+  currentOrder.value = row;
+  afterSaleDialogVisible.value = true;
+  await loadAfterSales(row.id);
+}
+
+async function handleAfterSale(item: any, action: "approve" | "reject") {
+  handlingAfterSaleId.value = item.id;
+  try {
+    await handleSellerAfterSale({
+      after_sale_id: item.id,
+      action,
+    });
+    ElMessage.success(t("sellerCenter.order.afterSaleHandleSuccess"));
+    await loadAfterSales(currentOrder.value.id);
+    await reloadAll();
+  } finally {
+    handlingAfterSaleId.value = 0;
+  }
+}
+
+async function handleAfterSaleReject(item: any) {
+  const result = await ElMessageBox.prompt(
+    t("sellerCenter.order.afterSaleReasonPlaceholder"),
+    t("sellerCenter.order.afterSaleReject"),
+    {
+      inputType: "textarea",
+      inputPlaceholder: t("sellerCenter.order.afterSaleReasonPlaceholder"),
+      inputValidator: (v: string) => !!v.trim(),
+      inputErrorMessage: t("sellerCenter.order.afterSaleReasonRequired"),
+    },
+  ).catch(() => null);
+  if (!result) return;
+  handlingAfterSaleId.value = item.id;
+  try {
+    await handleSellerAfterSale({
+      after_sale_id: item.id,
+      action: "reject",
+      reason: String(result.value || "").trim(),
+    });
+    ElMessage.success(t("sellerCenter.order.afterSaleHandleSuccess"));
+    await loadAfterSales(currentOrder.value.id);
+    await reloadAll();
+  } finally {
+    handlingAfterSaleId.value = 0;
+  }
+}
+
 async function handleShip() {
   if (!currentOrder.value) return;
+  if (!logisticsCompany.value.trim()) {
+    return ElMessage.warning(t("sellerCenter.order.logisticsCompanyPlaceholder"));
+  }
   if (!trackingNo.value.trim()) {
     return ElMessage.warning(t("sellerCenter.order.trackingNoPlaceholder"));
   }
@@ -269,6 +460,7 @@ async function handleShip() {
   try {
     await shipOrder({
       order_id: currentOrder.value.id,
+      logistics_company: logisticsCompany.value.trim(),
       tracking_no: trackingNo.value.trim(),
     });
     ElMessage.success(t("sellerCenter.order.shippedSuccess"));
@@ -287,18 +479,23 @@ onMounted(async () => {
 
 <style scoped>
 .header,
-.product-cell {
+.product-cell,
+.after-sale-head,
+.after-sale-head-right {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 .header {
   justify-content: space-between;
+  gap: 10px;
 }
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+  margin-bottom: 12px;
+}
+.pending-after-sale-alert {
   margin-bottom: 12px;
 }
 .summary-item {
@@ -338,5 +535,32 @@ onMounted(async () => {
 .pager {
   margin-top: 16px;
   justify-content: flex-end;
+}
+.after-sale-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.after-sale-item {
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 12px;
+}
+.after-sale-head {
+  justify-content: space-between;
+  gap: 12px;
+}
+.after-sale-head-right {
+  gap: 10px;
+}
+.after-sale-line {
+  margin-top: 6px;
+}
+.amount {
+  color: #f56c6c;
+  font-weight: 600;
+}
+.detail-grid {
+  margin-bottom: 16px;
 }
 </style>

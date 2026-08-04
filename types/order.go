@@ -58,8 +58,14 @@ type OrderDeleteReq struct {
 }
 
 type OrderShipReq struct {
-	OrderId    uint   `json:"order_id" form:"order_id"`
-	TrackingNo string `json:"tracking_no" form:"tracking_no"`
+	OrderId          uint   `json:"order_id" form:"order_id"`
+	LogisticsCompany string `json:"logistics_company" form:"logistics_company"`
+	TrackingNo       string `json:"tracking_no" form:"tracking_no"`
+}
+
+type ShipmentInfo struct {
+	LogisticsCompany string `json:"logistics_company"`
+	TrackingNo       string `json:"tracking_no"`
 }
 
 type OrderReceiveReq struct {
@@ -72,8 +78,7 @@ type OrderRefundRequestReq struct {
 }
 
 type AdminOrderRefundApproveReq struct {
-	OrderId uint   `json:"order_id" form:"order_id" binding:"required"`
-	Key     string `json:"key" form:"key" binding:"required"`
+	OrderId uint `json:"order_id" form:"order_id" binding:"required"`
 }
 
 type OrderRefundResp struct {
@@ -100,7 +105,12 @@ type OrderListResp struct {
 	Money            float64 `json:"money"`
 	RefundStatus     int     `json:"refund_status"`
 	RefundReason     string  `json:"refund_reason"`
+	PaymentChannel   string  `json:"payment_channel"`
+	LogisticsCompany string  `json:"logistics_company"`
 	TrackingNo       string  `json:"tracking_no"`
+	ShippedAt        int64   `json:"shipped_at"`
+	ReceivedAt       int64   `json:"received_at"`
+	CanceledAt       int64   `json:"canceled_at"`
 	Name             string  `json:"name"`
 	ImgPath          string  `json:"img_path"`
 	DiscountPrice    string  `json:"discount_price"`
@@ -108,4 +118,27 @@ type OrderListResp struct {
 	CommissionAmount float64 `json:"commission_amount"`
 	SettlementAmount float64 `json:"settlement_amount"`
 	SettlementStatus string  `json:"settlement_status"`
+}
+
+// OrderLogResp is an order fulfillment operation audit record.
+type OrderLogResp struct {
+	ID           uint   `json:"id"`
+	OrderID      uint   `json:"order_id"`
+	OrderNum     uint64 `json:"order_num"`
+	Action       string `json:"action"`
+	FromType     uint   `json:"from_type"`
+	ToType       uint   `json:"to_type"`
+	OperatorType string `json:"operator_type"`
+	OperatorID   uint   `json:"operator_id"`
+	Remark       string `json:"remark"`
+	CreatedAt    int64  `json:"created_at"`
+}
+
+type OrderLogisticsResp struct {
+	ID          uint   `json:"id"`
+	OrderID     uint   `json:"order_id"`
+	OrderNum    uint64 `json:"order_num"`
+	NodeType    string `json:"node_type"`
+	Description string `json:"description"`
+	OccurredAt  int64  `json:"occurred_at"`
 }

@@ -69,8 +69,24 @@ export const getAdminOrderList = (params: {
   type?: number;
   refund_status?: number;
 }) => request.get("/admin/orders/list", { params });
-export const approveOrderRefund = (data: { order_id: number; key: string }) =>
+export const getAdminOrderDetail = (params: { order_id: number }) =>
+  request.get("/admin/orders/show", { params });
+export const getAdminOrderLogs = (params: { order_id: number }) =>
+  request.get("/admin/orders/logs", { params });
+export const approveOrderRefund = (data: { order_id: number }) =>
   request.post("/admin/orders/refund/approve", data);
+export const getAdminAfterSaleList = (params: {
+  order_id?: number;
+  status?: string;
+  type?: string;
+  page_num: number;
+  page_size: number;
+}) => request.get("/admin/after-sales/list", { params });
+export const handleAdminAfterSale = (data: {
+  after_sale_id: number;
+  action: string;
+  note?: string;
+}) => request.post("/admin/after-sales/handle", data);
 
 // ===== 优惠券管理 =====
 export const getAdminCouponList = () => request.get("/admin/coupon/list");

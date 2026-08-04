@@ -73,6 +73,19 @@ func handleNotificationEvent(ctx context.Context, event any) error {
 			"order_num":     e.OrderNum,
 			"refund_amount": e.RefundAmount,
 		})
+	case AfterSaleClosed:
+		if err := notifyUser(ctx, e.BuyerID, model.NotificationSceneOrderRefunded, "售后已关闭", fmt.Sprintf("订单 %d 的售后已关闭：%s。", e.OrderNum, e.Note), map[string]any{
+			"order_id":  e.OrderID,
+			"order_num": e.OrderNum,
+			"note":      e.Note,
+		}); err != nil {
+			return err
+		}
+		return notifyUser(ctx, e.SellerID, model.NotificationSceneOrderRefunded, "售后已关闭", fmt.Sprintf("订单 %d 的售后已由平台关闭。", e.OrderNum), map[string]any{
+			"order_id":  e.OrderID,
+			"order_num": e.OrderNum,
+			"note":      e.Note,
+		})
 	case OrderReceived:
 		return notifyUser(ctx, e.SellerID, model.NotificationSceneSettlement, "订单已确认收货", fmt.Sprintf("订单 %d 已确认收货，结算金额已进入可结算。", e.OrderNum), map[string]any{
 			"order_id":  e.OrderID,

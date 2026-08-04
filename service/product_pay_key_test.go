@@ -40,7 +40,10 @@ func TestEnsureSellerCanChangeSaleStatusAllowsDisablingWithoutSellerProfile(t *t
 }
 
 func TestEnsureSellerCanEnableTrading(t *testing.T) {
-	user := &model.User{PayKeySet: true}
+	user := &model.User{}
+	if err := user.SetInitialMoneyWithPayKey("123456"); err != nil {
+		t.Fatalf("expected pay key setup to pass, got %v", err)
+	}
 	if err := ensureSellerCanEnableTrading(user, true); err != nil {
 		t.Fatalf("expected seller with pay key to enable trading, got %v", err)
 	}

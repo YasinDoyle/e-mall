@@ -82,6 +82,12 @@ var MsgFlags = map[int]string{
 	ErrorSellerWithdrawStatusInvalid:       "提现单状态不允许操作",
 	ErrorSellerWithdrawReasonMissing:       "拒绝原因不能为空",
 	ErrorSellerWithdrawNotFound:            "提现单不存在",
+	ErrorOrderStatusTransitionInvalid:      "订单状态不允许该操作",
+	ErrorPaymentAmountMismatch:             "支付回调金额不匹配",
+	ErrorAfterSaleStatusInvalid:            "售后状态不允许该操作",
+	ErrorAfterSaleNotFound:                 "售后单不存在",
+	ErrorAfterSaleActionInvalid:            "售后操作不正确",
+	ErrorAfterSalePermissionDenied:         "无权限处理该售后单",
 }
 
 var LocaleMsgFlags = map[string]map[int]string{
@@ -165,6 +171,12 @@ var LocaleMsgFlags = map[string]map[int]string{
 		ErrorSellerWithdrawStatusInvalid:       "Withdrawal status does not allow this operation",
 		ErrorSellerWithdrawReasonMissing:       "Rejection reason is required",
 		ErrorSellerWithdrawNotFound:            "Withdrawal request does not exist",
+		ErrorOrderStatusTransitionInvalid:      "Order status does not allow this operation",
+		ErrorPaymentAmountMismatch:             "Payment callback amount does not match",
+		ErrorAfterSaleStatusInvalid:            "After-sale status does not allow this operation",
+		ErrorAfterSaleNotFound:                 "After-sale request does not exist",
+		ErrorAfterSaleActionInvalid:            "Invalid after-sale action",
+		ErrorAfterSalePermissionDenied:         "You do not have permission to handle this after-sale request",
 	},
 }
 
@@ -245,6 +257,12 @@ var MsgKeys = map[int]string{
 	ErrorSellerWithdrawStatusInvalid:       "seller_withdraw.status_invalid",
 	ErrorSellerWithdrawReasonMissing:       "seller_withdraw.reason_missing",
 	ErrorSellerWithdrawNotFound:            "seller_withdraw.not_found",
+	ErrorOrderStatusTransitionInvalid:      "order.status_transition_invalid",
+	ErrorPaymentAmountMismatch:             "payment.amount_mismatch",
+	ErrorAfterSaleStatusInvalid:            "after_sale.status_invalid",
+	ErrorAfterSaleNotFound:                 "after_sale.not_found",
+	ErrorAfterSaleActionInvalid:            "after_sale.action_invalid",
+	ErrorAfterSalePermissionDenied:         "after_sale.permission_denied",
 }
 
 // GetMsg 获取状态码对应信息

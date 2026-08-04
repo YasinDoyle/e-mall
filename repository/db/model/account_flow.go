@@ -6,6 +6,7 @@ const (
 	AccountFlowTypeBuyerPay               = "buyer_pay"
 	AccountFlowTypeSellerPending          = "seller_pending"
 	AccountFlowTypeSellerSettlementCredit = "seller_settlement_credit"
+	AccountFlowTypeSellerSettlementDebit  = "seller_settlement_debit"
 	AccountFlowTypePlatformCommission     = "platform_commission"
 	AccountFlowTypeSettlementPaid         = "settlement_paid"
 	AccountFlowTypeRefund                 = "refund"

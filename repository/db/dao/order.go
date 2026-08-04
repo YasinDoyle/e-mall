@@ -76,7 +76,12 @@ func buildListOrderByConditionQuery(db *gorm.DB, uid uint, req *types.OrderListR
 			"o.money AS money," +
 			"o.refund_status AS refund_status," +
 			"o.refund_reason AS refund_reason," +
+			"o.payment_channel AS payment_channel," +
+			"o.logistics_company AS logistics_company," +
 			"o.tracking_no AS tracking_no," +
+			"IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at," +
 			"p.name AS name," +
 			"p.discount_price AS discount_price," +
 			"p.img_path AS img_path," +
@@ -127,7 +132,12 @@ func buildListOrderByBossQuery(db *gorm.DB, bossID uint, req *types.SellerOrderL
 			"o.money AS money," +
 			"o.refund_status AS refund_status," +
 			"o.refund_reason AS refund_reason," +
+			"o.payment_channel AS payment_channel," +
+			"o.logistics_company AS logistics_company," +
 			"o.tracking_no AS tracking_no," +
+			"IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at," +
 			"p.name AS name," +
 			"p.discount_price AS discount_price," +
 			"p.img_path AS img_path," +
@@ -180,7 +190,12 @@ func (dao *OrderDao) ListOrdersAdmin(req *types.AdminOrderListReq) (r []*types.O
 			o.money AS money,
 			o.refund_status AS refund_status,
 			o.refund_reason AS refund_reason,
+			o.payment_channel AS payment_channel,
+			o.logistics_company AS logistics_company,
 			o.tracking_no AS tracking_no,
+			IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at,
+			IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at,
+			IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at,
 			p.name AS name,
 			p.discount_price AS discount_price,
 			p.img_path AS img_path,
@@ -236,7 +251,48 @@ func (dao *OrderDao) ShowOrderById(id, uId uint) (r *types.OrderListResp, err er
 			"o.money AS money," +
 			"o.refund_status AS refund_status," +
 			"o.refund_reason AS refund_reason," +
+			"o.payment_channel AS payment_channel," +
+			"o.logistics_company AS logistics_company," +
 			"o.tracking_no AS tracking_no," +
+			"IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at," +
+			"p.name AS name," +
+			"p.discount_price AS discount_price," +
+			"p.img_path AS img_path," +
+			"a.name AS address_name," +
+			"a.phone AS address_phone," +
+			"a.address AS address").
+		Take(r).Error
+
+	return
+}
+
+func (dao *OrderDao) ShowOrderByIdForAdmin(id uint) (r *types.OrderListResp, err error) {
+	r = &types.OrderListResp{}
+	err = dao.DB.Table("`order` AS o").
+		Joins("LEFT JOIN product AS p ON p.id = o.product_id").
+		Joins("LEFT JOIN address AS a ON a.id = o.address_id").
+		Where("o.id = ?", id).
+		Where("o.deleted_at IS NULL").
+		Select("o.id AS id," +
+			"o.order_num AS order_num," +
+			"UNIX_TIMESTAMP(o.created_at) AS created_at," +
+			"UNIX_TIMESTAMP(o.updated_at) AS updated_at," +
+			"o.user_id AS user_id," +
+			"o.product_id AS product_id," +
+			"o.boss_id AS boss_id," +
+			"o.num AS num," +
+			"o.type AS type," +
+			"o.money AS money," +
+			"o.refund_status AS refund_status," +
+			"o.refund_reason AS refund_reason," +
+			"o.payment_channel AS payment_channel," +
+			"o.logistics_company AS logistics_company," +
+			"o.tracking_no AS tracking_no," +
+			"IFNULL(UNIX_TIMESTAMP(o.shipped_at), 0) AS shipped_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.received_at), 0) AS received_at," +
+			"IFNULL(UNIX_TIMESTAMP(o.canceled_at), 0) AS canceled_at," +
 			"p.name AS name," +
 			"p.discount_price AS discount_price," +
 			"p.img_path AS img_path," +
@@ -269,11 +325,16 @@ func (dao *OrderDao) UpdateOrderById(id, uId uint, order *model.Order) error {
 }
 
 func (dao *OrderDao) UpdateOrderPaidById(id, uId uint, paidAt time.Time) error {
+	return dao.UpdateOrderPaidByChannel(id, uId, paidAt, consts.OrderPaymentChannelBalance)
+}
+
+func (dao *OrderDao) UpdateOrderPaidByChannel(id, uId uint, paidAt time.Time, channel string) error {
 	result := dao.DB.Model(&model.Order{}).
-		Where("id = ? AND user_id = ? AND type = ?", id, uId, 1).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, consts.OrderTypeUnPaid).
 		Updates(map[string]interface{}{
-			"type":    2,
-			"paid_at": paidAt,
+			"type":            2,
+			"paid_at":         paidAt,
+			"payment_channel": channel,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -299,12 +360,14 @@ func (dao *OrderDao) UpdateOrderTypeByBoss(id, bossId, fromType, toType uint) er
 	return nil
 }
 
-func (dao *OrderDao) UpdateOrderShippingByBoss(id, bossId uint, trackingNo string) error {
+func (dao *OrderDao) UpdateOrderShippingByBoss(id, bossId uint, logisticsCompany, trackingNo string, shippedAt time.Time) error {
 	result := dao.DB.Model(&model.Order{}).
 		Where("id = ? AND boss_id = ? AND type = ?", id, bossId, consts.OrderTypePendingShipping).
 		Updates(map[string]interface{}{
-			"type":        consts.OrderTypeShipping,
-			"tracking_no": trackingNo,
+			"type":              consts.OrderTypeShipping,
+			"logistics_company": logisticsCompany,
+			"tracking_no":       trackingNo,
+			"shipped_at":        shippedAt,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -330,9 +393,66 @@ func (dao *OrderDao) UpdateOrderTypeByUser(id, uId, fromType, toType uint) error
 	return nil
 }
 
+func (dao *OrderDao) UpdateOrderReceivedByUser(id, uId uint, receivedAt time.Time) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, consts.OrderTypeShipping).
+		Updates(map[string]interface{}{
+			"type":        consts.OrderTypeReceipt,
+			"received_at": receivedAt,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) CancelUnpaidOrderByUser(id, uId uint, canceledAt time.Time) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND user_id = ? AND type = ?", id, uId, consts.OrderTypeUnPaid).
+		Updates(map[string]interface{}{
+			"type":        consts.OrderTypeCanceled,
+			"canceled_at": canceledAt,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
 func (dao *OrderDao) RequestRefundByUser(id, uId uint, reason string) error {
 	result := dao.DB.Model(&model.Order{}).
 		Where("id = ? AND user_id = ? AND type IN ?", id, uId, []uint{
+			consts.OrderTypePendingShipping,
+			consts.OrderTypeShipping,
+			consts.OrderTypeReceipt,
+		}).
+		Where("refund_status = ?", consts.OrderRefundStatusNone).
+		Updates(map[string]interface{}{
+			"type":          consts.OrderTypeRefundRequested,
+			"refund_status": consts.OrderRefundStatusRequested,
+			"refund_reason": reason,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (dao *OrderDao) RequestRefundForAfterSale(id uint, reason string) error {
+	result := dao.DB.Model(&model.Order{}).
+		Where("id = ? AND type IN ?", id, []uint{
 			consts.OrderTypePendingShipping,
 			consts.OrderTypeShipping,
 			consts.OrderTypeReceipt,

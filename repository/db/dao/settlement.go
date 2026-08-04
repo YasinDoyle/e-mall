@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/YasinDoyle/e-mall/consts"
 	"github.com/YasinDoyle/e-mall/repository/db/model"
@@ -63,14 +64,18 @@ func (dao *SettlementDao) GetByID(id uint) (*model.Settlement, error) {
 	return &settlement, err
 }
 
+func (dao *SettlementDao) GetByOrderIDForUpdate(orderID uint) (*model.Settlement, error) {
+	var settlement model.Settlement
+	err := dao.DB.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("order_id = ?", orderID).
+		First(&settlement).Error
+	return &settlement, err
+}
+
 func (dao *SettlementDao) GenerateCompletedForSeller(sellerID uint) (int64, error) {
 	result := dao.DB.Model(&model.Settlement{}).
 		Where("seller_id = ? AND status = ?", sellerID, model.SettlementStatusPending).
-		Where("order_id IN (?)",
-			dao.DB.Model(&model.Order{}).
-				Select("id").
-				Where("boss_id = ? AND type = ? AND refund_status = ?", sellerID, consts.OrderTypeReceipt, consts.OrderRefundStatusNone),
-		).
+		Where("order_id IN (?)", buildGenerateCompletedForSellerOrderSubquery(dao.DB, sellerID)).
 		Update("status", model.SettlementStatusGenerated)
 	return result.RowsAffected, result.Error
 }
@@ -84,13 +89,8 @@ func (dao *SettlementDao) GenerateCompletedByID(id uint) (*model.Settlement, err
 		if settlement.Status != model.SettlementStatusPending {
 			return gorm.ErrRecordNotFound
 		}
-		var order model.Order
-		if err := tx.Where("id = ? AND boss_id = ? AND type = ? AND refund_status = ?",
-			settlement.OrderID,
-			settlement.SellerID,
-			consts.OrderTypeReceipt,
-			consts.OrderRefundStatusNone,
-		).First(&order).Error; err != nil {
+		if err := buildSettlementReadyOrderQuery(tx, settlement.OrderID, settlement.SellerID).
+			First(&model.Order{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(&model.Settlement{}).
@@ -105,8 +105,7 @@ func (dao *SettlementDao) GenerateCompletedByID(id uint) (*model.Settlement, err
 }
 
 func (dao *SettlementDao) GenerateCompletedForOrder(orderID uint) error {
-	return dao.DB.Model(&model.Settlement{}).
-		Where("order_id = ? AND status = ?", orderID, model.SettlementStatusPending).
+	return buildGenerateCompletedForOrderQuery(dao.DB, orderID).
 		Update("status", model.SettlementStatusGenerated).Error
 }
 
@@ -173,6 +172,10 @@ func (dao *SettlementDao) MarkPaid(id uint) (*model.Settlement, error) {
 		if settlement.Status != model.SettlementStatusGenerated {
 			return gorm.ErrRecordNotFound
 		}
+		if err := buildSettlementMarkPaidReadyOrderQuery(tx, &settlement).
+			First(&model.Order{}).Error; err != nil {
+			return err
+		}
 		now := time.Now().Unix()
 		if err := tx.Model(&model.Settlement{}).
 			Where("id = ? AND status = ?", id, model.SettlementStatusGenerated).
@@ -190,10 +193,62 @@ func (dao *SettlementDao) MarkPaid(id uint) (*model.Settlement, error) {
 }
 
 func (dao *SettlementDao) MarkRefundedByOrderID(orderID uint) error {
-	return dao.DB.Model(&model.Settlement{}).
+	return buildMarkRefundedByOrderIDQuery(dao.DB, orderID).
+		Update("status", model.SettlementStatusRefunded).Error
+}
+
+func buildGenerateCompletedForOrderQuery(db *gorm.DB, orderID uint) *gorm.DB {
+	return db.Model(&model.Settlement{}).
+		Where("order_id = ? AND status = ?", orderID, model.SettlementStatusPending).
+		Where("NOT EXISTS (?)", activeAfterSaleSubquery(db, "settlement.order_id"))
+}
+
+func buildSettlementReadyOrderQuery(db *gorm.DB, orderID, sellerID uint) *gorm.DB {
+	return db.Table("`order` AS o").
+		Where("o.id = ? AND o.boss_id = ? AND o.type = ? AND o.refund_status = ?",
+			orderID,
+			sellerID,
+			consts.OrderTypeReceipt,
+			consts.OrderRefundStatusNone,
+		).
+		Where("NOT EXISTS (?)", activeAfterSaleSubquery(db, "o.id"))
+}
+
+func buildSettlementMarkPaidReadyOrderQuery(db *gorm.DB, settlement *model.Settlement) *gorm.DB {
+	if settlement == nil {
+		return buildSettlementReadyOrderQuery(db, 0, 0)
+	}
+	return buildSettlementReadyOrderQuery(db, settlement.OrderID, settlement.SellerID)
+}
+
+func buildGenerateCompletedForSellerOrderSubquery(db *gorm.DB, sellerID uint) *gorm.DB {
+	return db.Table("`order` AS o").
+		Select("o.id").
+		Where("o.boss_id = ? AND o.type = ? AND o.refund_status = ?",
+			sellerID,
+			consts.OrderTypeReceipt,
+			consts.OrderRefundStatusNone,
+		).
+		Where("NOT EXISTS (?)", activeAfterSaleSubquery(db, "o.id"))
+}
+
+func buildMarkRefundedByOrderIDQuery(db *gorm.DB, orderID uint) *gorm.DB {
+	return db.Model(&model.Settlement{}).
 		Where("order_id = ? AND status IN ?", orderID, []string{
 			model.SettlementStatusPending,
 			model.SettlementStatusGenerated,
-		}).
-		Update("status", model.SettlementStatusRefunded).Error
+			model.SettlementStatusPaid,
+		})
+}
+
+func activeAfterSaleSubquery(db *gorm.DB, orderIDColumn string) *gorm.DB {
+	return db.Session(&gorm.Session{NewDB: true}).
+		Table("after_sale AS af").
+		Select("1").
+		Where("af.order_id = "+orderIDColumn).
+		Where("af.deleted_at IS NULL").
+		Where("af.status NOT IN ?", []string{
+			consts.AfterSaleStatusRefunded,
+			consts.AfterSaleStatusClosed,
+		})
 }

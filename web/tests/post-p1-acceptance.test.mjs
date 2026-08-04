@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, beforeEach } from "node:test";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -36,14 +37,26 @@ class MemoryStorage {
   }
 }
 
+async function loadTranspiledModule(sourcePath) {
+  const source = readFileSync(sourcePath, "utf8");
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.ESNext,
+      sourceMap: false,
+    },
+    fileName: sourcePath,
+  }).outputText;
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(transpiled).toString("base64")}`;
+  return import(moduleUrl);
+}
+
 async function loadUserSessionModule() {
-  const modulePath = `${resolve(root, "src/utils/session.ts")}?t=${Date.now()}-${Math.random()}`;
-  return import(modulePath);
+  return loadTranspiledModule(resolve(root, "src/utils/session.ts"));
 }
 
 async function loadAdminSessionModule() {
-  const modulePath = `${resolve(root, "../web-admin/src/utils/session.ts")}?t=${Date.now()}-${Math.random()}`;
-  return import(modulePath);
+  return loadTranspiledModule(resolve(root, "../web-admin/src/utils/session.ts"));
 }
 
 function seedUserSessions() {

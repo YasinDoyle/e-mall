@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/spf13/cast"
 
 	"github.com/YasinDoyle/e-mall/consts"
+	"github.com/YasinDoyle/e-mall/repository/cache"
 	"github.com/YasinDoyle/e-mall/repository/db/dao"
 	"github.com/YasinDoyle/e-mall/types"
 	"github.com/YasinDoyle/e-mall/utils/ctl"
@@ -18,6 +21,12 @@ var MoneySrvIns *MoneySrv
 var MoneySrvOnce sync.Once
 
 type MoneySrv struct {
+}
+
+const moneyViewAuthTTL = 10 * time.Minute
+
+func moneyViewAuthKey(userID uint) string {
+	return fmt.Sprintf("money:view-auth:%d", userID)
 }
 
 func GetMoneySrv() *MoneySrv {
@@ -43,9 +52,21 @@ func (s *MoneySrv) MoneyShow(ctx context.Context, req *types.MoneyShowReq) (resp
 		err = errors.New("请先设置支付密码")
 		return
 	}
-	money, err := user.DecryptMoney(req.Key)
-	if err != nil {
+	if req.Key == "" {
+		ok := hasRecentMoneyViewAuth(ctx, user.ID)
+		if !ok {
+			err = errors.New("请输入支付密码")
+			return
+		}
+	} else if !user.CheckPayKey(req.Key) {
 		err = errors.New("支付密码错误")
+		return
+	} else {
+		rememberMoneyViewAuth(ctx, user.ID)
+	}
+	money, err := user.DecryptMoney()
+	if err != nil {
+		log.LogrusObj.Error(err)
 		return
 	}
 	resp = &types.MoneyShowResp{
@@ -55,6 +76,23 @@ func (s *MoneySrv) MoneyShow(ctx context.Context, req *types.MoneyShowReq) (resp
 	}
 
 	return
+}
+
+func hasRecentMoneyViewAuth(ctx context.Context, userID uint) bool {
+	if cache.RedisClient == nil {
+		return false
+	}
+	ok, err := cache.RedisClient.Exists(ctx, moneyViewAuthKey(userID)).Result()
+	return err == nil && ok > 0
+}
+
+func rememberMoneyViewAuth(ctx context.Context, userID uint) {
+	if cache.RedisClient == nil {
+		return
+	}
+	if err := cache.RedisClient.Set(ctx, moneyViewAuthKey(userID), "1", moneyViewAuthTTL).Err(); err != nil {
+		log.LogrusObj.Error(err)
+	}
 }
 
 func (s *MoneySrv) SetPayKey(ctx context.Context, req *types.MoneySetPayKeyReq) (resp interface{}, err error) {

@@ -197,6 +197,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
+  getAdminAfterSaleList,
   getAdminOrderList,
   getAdminProductList,
 } from "@/api";
@@ -282,18 +283,41 @@ async function refreshPendingMenuCounts() {
     pendingMenuCounts.withdraw = 0;
     return;
   }
-  const [product, seller, order, settlement, withdraw] =
+  const [
+    product,
+    seller,
+    refundOrderCount,
+    afterSaleRequested,
+    afterSaleApproved,
+    afterSaleRejected,
+    afterSaleIntervening,
+    settlement,
+    withdraw,
+  ] =
     await Promise.allSettled([
       getAdminProductList({ page_num: 1, page_size: 1, audit_status: 0 }),
       getAdminSellerList({ page_num: 1, page_size: 1, status: 0 }),
       getAdminOrderList({ page_num: 1, page_size: 1, refund_status: 1 }),
+      getAdminAfterSaleList({ page_num: 1, page_size: 1, status: "requested" }),
+      getAdminAfterSaleList({ page_num: 1, page_size: 1, status: "seller_approved" }),
+      getAdminAfterSaleList({ page_num: 1, page_size: 1, status: "seller_rejected" }),
+      getAdminAfterSaleList({ page_num: 1, page_size: 1, status: "platform_intervening" }),
       getAdminSettlementList({ page_num: 1, page_size: 1, status: "pending" }),
       getAdminSellerWithdrawList({ page_num: 1, page_size: 1, status: "pending" }),
     ]);
 
   if (product.status === "fulfilled") pendingMenuCounts.product = listTotal(product.value);
   if (seller.status === "fulfilled") pendingMenuCounts.seller = listTotal(seller.value);
-  if (order.status === "fulfilled") pendingMenuCounts.order = listTotal(order.value);
+  pendingMenuCounts.order = [
+    refundOrderCount,
+    afterSaleRequested,
+    afterSaleApproved,
+    afterSaleRejected,
+    afterSaleIntervening,
+  ].reduce(
+    (sum, result) => sum + (result.status === "fulfilled" ? listTotal(result.value) : 0),
+    0,
+  );
   if (settlement.status === "fulfilled") pendingMenuCounts.settlement = listTotal(settlement.value);
   if (withdraw.status === "fulfilled") pendingMenuCounts.withdraw = listTotal(withdraw.value);
 }
